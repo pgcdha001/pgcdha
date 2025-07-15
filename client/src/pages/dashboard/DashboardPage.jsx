@@ -1,43 +1,45 @@
 import React from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { usePermissions } from '../../hooks/usePermissions';
+import SuperAdminDashboard from './SuperAdminDashboard';
+import CollegeAdminDashboard from './CollegeAdminDashboard';
+import TeacherDashboard from './TeacherDashboard';
+import StudentDashboard from './StudentDashboard';
+import FinanceAdminDashboard from './FinanceAdminDashboard';
+import ReceptionistDashboard from './ReceptionistDashboard';
 
 const DashboardPage = () => {
   const { user } = useAuth();
-  const { hasPermission } = usePermissions();
-
-  // Debug: Log user data to console
-  console.log('Dashboard User Data:', {
-    user,
-    userRole: user?.role,
-    userRoles: user?.roles,
-    permissions: user?.permissions,
-    hasPermissions: {
-      super_admin: hasPermission('super_admin'),
-      manage_students: hasPermission('manage_students')
-    }
-  });
 
   const getDashboardContent = () => {
-    // First check by role field (string)
-    if (user?.role === 'SystemAdmin' || hasPermission('super_admin')) {
-      return <SuperAdminDashboard />;
-    } else if (user?.role === 'CollegeAdmin' || hasPermission('manage_users')) {
-      return <CollegeAdminDashboard />;
-    } else if (user?.role === 'Teacher' || hasPermission('manage_students')) {
-      return <TeacherDashboard />;
-    } else if (user?.role === 'Student') {
-      return <StudentDashboard />;
-    } else if (user?.role === 'SRO' || hasPermission('manage_fees')) {
-      return <SRODashboard />;
-    } else if (user?.role === 'Accounts' || hasPermission('view_payments')) {
-      return <AccountsDashboard />;
-    } else if (user?.role === 'IT' || hasPermission('system_settings')) {
-      return <ITDashboard />;
-    } else if (user?.role === 'EMS' || hasPermission('manage_schedules')) {
-      return <EMSDashboard />;
-    } else {
-      return <DefaultDashboard />;
+    if (!user) {
+      return <div>Loading...</div>;
+    }
+
+    // Debug logging to check user role
+    console.log('User object:', user);
+    console.log('User role:', user.role);
+    console.log('Role type:', typeof user.role);
+
+    // Role-based dashboard routing
+    switch (user.role) {
+      case 'SystemAdmin':
+        console.log('Rendering SuperAdminDashboard');
+        return <SuperAdminDashboard />;
+      case 'College Admin':
+        return <CollegeAdminDashboard />;
+      case 'Academic Admin':
+        return <CollegeAdminDashboard />; // Academic Admin uses College Admin dashboard
+      case 'Teacher':
+        return <TeacherDashboard />;
+      case 'Student':
+        return <StudentDashboard />;
+      case 'Finance Admin':
+        return <FinanceAdminDashboard />;
+      case 'Receptionist':
+        return <ReceptionistDashboard />;
+      default:
+        console.log('No role match found, using DefaultDashboard. Role was:', user.role);
+        return <DefaultDashboard />;
     }
   };
 
@@ -51,10 +53,6 @@ const DashboardPage = () => {
           <p className="mt-2 text-sm text-gray-600">
             Role: {user?.role} • Punjab Group of Colleges - DHA Campus
           </p>
-          {/* Debug info - remove in production */}
-          <div className="mt-2 text-xs text-gray-500 bg-gray-100 p-2 rounded">
-            Debug: Role = {user?.role}, Permissions = {JSON.stringify(user?.permissions?.slice(0, 3))}
-          </div>
         </div>
 
         {getDashboardContent()}
@@ -63,295 +61,14 @@ const DashboardPage = () => {
   );
 };
 
-const SuperAdminDashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <DashboardCard
-        title="Total Institutes"
-        value="24"
-        icon="🏫"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Total Users"
-        value="1,234"
-        icon="👥"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Active Sessions"
-        value="156"
-        icon="🔐"
-        color="bg-yellow-500"
-      />
-      <DashboardCard
-        title="System Health"
-        value="99.9%"
-        icon="⚡"
-        color="bg-purple-500"
-      />
-    </div>
-  );
-};
-
-const CollegeAdminDashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <DashboardCard
-        title="Total Students"
-        value="456"
-        icon="🎓"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Total Teachers"
-        value="32"
-        icon="👨‍🏫"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Active Courses"
-        value="18"
-        icon="📚"
-        color="bg-yellow-500"
-      />
-      <DashboardCard
-        title="Pending Approvals"
-        value="7"
-        icon="⏳"
-        color="bg-red-500"
-      />
-    </div>
-  );
-};
-
-const TeacherDashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-      <DashboardCard
-        title="My Classes"
-        value="6"
-        icon="📖"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Total Students"
-        value="124"
-        icon="👨‍🎓"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Pending Grades"
-        value="23"
-        icon="📝"
-        color="bg-yellow-500"
-      />
-    </div>
-  );
-};
-
-const StudentDashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-      <DashboardCard
-        title="Enrolled Courses"
-        value="8"
-        icon="📚"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Completed Assignments"
-        value="45"
-        icon="✅"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Upcoming Exams"
-        value="3"
-        icon="📅"
-        color="bg-yellow-500"
-      />
-    </div>
-  );
-};
-
-const SRODashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <DashboardCard
-        title="Pending Admissions"
-        value="12"
-        icon="📝"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Verified Documents"
-        value="45"
-        icon="✅"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Registration Forms"
-        value="8"
-        icon="📄"
-        color="bg-yellow-500"
-      />
-      <DashboardCard
-        title="Interview Scheduled"
-        value="6"
-        icon="🗓️"
-        color="bg-purple-500"
-      />
-    </div>
-  );
-};
-
-const AccountsDashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <DashboardCard
-        title="Monthly Revenue"
-        value="₨2.4M"
-        icon="💰"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Pending Fees"
-        value="₨180K"
-        icon="⏳"
-        color="bg-red-500"
-      />
-      <DashboardCard
-        title="Paid Students"
-        value="234"
-        icon="✅"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Defaulters"
-        value="12"
-        icon="⚠️"
-        color="bg-yellow-500"
-      />
-    </div>
-  );
-};
-
-const ITDashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <DashboardCard
-        title="System Uptime"
-        value="99.9%"
-        icon="⚡"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Active Users"
-        value="156"
-        icon="👥"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Storage Used"
-        value="75%"
-        icon="💾"
-        color="bg-yellow-500"
-      />
-      <DashboardCard
-        title="Open Tickets"
-        value="3"
-        icon="🎫"
-        color="bg-red-500"
-      />
-    </div>
-  );
-};
-
-const EMSDashboard = () => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <DashboardCard
-        title="Total Events"
-        value="24"
-        icon="🎉"
-        color="bg-purple-500"
-      />
-      <DashboardCard
-        title="Upcoming Events"
-        value="5"
-        icon="📅"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Active Registrations"
-        value="89"
-        icon="📝"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Venue Bookings"
-        value="12"
-        icon="🏢"
-        color="bg-yellow-500"
-      />
-    </div>
-  );
-};
-
+// Default dashboard for unknown roles
 const DefaultDashboard = () => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <DashboardCard
-        title="Welcome"
-        value="👋"
-        icon="🎯"
-        color="bg-gray-500"
-      />
-      <DashboardCard
-        title="Access Level"
-        value="Basic"
-        icon="🔐"
-        color="bg-blue-500"
-      />
-      <DashboardCard
-        title="Last Login"
-        value="Today"
-        icon="⏰"
-        color="bg-green-500"
-      />
-      <DashboardCard
-        title="Profile"
-        value="View"
-        icon="👤"
-        color="bg-purple-500"
-      />
-    </div>
-  );
-};
-
-const DashboardCard = ({ title, value, icon, color }) => {
-  return (
-    <div className="bg-white overflow-hidden shadow rounded-lg">
-      <div className="p-5">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <div className={`${color} rounded-md p-3 text-white text-2xl`}>
-              {icon}
-            </div>
-          </div>
-          <div className="ml-5 w-0 flex-1">
-            <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate">
-                {title}
-              </dt>
-              <dd className="text-lg font-medium text-gray-900">
-                {value}
-              </dd>
-            </dl>
-          </div>
-        </div>
-      </div>
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Welcome to PGC Dashboard</h2>
+      <p className="text-gray-600">
+        Your role-specific dashboard is being prepared. Please contact the administrator if you continue to see this message.
+      </p>
     </div>
   );
 };

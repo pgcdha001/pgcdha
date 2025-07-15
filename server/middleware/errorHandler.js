@@ -1,5 +1,3 @@
-const AuditLog = require('../models/AuditLog');
-
 /**
  * Global error handling middleware
  */
@@ -80,53 +78,13 @@ const errorHandler = async (err, req, res, next) => {
 
   // Log critical errors
   if (statusCode >= 500) {
-    try {
-      // Only log if we have user context, otherwise just console.error
-      if (req.user && req.user._id && req.user.institute) {
-        await AuditLog.logAction({
-          user: req.user._id,
-          institute: req.user.institute,
-          action: 'SYSTEM_ERROR',
-          resource: {
-            type: 'System',
-            name: 'Error Handler'
-          },
-          details: {
-            description: 'Internal server error occurred',
-            metadata: {
-              error: {
-                name: err.name,
-                message: err.message,
-                stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-              },
-              endpoint: req.originalUrl,
-              method: req.method,
-              body: req.body,
-              params: req.params,
-              query: req.query
-            }
-          },
-          requestInfo: {
-            ipAddress: req.ip || req.connection.remoteAddress,
-            userAgent: req.headers['user-agent'],
-            endpoint: req.originalUrl,
-            method: req.method,
-            sessionId: req.session?._id
-          },
-          result: {
-            status: 'FAILED',
-            statusCode,
-            errorMessage: message
-          },
-          security: {
-            riskLevel: 'HIGH',
-            requiresReview: true
-          }
-        });
-      }
-    } catch (logError) {
-      console.error('Failed to log error:', logError);
-    }
+    console.error('Critical error occurred:', {
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      endpoint: req.originalUrl,
+      method: req.method,
+      userId: req.user?._id
+    });
   }
 
   // Prepare response

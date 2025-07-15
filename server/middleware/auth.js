@@ -1,5 +1,4 @@
 const jwtService = require('../services/jwtService');
-const AuditLog = require('../models/AuditLog');
 
 /**
  * Authentication middleware to verify JWT tokens
@@ -26,37 +25,13 @@ const authenticate = async (req, res, next) => {
     
     if (!validation.valid) {
       // Log suspicious activity
-      await AuditLog.logAction({
-        user: decoded.userId || null,
-        action: 'INVALID_TOKEN_ACCESS',
-        resource: {
-          type: 'System',
-          name: 'Authentication'
-        },
-        details: {
-          description: 'Attempted access with invalid token',
-          metadata: {
-            reason: validation.reason,
-            tokenPayload: {
-              userId: decoded.userId,
-              sessionId: decoded.sessionId
-            }
-          }
-        },
-        requestInfo: {
-          ipAddress: req.ip || req.connection.remoteAddress,
-          userAgent: req.headers['user-agent'],
-          endpoint: req.originalUrl,
-          method: req.method
-        },
-        result: {
-          status: 'FAILED',
-          errorMessage: validation.reason
-        },
-        security: {
-          riskLevel: 'MEDIUM',
-          requiresReview: true
-        }
+      console.error('Authentication failed:', {
+        reason: validation.reason,
+        userId: decoded.userId,
+        sessionId: decoded.sessionId,
+        endpoint: req.originalUrl,
+        method: req.method,
+        ip: req.ip
       });
 
       return res.status(401).json({
@@ -77,32 +52,11 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     // Log authentication error
-    await AuditLog.logAction({
-      user: null,
-      action: 'AUTHENTICATION_ERROR',
-      resource: {
-        type: 'System',
-        name: 'Authentication'
-      },
-      details: {
-        description: 'Authentication middleware error',
-        metadata: {
-          error: error.message
-        }
-      },
-      requestInfo: {
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.headers['user-agent'],
-        endpoint: req.originalUrl,
-        method: req.method
-      },
-      result: {
-        status: 'FAILED',
-        errorMessage: error.message
-      },
-      security: {
-        riskLevel: 'MEDIUM'
-      }
+    console.error('Authentication error:', {
+      error: error.message,
+      endpoint: req.originalUrl,
+      method: req.method,
+      ip: req.ip
     });
 
     return res.status(401).json({

@@ -108,16 +108,21 @@ const userSchema = new mongoose.Schema({
     }
   },
   
-  // Role & Permissions - Updated to use flexible role system
-  roles: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'RolePermission',
-    required: true
-  }],
-  // Legacy role field for backward compatibility (auto-populated from roles)
+  // Simple role field
   role: {
     type: String,
+    enum: ['Super Admin', 'College Admin', 'Academic Admin', 'Teacher', 'Student', 'Finance Admin', 'Receptionist'],
     default: 'Student'
+  },
+
+  // User Status
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isApproved: {
+    type: Boolean,
+    default: false
   },
 
   // Family & Background Information

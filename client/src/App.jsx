@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import AuthenticatedRoute from './components/AuthenticatedRoute';
 import Layout from './components/layout/Layout';
 
 // Auth pages
@@ -13,6 +13,9 @@ import ProfilePage from './pages/auth/ProfilePage';
 
 // Dashboard
 import DashboardPage from './pages/dashboard/DashboardPage';
+
+// Admin pages
+import SuperAdminPage from './pages/admin/SuperAdminPage';
 
 const App = () => {
   return (
@@ -27,86 +30,95 @@ const App = () => {
           
           {/* Protected routes */}
           <Route path="/dashboard" element={
-            <ProtectedRoute>
+            <AuthenticatedRoute>
               <Layout>
                 <DashboardPage />
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
           
           <Route path="/profile" element={
-            <ProtectedRoute>
+            <AuthenticatedRoute>
               <Layout>
                 <ProfilePage />
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
 
-          {/* Placeholder routes for future pages */}
+          {/* Admin routes */}
+          <Route path="/admin" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <SuperAdminPage />
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Future feature placeholders */}
           <Route path="/institutes" element={
-            <ProtectedRoute requiredPermissions={['super_admin']}>
+            <AuthenticatedRoute>
               <Layout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">Institute Management</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
 
           <Route path="/users" element={
-            <ProtectedRoute requiredPermissions={['manage_users', 'institute_admin']}>
+            <AuthenticatedRoute>
               <Layout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">User Management</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
 
           <Route path="/students" element={
-            <ProtectedRoute requiredPermissions={['manage_students']}>
+            <AuthenticatedRoute>
               <Layout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">Student Management</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
 
           <Route path="/teachers" element={
-            <ProtectedRoute requiredPermissions={['manage_teachers']}>
+            <AuthenticatedRoute>
               <Layout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">Teacher Management</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
 
           <Route path="/courses" element={
-            <ProtectedRoute requiredPermissions={['manage_courses', 'view_courses']}>
+            <AuthenticatedRoute>
               <Layout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">Course Management</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
 
           <Route path="/reports" element={
-            <ProtectedRoute requiredPermissions={['view_reports']}>
+            <AuthenticatedRoute>
               <Layout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">Reports</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
               </Layout>
-            </ProtectedRoute>
+            </AuthenticatedRoute>
           } />
 
           {/* Default redirects */}

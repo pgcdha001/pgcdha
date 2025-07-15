@@ -1,0 +1,616 @@
+import React, { useState, useEffect } from 'react';
+import { X, Eye, EyeOff, Save, User } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { userAPI } from '../../../services/api';
+
+const UserModal = ({ user, mode, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    email: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    gender: '',
+    dateOfBirth: '',
+    cnic: '',
+    primaryPhone: '',
+    secondaryPhone: '',
+    role: 'Student',
+    isActive: true,
+    isApproved: false,
+    fatherName: '',
+    emergencyContactName: '',
+    emergencyContactRelationship: '',
+    emergencyContactPhone: ''
+  });
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const isViewMode = mode === 'view';
+  const isEditMode = mode === 'edit';
+  const isCreateMode = mode === 'create';
+
+  const roles = [
+    'Super Admin',
+    'College Admin', 
+    'Academic Admin',
+    'Teacher',
+    'Student',
+    'Finance Admin',
+    'Receptionist'
+  ];
+
+  const genders = ['Male', 'Female', 'Other'];
+  const relationships = ['Father', 'Mother', 'Brother', 'Sister', 'Uncle', 'Aunt', 'Other'];
+
+  useEffect(() => {
+    if (user && (isEditMode || isViewMode)) {
+      setFormData({
+        email: user.email || '',
+        username: user.username || '',
+        password: '',
+        confirmPassword: '',
+        firstName: user.fullName?.firstName || '',
+        lastName: user.fullName?.lastName || '',
+        gender: user.gender || '',
+        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+        cnic: user.cnic || '',
+        primaryPhone: user.phoneNumbers?.primary || '',
+        secondaryPhone: user.phoneNumbers?.secondary || '',
+        role: user.role || 'Student',
+        isActive: user.isActive ?? true,
+        isApproved: user.isApproved ?? false,
+        fatherName: user.familyInfo?.fatherName || '',
+        emergencyContactName: user.familyInfo?.emergencyContact?.name || '',
+        emergencyContactRelationship: user.familyInfo?.emergencyContact?.relationship || '',
+        emergencyContactPhone: user.familyInfo?.emergencyContact?.phone || ''
+      });
+    }
+  }, [user, isEditMode, isViewMode]);
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Required fields
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    if (!formData.username.trim()) newErrors.username = 'Username is required';
+    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!formData.primaryPhone.trim()) newErrors.primaryPhone = 'Primary phone is required';
+    if (!formData.role) newErrors.role = 'Role is required';
+
+    // Password validation for create mode
+    if (isCreateMode) {
+      if (!formData.password) {
+        newErrors.password = 'Password is required';
+      } else if (formData.password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters';
+      }
+      
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      }
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Phone validation
+    const phoneRegex = /^(\+92|0)?[0-9]{10}$/;
+    if (formData.primaryPhone && !phoneRegex.test(formData.primaryPhone)) {
+      newErrors.primaryPhone = 'Please enter a valid phone number';
+    }
+
+    // CNIC validation
+    const cnicRegex = /^[0-9]{5}-[0-9]{7}-[0-9]$/;
+    if (formData.cnic && !cnicRegex.test(formData.cnic)) {
+      newErrors.cnic = 'Please enter valid CNIC format (12345-1234567-1)';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const userData = {
+        email: formData.email,
+        username: formData.username,
+        fullName: {
+          firstName: formData.firstName,
+          lastName: formData.lastName
+        },
+        gender: formData.gender,
+        dateOfBirth: formData.dateOfBirth,
+        cnic: formData.cnic,
+        phoneNumbers: {
+          primary: formData.primaryPhone,
+          secondary: formData.secondaryPhone
+        },
+        role: formData.role,
+        isActive: formData.isActive,
+        isApproved: formData.isApproved,
+        familyInfo: {
+          fatherName: formData.fatherName,
+          emergencyContact: {
+            name: formData.emergencyContactName,
+            relationship: formData.emergencyContactRelationship,
+            phone: formData.emergencyContactPhone
+          }
+        }
+      };
+
+      if (isCreateMode && formData.password) {
+        userData.password = formData.password;
+      }
+
+      let response;
+      if (isCreateMode) {
+        response = await userAPI.createUser(userData);
+      } else {
+        response = await userAPI.updateUser(user._id, userData);
+      }
+
+      if (response.success) {
+        onSave();
+      } else {
+        setErrors({ submit: response.message || 'Failed to save user' });
+      }
+    } catch (error) {
+      setErrors({ submit: 'An error occurred while saving the user' });
+      console.error('Save user error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center space-x-3">
+            <User className="h-6 w-6 text-blue-600" />
+            <h2 className="text-xl font-semibold text-gray-900">
+              {isCreateMode && 'Create New User'}
+              {isEditMode && 'Edit User'}
+              {isViewMode && 'View User Details'}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto max-h-[calc(90vh-8rem)]">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Error Message */}
+            {errors.submit && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {errors.submit}
+              </div>
+            )}
+
+            {/* Basic Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.email ? 'border-red-300' : 'border-gray-300'
+                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Username *
+                  </label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.username ? 'border-red-300' : 'border-gray-300'
+                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username}</p>}
+                </div>
+
+                {isCreateMode && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Password *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          name="password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors.password ? 'border-red-300' : 'border-gray-300'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Confirm Password *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleInputChange}
+                          className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Personal Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.firstName ? 'border-red-300' : 'border-gray-300'
+                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.firstName && <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.lastName ? 'border-red-300' : 'border-gray-300'
+                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.lastName && <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isViewMode ? 'bg-gray-50' : ''
+                    }`}
+                  >
+                    <option value="">Select Gender</option>
+                    {genders.map(gender => (
+                      <option key={gender} value={gender}>{gender}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    value={formData.dateOfBirth}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isViewMode ? 'bg-gray-50' : ''
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    CNIC
+                  </label>
+                  <input
+                    type="text"
+                    name="cnic"
+                    value={formData.cnic}
+                    onChange={handleInputChange}
+                    placeholder="12345-1234567-1"
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.cnic ? 'border-red-300' : 'border-gray-300'
+                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.cnic && <p className="mt-1 text-sm text-red-600">{errors.cnic}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Role *
+                  </label>
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.role ? 'border-red-300' : 'border-gray-300'
+                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                  >
+                    {roles.map(role => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
+                  </select>
+                  {errors.role && <p className="mt-1 text-sm text-red-600">{errors.role}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Primary Phone *
+                  </label>
+                  <input
+                    type="text"
+                    name="primaryPhone"
+                    value={formData.primaryPhone}
+                    onChange={handleInputChange}
+                    placeholder="+923001234567"
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.primaryPhone ? 'border-red-300' : 'border-gray-300'
+                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.primaryPhone && <p className="mt-1 text-sm text-red-600">{errors.primaryPhone}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Secondary Phone
+                  </label>
+                  <input
+                    type="text"
+                    name="secondaryPhone"
+                    value={formData.secondaryPhone}
+                    onChange={handleInputChange}
+                    placeholder="+923001234567"
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isViewMode ? 'bg-gray-50' : ''
+                    }`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Family Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Family Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Father's Name
+                  </label>
+                  <input
+                    type="text"
+                    name="fatherName"
+                    value={formData.fatherName}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isViewMode ? 'bg-gray-50' : ''
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Emergency Contact Name
+                  </label>
+                  <input
+                    type="text"
+                    name="emergencyContactName"
+                    value={formData.emergencyContactName}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isViewMode ? 'bg-gray-50' : ''
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Emergency Contact Relationship
+                  </label>
+                  <select
+                    name="emergencyContactRelationship"
+                    value={formData.emergencyContactRelationship}
+                    onChange={handleInputChange}
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isViewMode ? 'bg-gray-50' : ''
+                    }`}
+                  >
+                    <option value="">Select Relationship</option>
+                    {relationships.map(relationship => (
+                      <option key={relationship} value={relationship}>{relationship}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Emergency Contact Phone
+                  </label>
+                  <input
+                    type="text"
+                    name="emergencyContactPhone"
+                    value={formData.emergencyContactPhone}
+                    onChange={handleInputChange}
+                    placeholder="+923001234567"
+                    disabled={isViewMode}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isViewMode ? 'bg-gray-50' : ''
+                    }`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Status Information */}
+            {!isCreateMode && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Status</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      checked={formData.isActive}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 text-sm text-gray-700">
+                      Active User
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isApproved"
+                      checked={formData.isApproved}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 text-sm text-gray-700">
+                      Approved User
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* Footer */}
+        {!isViewMode && (
+          <div className="flex justify-end space-x-3 px-6 py-4 border-t bg-gray-50">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex items-center space-x-2"
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              <span>{loading ? 'Saving...' : 'Save User'}</span>
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default UserModal;

@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { usePermissions } from '../../hooks/usePermissions';
 import { Button } from '../ui/button';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { hasPermission } = usePermissions();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -20,45 +18,70 @@ const Layout = ({ children }) => {
     }
   };
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '🏠', show: true },
-    { 
-      name: 'Institute Management', 
-      href: '/institutes', 
-      icon: '🏫', 
-      show: hasPermission('super_admin') 
-    },
-    { 
-      name: 'User Management', 
-      href: '/users', 
-      icon: '👥', 
-      show: hasPermission('manage_users') || hasPermission('institute_admin') 
-    },
-    { 
-      name: 'Students', 
-      href: '/students', 
-      icon: '🎓', 
-      show: hasPermission('manage_students') 
-    },
-    { 
-      name: 'Teachers', 
-      href: '/teachers', 
-      icon: '👨‍🏫', 
-      show: hasPermission('manage_teachers') 
-    },
-    { 
-      name: 'Courses', 
-      href: '/courses', 
-      icon: '📚', 
-      show: hasPermission('manage_courses') || hasPermission('view_courses') 
-    },
-    { 
-      name: 'Reports', 
-      href: '/reports', 
-      icon: '📊', 
-      show: hasPermission('view_reports') 
-    },
-  ].filter(item => item.show);
+  // Role-based navigation
+  const getNavigationForRole = (role) => {
+    const baseNavigation = [
+      { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
+    ];
+
+    switch (role) {
+      case 'SystemAdmin':
+        return [
+          ...baseNavigation,
+          { name: 'User Management', href: '/admin', icon: '👥' },
+          { name: 'Institute Management', href: '/institutes', icon: '🏫' },
+          { name: 'Reports', href: '/reports', icon: '📊' },
+        ];
+      
+      case 'College Admin':
+      case 'Academic Admin':
+        return [
+          ...baseNavigation,
+          { name: 'Students', href: '/students', icon: '🎓' },
+          { name: 'Teachers', href: '/teachers', icon: '👨‍🏫' },
+          { name: 'Courses', href: '/courses', icon: '📚' },
+          { name: 'Reports', href: '/reports', icon: '📊' },
+        ];
+      
+      case 'Teacher':
+        return [
+          ...baseNavigation,
+          { name: 'My Classes', href: '/classes', icon: '📖' },
+          { name: 'Students', href: '/students', icon: '🎓' },
+          { name: 'Courses', href: '/courses', icon: '📚' },
+        ];
+      
+      case 'Student':
+        return [
+          ...baseNavigation,
+          { name: 'My Courses', href: '/courses', icon: '📚' },
+          { name: 'Assignments', href: '/assignments', icon: '📝' },
+          { name: 'Grades', href: '/grades', icon: '🏆' },
+          { name: 'Schedule', href: '/schedule', icon: '📅' },
+        ];
+      
+      case 'Finance Admin':
+        return [
+          ...baseNavigation,
+          { name: 'Fee Management', href: '/fees', icon: '💰' },
+          { name: 'Students', href: '/students', icon: '🎓' },
+          { name: 'Reports', href: '/reports', icon: '📊' },
+        ];
+      
+      case 'Receptionist':
+        return [
+          ...baseNavigation,
+          { name: 'Admissions', href: '/admissions', icon: '📝' },
+          { name: 'Students', href: '/students', icon: '🎓' },
+          { name: 'Visitors', href: '/visitors', icon: '👥' },
+        ];
+      
+      default:
+        return baseNavigation;
+    }
+  };
+
+  const navigation = getNavigationForRole(user?.role || '');
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">

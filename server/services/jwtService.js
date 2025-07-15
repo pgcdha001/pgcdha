@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const Session = require('../models/Session');
-const AuditLog = require('../models/AuditLog');
 
 class JWTService {
   constructor() {
@@ -191,32 +190,6 @@ class JWTService {
 
       const newAccessToken = this.generateAccessToken(tokenPayload);
 
-      // Log token refresh
-      await AuditLog.logAction({
-        user: session.user._id,
-        institute: session.user.institute,
-        action: 'TOKEN_REFRESHED',
-        resource: {
-          type: 'System',
-          name: 'Authentication Token'
-        },
-        details: {
-          description: 'Access token refreshed using refresh token',
-          metadata: {
-            sessionId: session._id,
-            tokenVersion: session.accessTokenVersion
-          }
-        },
-        requestInfo: {
-          ipAddress: requestInfo.ipAddress,
-          userAgent: requestInfo.userAgent,
-          sessionId: session._id
-        },
-        result: {
-          status: 'SUCCESS'
-        }
-      });
-
       return {
         accessToken: newAccessToken,
         expiresIn: this.getTokenExpiry(this.accessTokenExpiry)
@@ -224,32 +197,6 @@ class JWTService {
     } catch (error) {
       // Log failed refresh attempt
       if (requestInfo) {
-        await AuditLog.logAction({
-          user: null,
-          institute: null,
-          action: 'TOKEN_REFRESH_FAILED',
-          resource: {
-            type: 'System',
-            name: 'Authentication Token'
-          },
-          details: {
-            description: 'Failed to refresh access token',
-            metadata: {
-              error: error.message
-            }
-          },
-          requestInfo: {
-            ipAddress: requestInfo.ipAddress,
-            userAgent: requestInfo.userAgent
-          },
-          result: {
-            status: 'FAILED',
-            errorMessage: error.message
-          },
-          security: {
-            riskLevel: 'MEDIUM'
-          }
-        });
       }
 
       throw new Error(`Token refresh failed: ${error.message}`);

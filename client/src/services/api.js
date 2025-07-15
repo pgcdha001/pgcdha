@@ -20,20 +20,41 @@ const USER_KEY = 'user_data';
 api.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
+    console.log('API Request interceptor:', { 
+      url: config.url, 
+      method: config.method,
+      hasToken: !!token,
+      tokenPrefix: token ? token.substring(0, 20) + '...' : 'none'
+    });
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor for token refresh
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API Response success:', { 
+      url: response.config.url, 
+      status: response.status,
+      success: response.data?.success 
+    });
+    return response;
+  },
   async (error) => {
+    console.error('API Response error:', { 
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.response?.data?.message,
+      error: error.message
+    });
+
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -42,6 +63,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = getRefreshToken();
         if (refreshToken) {
+          console.log('Attempting token refresh...');
           const response = await refreshAccessToken();
           if (response.success) {
             setAccessToken(response.data.accessToken);
@@ -51,9 +73,10 @@ api.interceptors.response.use(
           }
         }
       } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
         // Refresh failed, redirect to login
         clearTokens();
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
         return Promise.reject(refreshError);
       }
     }
@@ -64,6 +87,7 @@ api.interceptors.response.use(
 
 // Token management functions
 export const setAccessToken = (token) => {
+  console.log('Setting access token:', { token: !!token });
   if (token) {
     localStorage.setItem(TOKEN_KEY, token);
   } else {
@@ -72,7 +96,9 @@ export const setAccessToken = (token) => {
 };
 
 export const getAccessToken = () => {
-  return localStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
+  console.log('Getting access token:', { token: !!token });
+  return token;
 };
 
 export const setRefreshToken = (token) => {
@@ -125,9 +151,10 @@ export const authAPI = {
       const response = await api.post('/auth/login', credentials);
       
       if (response.data.success) {
-        const { accessToken, refreshToken, user } = response.data.data;
-        setAccessToken(accessToken);
-        setRefreshToken(refreshToken);
+        const { tokens, user } = response.data.data;
+        console.log('Login response:', { tokens: !!tokens, user: !!user });
+        setAccessToken(tokens.accessToken);
+        setRefreshToken(tokens.refreshToken);
         setUserData(user);
       }
       
@@ -317,9 +344,12 @@ export const userAPI = {
   // Get users by institute
   getUsers: async (params = {}) => {
     try {
+      console.log('getUsers called with params:', params);
       const response = await api.get('/users', { params });
+      console.log('getUsers response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('getUsers error:', error.response?.data || error);
       throw error.response?.data || { message: 'Failed to get users' };
     }
   },
@@ -347,10 +377,67 @@ export const userAPI = {
   // Delete user
   deleteUser: async (id) => {
     try {
+      console.log('Calling deleteUser API with id:', id);
       const response = await api.delete(`/users/${id}`);
+      console.log('deleteUser response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('deleteUser error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       throw error.response?.data || { message: 'Failed to delete user' };
+    }
+  },
+
+  // Get user by ID
+  getUser: async (id) => {
+    try {
+      const response = await api.get(`/users/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get user' };
+    }
+  },
+
+  // Update user status
+  updateUserStatus: async (id, statusData) => {
+    try {
+      const response = await api.patch(`/users/${id}/status`, statusData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update user status' };
+    }
+  },
+
+  // Approve user
+  approveUser: async (id) => {
+    try {
+      const response = await api.patch(`/users/${id}/approve`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to approve user' };
+    }
+  },
+
+  // Suspend user
+  suspendUser: async (id, reason) => {
+    try {
+      const response = await api.patch(`/users/${id}/suspend`, { reason });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to suspend user' };
+    }
+  },
+
+  // Activate user
+  activateUser: async (id) => {
+    try {
+      const response = await api.patch(`/users/${id}/activate`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to activate user' };
     }
   }
 };
