@@ -175,63 +175,74 @@ const UserManagement = () => {
   });
 
   return (
-    <div className="p-2 sm:p-4 md:p-6 w-full max-w-full font-[Inter,sans-serif]">
+    <div className="h-full flex flex-col overflow-hidden font-[Inter,sans-serif]">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-primary font-[Sora,Inter,sans-serif]">User Management</h2>
-          <p className="text-gray-500 mt-1 text-xs sm:text-sm">
-            Manage all users in the system ({totalUsers} total)
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1 text-xs px-2 py-1"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1 text-xs px-2 py-1"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Import</span>
-          </Button>
-          <Button
-            onClick={handleCreateUser}
-            className="flex items-center gap-1 bg-primary hover:bg-accent text-xs px-2 py-1"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Add User</span>
-          </Button>
+      <div className="flex-shrink-0 bg-white/60 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-border/30 mb-4 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/90 to-accent/80 text-white shadow-lg">
+              <Users className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-primary font-[Sora,Inter,sans-serif] mb-1">User Management</h2>
+              <p className="text-sm text-muted-foreground font-medium">
+                Manage all users in the system ({totalUsers} total)
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 px-3 py-2 text-sm border-border/50 hover:bg-white/50 hover:border-primary/30"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 px-3 py-2 text-sm border-border/50 hover:bg-white/50 hover:border-primary/30"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Import</span>
+            </Button>
+            <Button
+              onClick={handleCreateUser}
+              className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white px-3 py-2 text-sm shadow-lg"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Add User</span>
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-gray-50 rounded-lg p-2 sm:p-3 mb-4">
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex-shrink-0 bg-white/60 backdrop-blur-xl rounded-2xl p-4 shadow-lg border border-border/30 mb-4 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+        <h3 className="text-sm font-bold text-primary mb-3 font-[Sora,Inter,sans-serif] flex items-center gap-2">
+          <div className="w-1 h-4 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+          Filters
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Search */}
-          <div className="flex-1 relative">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search users by name, email, or username..."
+              placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+              className="w-full pl-10 pr-3 py-2 text-sm border border-border/50 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90"
             />
           </div>
           
           {/* Role Filter */}
-          <div className="sm:w-36">
+          <div>
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+              className="w-full px-3 py-2 text-sm border border-border/50 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90"
             >
               {roles.map(role => (
                 <option key={role.value} value={role.value}>
@@ -242,11 +253,11 @@ const UserManagement = () => {
           </div>
           
           {/* Status Filter */}
-          <div className="sm:w-36">
+          <div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+              className="w-full px-3 py-2 text-sm border border-border/50 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90"
             >
               {statusOptions.map(status => (
                 <option key={status.value} value={status.value}>
@@ -260,210 +271,149 @@ const UserManagement = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-          {error}
+        <div className="flex-shrink-0 bg-red-50/80 backdrop-blur-sm border border-red-200/60 text-red-700 px-4 py-3 rounded-2xl mb-4 shadow-lg">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            {error}
+          </div>
         </div>
       )}
 
       {/* Users Table */}
-      <div className="overflow-x-auto bg-white rounded-lg shadow border w-full">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">User</th>
-              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Contact</th>
-              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Role</th>
-              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Status</th>
-              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Created</th>
-              <th className="px-2 py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
+      <div className="flex-1 overflow-hidden bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+        <div className="h-full flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-auto">
+            <table className="min-w-full">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-gradient-to-r from-primary to-accent text-white">
+                  <th className="px-4 py-3 text-left text-sm font-bold">User</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold">Contact</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold">Role</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold">Created</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-border/30">
             {loading ? (
               <tr>
-                <td colSpan="6" className="px-6 py-12 text-center">
-                  <div className="flex justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <td colSpan="6" className="px-4 py-8 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                    <span className="text-primary font-medium text-sm">Loading users...</span>
                   </div>
-                  <p className="mt-2 text-gray-500">Loading users...</p>
                 </td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-2 py-8 text-center text-gray-400 text-base">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
                   No users found.
                 </td>
               </tr>
             ) : (
               filteredUsers.map((user) => (
-                <tr key={user._id} className="hover:bg-gray-50 transition">
-                  <td className="px-2 py-2 whitespace-nowrap flex items-center gap-2 text-xs">
-                    {/* Avatar */}
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700 text-xs">
-                      {user.avatarUrl ? (
-                        <img src={user.avatarUrl} alt={user.fullName?.firstName} className="w-8 h-8 rounded-full object-cover" />
-                      ) : (
-                        <span>{user.initials || user.fullName?.firstName?.[0] || '?'}</span>
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 text-xs">{user.fullName?.firstName} {user.fullName?.lastName}</div>
-                      <div className="text-gray-500 text-xs">@{user.username}</div>
+                <tr key={user._id} className="hover:bg-white/70 transition-all duration-200">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      {/* Avatar */}
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center font-bold text-primary text-xs border-2 border-primary/20">
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={user.fullName?.firstName} className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <span>{user.initials || user.fullName?.firstName?.[0] || '?'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-primary text-sm">{user.fullName?.firstName} {user.fullName?.lastName}</div>
+                        <div className="text-muted-foreground text-xs">@{user.username}</div>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-gray-700 text-xs">
-                    <div className="truncate max-w-[120px]">{user.email}</div>
-                    <div className="text-xs text-gray-400 truncate max-w-[100px]">{user.phone}</div>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-primary font-medium text-sm">{user.email}</div>
+                    <div className="text-muted-foreground text-xs">{user.phone}</div>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
-                    <span className="inline-block px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 font-medium truncate max-w-[80px]">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 to-accent/10 text-primary border border-primary/20">
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {getStatusBadge(user)}
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-gray-500 text-xs">
+                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground font-medium text-sm">
                     {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-right text-xs font-medium flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleViewUser(user)}
-                      className="text-primary hover:bg-primary/10"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditUser(user)}
-                      className="text-accent hover:bg-accent/10"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteUser(user)}
-                      className="text-red-500 hover:bg-red-100"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleViewUser(user)}
+                        className="text-primary hover:bg-primary/10 rounded-lg h-8 w-8"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditUser(user)}
+                        className="text-accent hover:bg-accent/10 rounded-lg h-8 w-8"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteUser(user)}
+                        className="text-red-500 hover:bg-red-100 rounded-lg h-8 w-8"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing{' '}
-                <span className="font-medium">
-                  {((currentPage - 1) * usersPerPage) + 1}
-                </span>{' '}
-                to{' '}
-                <span className="font-medium">
-                  {Math.min(currentPage * usersPerPage, totalUsers)}
-                </span>{' '}
-                of{' '}
-                <span className="font-medium">{totalUsers}</span>{' '}
-                results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="rounded-r-none"
-                >
-                  Previous
-                </Button>
-                
-                {[...Array(totalPages)].map((_, i) => {
-                  const page = i + 1;
-                  if (
-                    page === 1 ||
-                    page === totalPages ||
-                    (page >= currentPage - 1 && page <= currentPage + 1)
-                  ) {
-                    return (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                        className="rounded-none"
-                      >
-                        {page}
-                      </Button>
-                    );
-                  } else if (
-                    page === currentPage - 2 ||
-                    page === currentPage + 2
-                  ) {
-                    return <span key={page} className="px-2">...</span>;
-                  }
-                  return null;
-                })}
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="rounded-l-none"
-                >
-                  Next
-                </Button>
-              </nav>
-            </div>
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* User Modal */}
+      {/* Full-Screen Modals */}
       {showUserModal && (
         <UserModal
+          isOpen={showUserModal}
+          onClose={() => {
+            setShowUserModal(false);
+            setSelectedUser(null);
+            setModalMode('create');
+          }}
+          onUserCreated={() => {
+            loadUsers();
+            setShowUserModal(false);
+            setSelectedUser(null);
+            setModalMode('create');
+          }}
           user={selectedUser}
           mode={modalMode}
-          onClose={() => setShowUserModal(false)}
-          onSave={handleUserSaved}
         />
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
+      {showDeleteModal && selectedUser && (
         <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setSelectedUser(null);
+          }}
+          onConfirm={() => {
+            handleUserDeleted();
+            setShowDeleteModal(false);
+            setSelectedUser(null);
+          }}
           user={selectedUser}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={handleUserDeleted}
         />
       )}
     </div>

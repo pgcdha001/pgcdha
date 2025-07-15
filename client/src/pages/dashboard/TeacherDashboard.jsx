@@ -31,24 +31,31 @@ const TeacherDashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Teacher Dashboard</h2>
-        <p className="text-gray-600">Manage your classes, students, and academic activities</p>
+    <div className="space-y-8">
+      {/* Header Card */}
+      <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70" style={{boxShadow: '0 12px 48px 0 rgba(26,35,126,0.12)'}}>
+        <div className="flex items-center gap-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-accent/80 text-white shadow-lg">
+            <BookOpen className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-primary mb-2 font-[Sora,Inter,sans-serif] tracking-tight">Teacher Dashboard</h2>
+            <p className="text-muted-foreground font-medium">Manage your classes, students, and academic activities</p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
-          <div key={stat.name} className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className={`${stat.color} rounded-lg p-3`}>
-                <stat.icon className="h-6 w-6 text-white" />
+          <div key={stat.name} className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70 hover:scale-105" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-primary/80 mb-1">{stat.name}</p>
+                <p className="text-3xl font-bold text-primary">{stat.value}</p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+              <div className={`${stat.color} rounded-2xl p-4 shadow-lg`}>
+                <stat.icon className="h-7 w-7 text-white" />
               </div>
             </div>
           </div>
@@ -56,18 +63,21 @@ const TeacherDashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+      <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-8 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+        <h3 className="text-xl font-bold text-primary mb-6 font-[Sora,Inter,sans-serif] flex items-center gap-2">
+          <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+          Quick Actions
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action) => (
             <Link
               key={action.title}
               to={action.href}
-              className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all"
+              className="group bg-white/50 backdrop-blur-sm p-6 border border-border/30 rounded-2xl hover:border-primary/30 hover:shadow-lg transition-all duration-200 hover:scale-105 hover:bg-white/70"
             >
-              <action.icon className="h-8 w-8 text-blue-600 mb-2" />
-              <h4 className="font-medium text-gray-900">{action.title}</h4>
-              <p className="text-sm text-gray-600">{action.description}</p>
+              <action.icon className="h-8 w-8 text-primary mb-3 group-hover:scale-110 transition-transform duration-200" />
+              <h4 className="font-bold text-primary mb-2 font-[Sora,Inter,sans-serif]">{action.title}</h4>
+              <p className="text-sm text-muted-foreground">{action.description}</p>
             </Link>
           ))}
         </div>

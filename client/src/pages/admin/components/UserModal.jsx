@@ -215,48 +215,62 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-2 z-50">
-      <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden border border-border font-[Inter,sans-serif]">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 animate-fade-in">
+      <div className="w-full h-full bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl flex flex-col"
+           style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.37)'}}>
+        
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-white/60">
-          <div className="flex items-center gap-2">
-            <User className="h-6 w-6 text-primary" />
-            <h2 className="text-lg sm:text-xl font-bold text-primary font-[Sora,Inter,sans-serif]">
-              {isCreateMode && 'Create New User'}
-              {isEditMode && 'Edit User'}
-              {isViewMode && 'View User Details'}
-            </h2>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-white/40 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary/90 to-accent/80 text-white shadow-lg">
+              <User className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] tracking-tight">
+                {isCreateMode && 'Create New User'}
+                {isEditMode && 'Edit User'}
+                {isViewMode && 'View User Details'}
+              </h2>
+              <p className="text-sm text-muted-foreground font-medium">
+                {isCreateMode && 'Add a new user to the system'}
+                {isEditMode && 'Modify user information'}
+                {isViewMode && 'User profile information'}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-accent transition-colors rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-accent"
+            className="text-gray-400 hover:text-accent transition-all duration-200 rounded-lg p-2 hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/30 group"
             aria-label="Close"
           >
-            <X className="h-6 w-6" />
+            <X className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(92vh-5rem)]">
-          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto bg-white/20 backdrop-blur-md">
+          <form onSubmit={handleSubmit} className="p-4 space-y-4 h-full">{/*Compressed spacing*/}
             {/* Error Message */}
             {errors.submit && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs">
-                {errors.submit}
+              <div className="bg-red-50/80 backdrop-blur-sm border border-red-200/60 text-red-700 px-4 py-3 rounded-2xl text-sm shadow-lg animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  {errors.submit}
+                </div>
               </div>
             )}
 
-            {/* Basic Information */}
-            <div>
+            {/* Basic Information Card */}
+            <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
               {/* Role Selection */}
-              <div className="mb-3">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Role *</label>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-primary mb-2 font-[Sora,Inter,sans-serif]">Role *</label>
                 <select
                   name="role"
                   value={formData.role}
                   onChange={handleInputChange}
                   disabled={isViewMode}
-                  className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   required
                 >
                   <option value="">Select Role</option>
@@ -264,12 +278,16 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     <option key={role} value={role}>{role}</option>
                   ))}
                 </select>
-                {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role}</p>}
+                {errors.role && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.role}</p>}
               </div>
-              <h3 className="text-base font-bold text-primary font-[Sora,Inter,sans-serif] mb-2">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              
+              <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                Basic Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Email *
                   </label>
                   <input
@@ -278,15 +296,15 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.email}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                      errors.email ? 'border-red-300' : 'border-gray-300'
-                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 ${
+                      errors.email ? 'border-red-300 bg-red-50/60' : 'border-border/50'
+                    }`}
                   />
-                  {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
+                  {errors.email && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.email}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Username *
                   </label>
                   <input
@@ -295,17 +313,17 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.username}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                      errors.username ? 'border-red-300' : 'border-gray-300'
-                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 ${
+                      errors.username ? 'border-red-300 bg-red-50/60' : 'border-border/50'
+                    }`}
                   />
-                  {errors.username && <p className="mt-1 text-xs text-red-600">{errors.username}</p>}
+                  {errors.username && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.username}</p>}
                 </div>
 
                 {isCreateMode && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-primary/80 mb-2">
                         Password *
                       </label>
                       <div className="relative">
@@ -314,23 +332,23 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                           name="password"
                           value={formData.password}
                           onChange={handleInputChange}
-                          className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            errors.password ? 'border-red-300' : 'border-gray-300'
+                          className={`w-full px-4 py-3 pr-12 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 ${
+                            errors.password ? 'border-red-300 bg-red-50/60' : 'border-border/50'
                           }`}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary transition-colors duration-200"
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
                       </div>
-                      {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+                      {errors.password && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.password}</p>}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-primary/80 mb-2">
                         Confirm Password *
                       </label>
                       <div className="relative">
@@ -339,31 +357,34 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                           name="confirmPassword"
                           value={formData.confirmPassword}
                           onChange={handleInputChange}
-                          className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                          className={`w-full px-4 py-3 pr-12 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 ${
+                            errors.confirmPassword ? 'border-red-300 bg-red-50/60' : 'border-border/50'
                           }`}
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary transition-colors duration-200"
                         >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
                       </div>
-                      {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>}
+                      {errors.confirmPassword && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.confirmPassword}</p>}
                     </div>
                   </>
                 )}
               </div>
             </div>
 
-            {/* Personal Information */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
+            {/* Personal Information Card */}
+            <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
+              <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                Personal Information
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     First Name *
                   </label>
                   <input
@@ -372,15 +393,15 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.firstName}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.firstName ? 'border-red-300' : 'border-gray-300'
-                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 ${
+                      errors.firstName ? 'border-red-300 bg-red-50/60' : 'border-border/50'
+                    }`}
                   />
-                  {errors.firstName && <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>}
+                  {errors.firstName && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.firstName}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Last Name *
                   </label>
                   <input
@@ -389,15 +410,15 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.lastName}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.lastName ? 'border-red-300' : 'border-gray-300'
-                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 ${
+                      errors.lastName ? 'border-red-300 bg-red-50/60' : 'border-border/50'
+                    }`}
                   />
-                  {errors.lastName && <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>}
+                  {errors.lastName && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.lastName}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Gender
                   </label>
                   <select
@@ -405,9 +426,7 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.gender}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isViewMode ? 'bg-gray-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   >
                     <option value="">Select Gender</option>
                     {genders.map(gender => (
@@ -417,7 +436,7 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Date of Birth
                   </label>
                   <input
@@ -426,14 +445,12 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isViewMode ? 'bg-gray-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     CNIC
                   </label>
                   <input
@@ -443,15 +460,15 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     onChange={handleInputChange}
                     placeholder="12345-1234567-1"
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.cnic ? 'border-red-300' : 'border-gray-300'
-                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 ${
+                      errors.cnic ? 'border-red-300 bg-red-50/60' : 'border-border/50'
+                    }`}
                   />
-                  {errors.cnic && <p className="mt-1 text-sm text-red-600">{errors.cnic}</p>}
+                  {errors.cnic && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.cnic}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Role *
                   </label>
                   <select
@@ -459,25 +476,28 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.role}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.role ? 'border-red-300' : 'border-gray-300'
-                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 ${
+                      errors.role ? 'border-red-300 bg-red-50/60' : 'border-border/50'
+                    }`}
                   >
                     {roles.map(role => (
                       <option key={role} value={role}>{role}</option>
                     ))}
                   </select>
-                  {errors.role && <p className="mt-1 text-sm text-red-600">{errors.role}</p>}
+                  {errors.role && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.role}</p>}
                 </div>
               </div>
             </div>
 
-            {/* Contact Information */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
+            {/* Contact Information Card */}
+            <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
+              <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                Contact Information
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Primary Phone *
                   </label>
                   <input
@@ -487,15 +507,15 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     onChange={handleInputChange}
                     placeholder="+923001234567"
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.primaryPhone ? 'border-red-300' : 'border-gray-300'
-                    } ${isViewMode ? 'bg-gray-50' : ''}`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 ${
+                      errors.primaryPhone ? 'border-red-300 bg-red-50/60' : 'border-border/50'
+                    }`}
                   />
-                  {errors.primaryPhone && <p className="mt-1 text-sm text-red-600">{errors.primaryPhone}</p>}
+                  {errors.primaryPhone && <p className="mt-2 text-sm text-red-600 flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{errors.primaryPhone}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Secondary Phone
                   </label>
                   <input
@@ -505,20 +525,21 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     onChange={handleInputChange}
                     placeholder="+923001234567"
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isViewMode ? 'bg-gray-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Family Information */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Family Information</h3>
+            {/* Family Information Card */}
+            <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
+              <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                Family Information
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Father's Name
                   </label>
                   <input
@@ -527,14 +548,12 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.fatherName}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isViewMode ? 'bg-gray-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Emergency Contact Name
                   </label>
                   <input
@@ -543,14 +562,12 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.emergencyContactName}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isViewMode ? 'bg-gray-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Emergency Contact Relationship
                   </label>
                   <select
@@ -558,9 +575,7 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.emergencyContactRelationship}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isViewMode ? 'bg-gray-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   >
                     <option value="">Select Relationship</option>
                     {relationships.map(relationship => (
@@ -570,7 +585,7 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
                     Emergency Contact Phone
                   </label>
                   <input
@@ -580,43 +595,44 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     onChange={handleInputChange}
                     placeholder="+923001234567"
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isViewMode ? 'bg-gray-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Status Information */}
+            {/* Status Information Card */}
             {!isCreateMode && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Status</h3>
+              <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
+                <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  Status
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center">
+                  <div className="flex items-center space-x-3 p-4 bg-white/50 rounded-xl border border-border/30">
                     <input
                       type="checkbox"
                       name="isActive"
                       checked={formData.isActive}
                       onChange={handleInputChange}
                       disabled={isViewMode}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-5 w-5 text-primary focus:ring-primary/30 border-border/50 rounded transition-all duration-200"
                     />
-                    <label className="ml-2 text-sm text-gray-700">
+                    <label className="text-sm font-semibold text-primary/80">
                       Active User
                     </label>
                   </div>
 
-                  <div className="flex items-center">
+                  <div className="flex items-center space-x-3 p-4 bg-white/50 rounded-xl border border-border/30">
                     <input
                       type="checkbox"
                       name="isApproved"
                       checked={formData.isApproved}
                       onChange={handleInputChange}
                       disabled={isViewMode}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-5 w-5 text-primary focus:ring-primary/30 border-border/50 rounded transition-all duration-200"
                     />
-                    <label className="ml-2 text-sm text-gray-700">
+                    <label className="text-sm font-semibold text-primary/80">
                       Approved User
                     </label>
                   </div>
@@ -627,41 +643,47 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
             {/* Dynamic sections based on role */}
             {/* Academic Info for Student, Teacher, HOD, Principal, InstituteAdmin */}
             {(formData.role === 'Student' || formData.role === 'Teacher' || formData.role === 'HOD' || formData.role === 'Principal' || formData.role === 'InstituteAdmin') && (
-              <div className="col-span-2 mt-4">
-                <h3 className="text-base font-bold text-primary font-[Sora,Inter,sans-serif] mb-2">Academic Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Example: InstituteId, ClassId, etc. */}
+              <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
+                <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  Academic Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Institute ID</label>
-                    <input type="text" name="instituteId" value={formData.instituteId || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                    <label className="block text-sm font-semibold text-primary/80 mb-2">Institute ID</label>
+                    <input type="text" name="instituteId" value={formData.instituteId || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60" />
                   </div>
                   {formData.role === 'Student' && (
                     <>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Class ID</label>
-                        <input type="text" name="classId" value={formData.classId || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                        <label className="block text-sm font-semibold text-primary/80 mb-2">Class ID</label>
+                        <input type="text" name="classId" value={formData.classId || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Session</label>
-                        <input type="text" name="session" value={formData.session || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                        <label className="block text-sm font-semibold text-primary/80 mb-2">Session</label>
+                        <input type="text" name="session" value={formData.session || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60" />
                       </div>
                     </>
                   )}
                 </div>
               </div>
             )}
+            
             {/* Professional Info for Teacher, HOD, IT, etc. */}
             {(formData.role === 'Teacher' || formData.role === 'HOD' || formData.role === 'IT' || formData.role === 'EMS' || formData.role === 'Accounts' || formData.role === 'StoreKeeper' || formData.role === 'LabAssistant') && (
-              <div className="col-span-2 mt-4">
-                <h3 className="text-base font-bold text-primary font-[Sora,Inter,sans-serif] mb-2">Professional Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
+                <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  Professional Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Specialized In</label>
-                    <input type="text" name="specializedIn" value={formData.specializedIn || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                    <label className="block text-sm font-semibold text-primary/80 mb-2">Specialized In</label>
+                    <input type="text" name="specializedIn" value={formData.specializedIn || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Duties</label>
-                    <input type="text" name="duties" value={formData.duties || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                    <label className="block text-sm font-semibold text-primary/80 mb-2">Duties</label>
+                    <input type="text" name="duties" value={formData.duties || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60" />
                   </div>
                 </div>
               </div>
@@ -671,12 +693,12 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
 
         {/* Footer */}
         {!isViewMode && (
-          <div className="flex justify-end gap-2 pt-3 border-t border-border bg-white/60 sticky bottom-0 z-10">
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/30 bg-white/40 backdrop-blur-xl">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="px-3 py-1.5 text-xs font-semibold"
+              className="px-6 py-2.5 text-sm font-semibold border-border/50 hover:bg-white/80 hover:border-primary/30 transition-all duration-200"
             >
               Cancel
             </Button>
@@ -684,14 +706,45 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
               type="submit"
               onClick={handleSubmit}
               disabled={loading}
-              className="px-3 py-1.5 bg-primary hover:bg-accent text-white text-xs font-semibold"
+              className="px-6 py-2.5 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-4 h-4 mr-1" />
-              {loading ? 'Saving...' : 'Save'}
+              <Save className="w-4 h-4 mr-2" />
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Saving...
+                </div>
+              ) : (
+                'Save'
+              )}
             </Button>
           </div>
         )}
       </div>
+
+      {/* CSS Animations */}
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes float-slow {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-20px) scale(1.02); }
+        }
+        @keyframes float-slower {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(15px) scale(0.98); }
+        }
+        @keyframes gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out; }
+        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+        .animate-float-slower { animation: float-slower 10s ease-in-out infinite; }
+        .animate-gradient-x { background-size: 200% 200%; animation: gradient-x 3s ease-in-out infinite; }
+      `}</style>
     </div>
   );
 };

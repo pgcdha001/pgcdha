@@ -1,44 +1,26 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import UserManagement from './components/UserManagement';
-import StudentReport from './StudentReport';
 import Card from '../../components/ui/card';
 
 const SuperAdminPage = () => {
   const { user } = useAuth();
-  const [tab, setTab] = useState('users');
 
   return (
-    <div className="min-h-screen bg-gray-50 rounded-2xl mt-20">
+    <div className="h-screen overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 pt-10 pb-6">
-        <h1 className="text-3xl font-bold text-primary font-[Sora,Inter,sans-serif] mb-1">Admin Dashboard</h1>
-        <p className="text-md text-muted-foreground font-[Inter,sans-serif]">Punjab Group of Colleges - Admin Tools</p>
+      <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 py-6 bg-white/60 backdrop-blur-xl border-b border-border/30">
+        <h1 className="text-2xl font-bold text-primary font-[Sora,Inter,sans-serif] mb-1">Admin Dashboard</h1>
+        <p className="text-sm text-muted-foreground font-[Inter,sans-serif]">Punjab Group of Colleges - Admin Tools</p>
       </div>
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pb-10">
-        {/* Tab Navigation */}
-        <div className="flex gap-4 mb-6 border-b border-gray-200">
-          <button
-            className={`px-4 py-2 font-semibold border-b-2 transition-colors ${tab === 'users' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-primary'}`}
-            onClick={() => setTab('users')}
-          >
-            User Management
-          </button>
-          <button
-            className={`px-4 py-2 font-semibold border-b-2 transition-colors ${tab === 'reports' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-primary'}`}
-            onClick={() => setTab('reports')}
-          >
-            Reports
-          </button>
-        </div>
-        {tab === 'users' && (
-          <Card className="min-h-[600px]">
+      
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden p-4 sm:p-6">
+        <div className="h-full">
+          <Card className="h-full bg-white/60 backdrop-blur-xl border border-border/30 shadow-xl overflow-hidden">
             <UserManagement />
           </Card>
-        )}
-        {tab === 'reports' && (
-          <StudentReport />
-        )}
+        </div>
       </div>
     </div>
   );
