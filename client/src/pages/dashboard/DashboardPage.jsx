@@ -6,6 +6,7 @@ import TeacherDashboard from './TeacherDashboard';
 import StudentDashboard from './StudentDashboard';
 import FinanceAdminDashboard from './FinanceAdminDashboard';
 import ReceptionistDashboard from './ReceptionistDashboard';
+import ITDashboard from './ITDashboard';
 
 const DashboardPage = () => {
   const { user } = useAuth();
@@ -37,6 +38,8 @@ const DashboardPage = () => {
         return <FinanceAdminDashboard />;
       case 'Receptionist':
         return <ReceptionistDashboard />;
+      case 'IT':
+        return <ITDashboard />;
       default:
         console.log('No role match found, using DefaultDashboard. Role was:', user.role);
         return <DefaultDashboard />;

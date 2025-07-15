@@ -74,20 +74,85 @@ const ROLE_MAPPING = {
   'it': 'IT',
   'It': 'IT',
   'I.T.': 'IT',
-  'i.t.': 'IT'
+  'i.t.': 'IT',
+
+  // Institute Admin variations
+  'InstituteAdmin': 'InstituteAdmin',
+  'Institute Admin': 'InstituteAdmin',
+  'INSTITUTE_ADMIN': 'InstituteAdmin',
+  'institute_admin': 'InstituteAdmin',
+  'instituteadmin': 'InstituteAdmin',
+
+  // Principal variations
+  'Principal': 'Principal',
+  'PRINCIPAL': 'Principal',
+  'principal': 'Principal',
+
+  // HOD variations
+  'HOD': 'HOD',
+  'hod': 'HOD',
+  'Head of Department': 'HOD',
+  'head of department': 'HOD',
+
+  // SRO variations
+  'SRO': 'SRO',
+  'sro': 'SRO',
+  'Student Relations Officer': 'SRO',
+  'student relations officer': 'SRO',
+
+  // Campus Coordinator variations
+  'CampusCoordinator': 'CampusCoordinator',
+  'Campus Coordinator': 'CampusCoordinator',
+  'CAMPUS_COORDINATOR': 'CampusCoordinator',
+  'campus_coordinator': 'CampusCoordinator',
+  'campuscoordinator': 'CampusCoordinator',
+
+  // EMS variations
+  'EMS': 'EMS',
+  'ems': 'EMS',
+  'E.M.S.': 'EMS',
+  'e.m.s.': 'EMS',
+
+  // Accounts variations
+  'Accounts': 'Accounts',
+  'ACCOUNTS': 'Accounts',
+  'accounts': 'Accounts',
+  'Accountant': 'Accounts',
+  'accountant': 'Accounts',
+
+  // StoreKeeper variations
+  'StoreKeeper': 'StoreKeeper',
+  'Store Keeper': 'StoreKeeper',
+  'STOREKEEPER': 'StoreKeeper',
+  'storekeeper': 'StoreKeeper',
+
+  // LabAssistant variations
+  'LabAssistant': 'LabAssistant',
+  'Lab Assistant': 'LabAssistant',
+  'LABASSISTANT': 'LabAssistant',
+  'labassistant': 'LabAssistant',
 };
 
 // Valid roles in the new system
 const VALID_ROLES = [
   'SystemAdmin',
-  'CollegeAdmin', 
-  'FinanceAdmin',
+  'InstituteAdmin',
+  'Principal',
   'Teacher',
+  'HOD',
+  'SRO',
+  'CampusCoordinator',
+  'EMS',
+  'Accounts',
+  'IT',
+  'StoreKeeper',
+  'LabAssistant',
   'Student',
+  'CollegeAdmin',
+  'FinanceAdmin',
   'Receptionist',
   'Staff',
-  'Parent',
-  'IT' // <-- Added IT as a valid role
+  'Parent'
 ];
 
 /**
@@ -148,16 +213,25 @@ function isValidRole(role) {
  */
 function getRoleDisplayName(role) {
   const displayNames = {
-    'SystemAdmin': 'Super Admin',
+    'SystemAdmin': 'System Admin',
+    'InstituteAdmin': 'Institute Admin',
+    'Principal': 'Principal',
+    'Teacher': 'Teacher',
+    'HOD': 'HOD',
+    'SRO': 'SRO',
+    'CampusCoordinator': 'Campus Coordinator',
+    'EMS': 'EMS',
+    'Accounts': 'Accounts',
+    'IT': 'IT',
+    'StoreKeeper': 'Store Keeper',
+    'LabAssistant': 'Lab Assistant',
+    'Student': 'Student',
     'CollegeAdmin': 'College Admin',
     'FinanceAdmin': 'Finance Admin',
-    'Teacher': 'Teacher',
-    'Student': 'Student',
     'Receptionist': 'Receptionist',
     'Staff': 'Staff',
     'Parent': 'Parent'
   };
-  
   return displayNames[role] || role;
 }
 

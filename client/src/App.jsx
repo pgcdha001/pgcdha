@@ -16,6 +16,7 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 
 // Admin pages
 import SuperAdminPage from './pages/admin/SuperAdminPage';
+import StudentReport from './pages/admin/StudentReport';
 
 const App = () => {
   return (
@@ -115,7 +116,7 @@ const App = () => {
               <Layout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">Reports</h1>
-                  <p className="text-gray-600">Coming soon...</p>
+                  <StudentReport />
                 </div>
               </Layout>
             </AuthenticatedRoute>

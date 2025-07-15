@@ -87,6 +87,7 @@ const UserSchema = new mongoose.Schema({
   biometricId: String,
   school: String,
   inquiryDate: Date,
+  prospectusStage: { type: Number, default: 1 }, // 1-6 for inquiry/prospectus stages
 
   // For Staff/Teachers
   specializedIn: String,
