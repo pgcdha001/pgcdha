@@ -175,20 +175,20 @@ const UserManagement = () => {
   });
 
   return (
-    <div className="p-6">
+    <div className="p-2 sm:p-4 md:p-6 w-full max-w-full font-[Inter,sans-serif]">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-primary font-[Sora,Inter,sans-serif]">User Management</h2>
+          <p className="text-gray-500 mt-1 text-xs sm:text-sm">
             Manage all users in the system ({totalUsers} total)
           </p>
         </div>
-        <div className="flex space-x-3 mt-4 sm:mt-0">
+        <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center space-x-2"
+            className="flex items-center gap-1 text-xs px-2 py-1"
           >
             <Download className="w-4 h-4" />
             <span>Export</span>
@@ -196,14 +196,14 @@ const UserManagement = () => {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center space-x-2"
+            className="flex items-center gap-1 text-xs px-2 py-1"
           >
             <Upload className="w-4 h-4" />
             <span>Import</span>
           </Button>
           <Button
             onClick={handleCreateUser}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+            className="flex items-center gap-1 bg-primary hover:bg-accent text-xs px-2 py-1"
           >
             <UserPlus className="w-4 h-4" />
             <span>Add User</span>
@@ -212,8 +212,8 @@ const UserManagement = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+      <div className="bg-gray-50 rounded-lg p-2 sm:p-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2">
           {/* Search */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -222,16 +222,16 @@ const UserManagement = () => {
               placeholder="Search users by name, email, or username..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
             />
           </div>
           
           {/* Role Filter */}
-          <div className="sm:w-48">
+          <div className="sm:w-36">
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
             >
               {roles.map(role => (
                 <option key={role.value} value={role.value}>
@@ -242,11 +242,11 @@ const UserManagement = () => {
           </div>
           
           {/* Status Filter */}
-          <div className="sm:w-48">
+          <div className="sm:w-36">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
             >
               {statusOptions.map(status => (
                 <option key={status.value} value={status.value}>
@@ -266,215 +266,187 @@ const UserManagement = () => {
       )}
 
       {/* Users Table */}
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <div className="overflow-x-auto bg-white rounded-lg shadow border w-full">
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">User</th>
+              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Contact</th>
+              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Role</th>
+              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Status</th>
+              <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">Created</th>
+              <th className="px-2 py-2"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {loading ? (
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <td colSpan="6" className="px-6 py-12 text-center">
+                  <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                  <p className="mt-2 text-gray-500">Loading users...</p>
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
-                    <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            ) : filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-2 py-8 text-center text-gray-400 text-base">
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((user) => (
+                <tr key={user._id} className="hover:bg-gray-50 transition">
+                  <td className="px-2 py-2 whitespace-nowrap flex items-center gap-2 text-xs">
+                    {/* Avatar */}
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700 text-xs">
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt={user.fullName?.firstName} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <span>{user.initials || user.fullName?.firstName?.[0] || '?'}</span>
+                      )}
                     </div>
-                    <p className="mt-2 text-gray-500">Loading users...</p>
+                    <div>
+                      <div className="font-semibold text-gray-900 text-xs">{user.fullName?.firstName} {user.fullName?.lastName}</div>
+                      <div className="text-gray-500 text-xs">@{user.username}</div>
+                    </div>
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap text-gray-700 text-xs">
+                    <div className="truncate max-w-[120px]">{user.email}</div>
+                    <div className="text-xs text-gray-400 truncate max-w-[100px]">{user.phone}</div>
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap">
+                    <span className="inline-block px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 font-medium truncate max-w-[80px]">
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap">
+                    {getStatusBadge(user)}
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap text-gray-500 text-xs">
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap text-right text-xs font-medium flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleViewUser(user)}
+                      className="text-primary hover:bg-primary/10"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditUser(user)}
+                      className="text-accent hover:bg-accent/10"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteUser(user)}
+                      className="text-red-500 hover:bg-red-100"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
-                    <Users className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {searchTerm || filterRole || filterStatus 
-                        ? 'Try adjusting your search or filter criteria.'
-                        : 'Get started by creating a new user.'
-                      }
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-blue-700">
-                              {user.fullName?.firstName?.[0]}{user.fullName?.lastName?.[0]}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {user.fullName?.firstName} {user.fullName?.lastName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            @{user.username}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{user.email}</div>
-                      <div className="text-sm text-gray-500">{user.phoneNumbers?.primary}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(user)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewUser(user)}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditUser(user)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing{' '}
+                <span className="font-medium">
+                  {((currentPage - 1) * usersPerPage) + 1}
+                </span>{' '}
+                to{' '}
+                <span className="font-medium">
+                  {Math.min(currentPage * usersPerPage, totalUsers)}
+                </span>{' '}
+                of{' '}
+                <span className="font-medium">{totalUsers}</span>{' '}
+                results
+              </p>
             </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing{' '}
-                  <span className="font-medium">
-                    {((currentPage - 1) * usersPerPage) + 1}
-                  </span>{' '}
-                  to{' '}
-                  <span className="font-medium">
-                    {Math.min(currentPage * usersPerPage, totalUsers)}
-                  </span>{' '}
-                  of{' '}
-                  <span className="font-medium">{totalUsers}</span>{' '}
-                  results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="rounded-r-none"
-                  >
-                    Previous
-                  </Button>
-                  
-                  {[...Array(totalPages)].map((_, i) => {
-                    const page = i + 1;
-                    if (
-                      page === 1 ||
-                      page === totalPages ||
-                      (page >= currentPage - 1 && page <= currentPage + 1)
-                    ) {
-                      return (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(page)}
-                          className="rounded-none"
-                        >
-                          {page}
-                        </Button>
-                      );
-                    } else if (
-                      page === currentPage - 2 ||
-                      page === currentPage + 2
-                    ) {
-                      return <span key={page} className="px-2">...</span>;
-                    }
-                    return null;
-                  })}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="rounded-l-none"
-                  >
-                    Next
-                  </Button>
-                </nav>
-              </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-r-none"
+                >
+                  Previous
+                </Button>
+                
+                {[...Array(totalPages)].map((_, i) => {
+                  const page = i + 1;
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="rounded-none"
+                      >
+                        {page}
+                      </Button>
+                    );
+                  } else if (
+                    page === currentPage - 2 ||
+                    page === currentPage + 2
+                  ) {
+                    return <span key={page} className="px-2">...</span>;
+                  }
+                  return null;
+                })}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="rounded-l-none"
+                >
+                  Next
+                </Button>
+              </nav>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* User Modal */}
       {showUserModal && (

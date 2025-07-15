@@ -190,13 +190,13 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-2 z-50">
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden border border-border font-[Inter,sans-serif]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div className="flex items-center space-x-3">
-            <User className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-white/60">
+          <div className="flex items-center gap-2">
+            <User className="h-6 w-6 text-primary" />
+            <h2 className="text-lg sm:text-xl font-bold text-primary font-[Sora,Inter,sans-serif]">
               {isCreateMode && 'Create New User'}
               {isEditMode && 'Edit User'}
               {isViewMode && 'View User Details'}
@@ -204,28 +204,29 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-accent transition-colors rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-accent"
+            aria-label="Close"
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-8rem)]">
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <div className="overflow-y-auto max-h-[calc(92vh-5rem)]">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
             {/* Error Message */}
             {errors.submit && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs">
                 {errors.submit}
               </div>
             )}
 
             {/* Basic Information */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-base font-bold text-primary font-[Sora,Inter,sans-serif] mb-2">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Email *
                   </label>
                   <input
@@ -234,15 +235,15 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.email}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                       errors.email ? 'border-red-300' : 'border-gray-300'
                     } ${isViewMode ? 'bg-gray-50' : ''}`}
                   />
-                  {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+                  {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Username *
                   </label>
                   <input
@@ -251,11 +252,11 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     value={formData.username}
                     onChange={handleInputChange}
                     disabled={isViewMode}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                       errors.username ? 'border-red-300' : 'border-gray-300'
                     } ${isViewMode ? 'bg-gray-50' : ''}`}
                   />
-                  {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username}</p>}
+                  {errors.username && <p className="mt-1 text-xs text-red-600">{errors.username}</p>}
                 </div>
 
                 {isCreateMode && (
@@ -584,12 +585,12 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
 
         {/* Footer */}
         {!isViewMode && (
-          <div className="flex justify-end space-x-3 px-6 py-4 border-t bg-gray-50">
+          <div className="flex justify-end gap-2 pt-3 border-t border-border bg-white/60 sticky bottom-0 z-10">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={loading}
+              className="px-3 py-1.5 text-xs font-semibold"
             >
               Cancel
             </Button>
@@ -597,14 +598,10 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
               type="submit"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex items-center space-x-2"
+              className="px-3 py-1.5 bg-primary hover:bg-accent text-white text-xs font-semibold"
             >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              <span>{loading ? 'Saving...' : 'Save User'}</span>
+              <Save className="w-4 h-4 mr-1" />
+              {loading ? 'Saving...' : 'Save'}
             </Button>
           </div>
         )}
