@@ -25,7 +25,9 @@ export const DashboardProvider = ({ children }) => {
     recentEnquiry: null,
     recentActivities: [],
     upcomingExams: 3, // Static for now
-    pendingCorrespondence: 8, // Static for now
+    totalCorrespondence: 0,
+    todayCorrespondence: 0,
+    recentCorrespondence: null,
     scheduledAppointments: 5, // Static for now
     lastUpdated: null,
     isInitialized: false
@@ -77,6 +79,43 @@ export const DashboardProvider = ({ children }) => {
       // Get most recent enquiry
       const recentEnquiry = students.length > 0 ? students[students.length - 1] : null;
 
+      // Calculate correspondence statistics
+      const studentsWithCorrespondence = students.filter(student => 
+        student.receptionistRemarks && student.receptionistRemarks.length > 0
+      );
+      
+      const totalCorrespondence = studentsWithCorrespondence.reduce((sum, student) => 
+        sum + (student.receptionistRemarks ? student.receptionistRemarks.length : 0), 0
+      );
+      
+      // Calculate today's correspondence
+      const todayCorrespondence = studentsWithCorrespondence.reduce((sum, student) => {
+        const todayRemarks = student.receptionistRemarks.filter(remark => {
+          const remarkDate = new Date(remark.timestamp).toISOString().split('T')[0];
+          return remarkDate === today;
+        });
+        return sum + todayRemarks.length;
+      }, 0);
+      
+      // Get most recent correspondence
+      let recentCorrespondence = null;
+      let latestTimestamp = 0;
+      studentsWithCorrespondence.forEach(student => {
+        if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
+          const latestRemark = student.receptionistRemarks[student.receptionistRemarks.length - 1];
+          const timestamp = new Date(latestRemark.timestamp).getTime();
+          if (timestamp > latestTimestamp) {
+            latestTimestamp = timestamp;
+            recentCorrespondence = {
+              studentName: `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+              remark: latestRemark.remark,
+              receptionistName: latestRemark.receptionistName,
+              timestamp: latestRemark.timestamp
+            };
+          }
+        }
+      });
+
       // Create recent activities from latest students
       const recentActivities = students.slice(-5).reverse().map(student => ({
         id: student._id,
@@ -95,7 +134,9 @@ export const DashboardProvider = ({ children }) => {
         recentEnquiry,
         recentActivities,
         upcomingExams: 3,
-        pendingCorrespondence: 8,
+        totalCorrespondence,
+        todayCorrespondence,
+        recentCorrespondence,
         scheduledAppointments: 5,
         lastUpdated: new Date(),
         isInitialized: true
@@ -198,6 +239,22 @@ export const DashboardProvider = ({ children }) => {
     }));
   }, []);
 
+  // Update correspondence data (when new correspondence is added)
+  const addNewCorrespondence = useCallback((studentName, remark, receptionistName) => {
+    setDashboardData(prev => ({
+      ...prev,
+      totalCorrespondence: prev.totalCorrespondence + 1,
+      todayCorrespondence: prev.todayCorrespondence + 1,
+      recentCorrespondence: {
+        studentName,
+        remark,
+        receptionistName,
+        timestamp: new Date().toISOString()
+      },
+      lastUpdated: new Date()
+    }));
+  }, []);
+
   // Manual refresh (only when user explicitly requests it)
   const refreshDashboard = useCallback(async () => {
     setDashboardData(prev => ({ ...prev, isInitialized: false }));
@@ -218,6 +275,7 @@ export const DashboardProvider = ({ children }) => {
     updateStudentCount,
     updateStaffCount,
     addActivity,
+    addNewCorrespondence,
     updateCorrespondenceCount,
     updateExamsCount,
     updateAppointmentsCount,

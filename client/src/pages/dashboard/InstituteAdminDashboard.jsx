@@ -110,8 +110,10 @@ const InstituteAdminDashboard = () => {
       title: 'Correspondence Reports', 
       href: '/reports?section=correspondence', 
       icon: Mail, 
-      recentActivity: 'Parent-teacher communications',
-      todayCount: `${dashboardData.pendingCorrespondence} pending`,
+      recentActivity: dashboardData.recentCorrespondence 
+        ? `Latest: ${dashboardData.recentCorrespondence.studentName} - ${dashboardData.recentCorrespondence.remark?.substring(0, 30) || 'No remark'}...`
+        : 'No recent correspondence',
+      todayCount: `${dashboardData.todayCorrespondence || 0} today, ${dashboardData.totalCorrespondence || 0} total`,
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal'
     },
