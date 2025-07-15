@@ -83,11 +83,11 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
-  // Institute & Academic Info
-  institute: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Institute',
-    required: [true, 'Institute is required']
+  // Academic Info (PGC DHA Campus)
+  instituteName: {
+    type: String,
+    default: 'Punjab Group of Colleges - DHA Campus',
+    immutable: true
   },
   currentClass: {
     type: String,
@@ -201,14 +201,7 @@ const userSchema = new mongoose.Schema({
       rollNumber: String,
       year: Number,
       board: String
-    },
-    previousInstitutes: [{
-      name: String,
-      level: String,
-      yearFrom: Number,
-      yearTo: Number,
-      reason: String
-    }]
+    }
   },
 
   // System Metadata
@@ -348,6 +341,11 @@ userSchema.pre('save', function(next) {
 
 // Method to check password
 userSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Alias for comparePassword (for compatibility)
+userSchema.methods.comparePassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

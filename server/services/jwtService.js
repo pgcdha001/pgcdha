@@ -19,7 +19,7 @@ class JWTService {
   generateAccessToken(payload) {
     const tokenPayload = {
       userId: payload.userId,
-      instituteId: payload.instituteId,
+      instituteName: 'Punjab Group of Colleges - DHA Campus',
       role: payload.role,
       permissions: payload.permissions,
       sessionId: payload.sessionId,
@@ -42,7 +42,7 @@ class JWTService {
   generateRefreshToken(payload) {
     const tokenPayload = {
       userId: payload.userId,
-      instituteId: payload.instituteId,
+      instituteName: 'Punjab Group of Colleges - DHA Campus',
       sessionId: payload.sessionId,
       tokenVersion: payload.tokenVersion || 0,
       jti: crypto.randomUUID(), // JWT ID for unique identification
@@ -105,7 +105,6 @@ class JWTService {
       // Create session record with temporary token
       const session = new Session({
         user: user._id,
-        institute: user.institute,
         refreshToken: tempRefreshToken, // Temporary token, will be replaced
         expiresAt: expiresAt,
         deviceInfo: {
@@ -121,7 +120,6 @@ class JWTService {
 
       const tokenPayload = {
         userId: user._id,
-        instituteId: user.institute,
         role: user.role,
         permissions: user.permissions,
         sessionId: session._id,

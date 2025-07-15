@@ -1,0 +1,38 @@
+cd "/media/sajidmehmood/New Volume/Github/PGC/server" && node -e "
+require('dotenv').config();
+const mongoose = require('mongoose');
+const User = require('./models/User');
+
+mongoose.connect(process.env.MONGO_URI).then(async () => {
+  console.log('Connected to database');
+  
+  // Update specific users with correct roles
+  const updates = [
+    { username: 'superadmin', role: 'SystemAdmin' },
+    { username: 'admin', role: 'InstituteAdmin' },
+    { username: 'teacher', role: 'Teacher' },
+    { username: 'student', role: 'Student' }
+  ];
+  
+  for (const update of updates) {
+    const result = await User.updateOne(
+      { username: update.username },
+      { 
+        role: update.role,
+        accountStatus: 'Active'
+      }
+    );
+    console.log('Updated', update.username, 'to role:', update.role, '- Modified:', result.modifiedCount);
+  }
+  
+  // Verify the updates
+  console.log('\n--- Current Users ---');
+  const users = await User.find({}, 'username email role accountStatus');
+  users.forEach(user => {
+    console.log('Username:', user.username, 'Role:', user.role, 'Status:', user.accountStatus);
+  });
+  
+  await mongoose.disconnect();
+  console.log('\nDone!');
+}).catch(console.error);
+"

@@ -3,7 +3,6 @@ require('dotenv').config();
 
 // Import models
 const User = require('../models/User');
-const Institute = require('../models/Institute');
 const RolePermission = require('../models/RolePermission');
 const Session = require('../models/Session');
 const AuditLog = require('../models/AuditLog');
@@ -29,9 +28,6 @@ const resetDatabase = async () => {
     // Clear all collections
     await User.deleteMany({});
     console.log('✓ Cleared Users collection');
-    
-    await Institute.deleteMany({});
-    console.log('✓ Cleared Institutes collection');
     
     await RolePermission.deleteMany({});
     console.log('✓ Cleared RolePermissions collection');

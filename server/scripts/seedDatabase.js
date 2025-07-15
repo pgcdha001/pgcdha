@@ -4,7 +4,6 @@ require('dotenv').config();
 
 // Import models
 const User = require('../models/User');
-const Institute = require('../models/Institute');
 const RolePermission = require('../models/RolePermission');
 
 // Database connection
@@ -26,11 +25,6 @@ const seedPermissions = async () => {
     // System Administration
     { name: 'super_admin', description: 'Full system access', category: 'system' },
     { name: 'system_settings', description: 'Manage system settings', category: 'system' },
-    
-    // Institute Management
-    { name: 'institute_admin', description: 'Institute administration', category: 'institute' },
-    { name: 'manage_institutes', description: 'Create, update, delete institutes', category: 'institute' },
-    { name: 'view_institutes', description: 'View institute information', category: 'institute' },
     
     // User Management
     { name: 'manage_users', description: 'Create, update, delete users', category: 'user' },
@@ -87,13 +81,13 @@ const seedRoles = async () => {
     {
       name: 'Super Admin',
       description: 'System super administrator with full access',
-      permissions: ['super_admin', 'system_settings', 'manage_institutes', 'view_institutes']
+      permissions: ['super_admin', 'system_settings']
     },
     {
-      name: 'Institute Admin',
-      description: 'Institute administrator with full institute access',
+      name: 'College Admin',
+      description: 'College administrator with full college access',
       permissions: [
-        'institute_admin', 'manage_users', 'view_users', 'approve_users',
+        'manage_users', 'view_users', 'approve_users',
         'manage_students', 'view_students', 'enroll_students',
         'manage_teachers', 'view_teachers', 'assign_teachers',
         'manage_courses', 'view_courses',
@@ -165,51 +159,13 @@ const seedRoles = async () => {
   console.log(`✓ Seeded ${roles.length} roles`);
 };
 
-// Seed test institute
-const seedInstitute = async () => {
-  console.log('Seeding test institute...');
-  
-  const instituteData = {
-    name: 'Punjab Group of Colleges',
-    code: 'PGC',
-    type: 'college',
-    address: {
-      street: '123 Education Street',
-      city: 'Lahore',
-      state: 'Punjab',
-      country: 'Pakistan',
-      postalCode: '54000'
-    },
-    contact: {
-      phone: '+92-42-1234567',
-      email: 'info@pgc.edu.pk',
-      website: 'https://pgc.edu.pk'
-    },
-    settings: {
-      timezone: 'Asia/Karachi',
-      academicYear: '2024-2025',
-      currency: 'PKR'
-    },
-    isActive: true
-  };
-
-  const institute = await Institute.findOneAndUpdate(
-    { code: 'PGC' },
-    instituteData,
-    { upsert: true, new: true }
-  );
-  
-  console.log(`✓ Seeded test institute: ${institute.name}`);
-  return institute;
-};
-
 // Seed test users
-const seedUsers = async (institute) => {
+const seedUsers = async () => {
   console.log('Seeding test users...');
   
   // Get roles
   const superAdminRole = await RolePermission.findOne({ name: 'Super Admin', type: 'role' });
-  const instituteAdminRole = await RolePermission.findOne({ name: 'Institute Admin', type: 'role' });
+  const collegeAdminRole = await RolePermission.findOne({ name: 'College Admin', type: 'role' });
   const teacherRole = await RolePermission.findOne({ name: 'Teacher', type: 'role' });
   const studentRole = await RolePermission.findOne({ name: 'Student', type: 'role' });
 
@@ -237,7 +193,6 @@ const seedUsers = async (institute) => {
         }
       },
       roles: [superAdminRole._id],
-      institute: institute._id, // Super admin can be associated with institute
       isActive: true,
       isApproved: true
     },
@@ -249,7 +204,7 @@ const seedUsers = async (institute) => {
         primary: '+923001234568'
       },
       fullName: {
-        firstName: 'Institute',
+        firstName: 'College',
         lastName: 'Administrator'
       },
       gender: 'Male',
@@ -263,8 +218,7 @@ const seedUsers = async (institute) => {
           phone: '+923009999998'
         }
       },
-      roles: [instituteAdminRole._id],
-      institute: institute._id,
+      roles: [collegeAdminRole._id],
       isActive: true,
       isApproved: true
     },
@@ -291,7 +245,6 @@ const seedUsers = async (institute) => {
         }
       },
       roles: [teacherRole._id],
-      institute: institute._id,
       isActive: true,
       isApproved: true
     },
@@ -318,7 +271,6 @@ const seedUsers = async (institute) => {
         }
       },
       roles: [studentRole._id],
-      institute: institute._id,
       currentClass: 'Grade 12',
       academicSession: '2024-2025',
       academicYear: 2024,
@@ -356,8 +308,7 @@ const seedDatabase = async () => {
     
     await seedPermissions();
     await seedRoles();
-    const institute = await seedInstitute();
-    await seedUsers(institute);
+    await seedUsers();
     
     console.log('\n✅ Database seeding completed successfully!');
     console.log('\nYou can now test the authentication system with the seeded users.');

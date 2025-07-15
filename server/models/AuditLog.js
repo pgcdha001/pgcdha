@@ -1,16 +1,16 @@
 const mongoose = require('mongoose');
 
 const auditLogSchema = new mongoose.Schema({
-  // User and Institute Context
+  // User Context (PGC DHA Campus)
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'User is required']
   },
-  institute: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Institute',
-    required: [true, 'Institute is required']
+  instituteName: {
+    type: String,
+    default: 'Punjab Group of Colleges - DHA Campus',
+    immutable: true
   },
   
   // Action Information
@@ -155,7 +155,6 @@ const auditLogSchema = new mongoose.Schema({
 
 // Indexes for performance and querying
 auditLogSchema.index({ user: 1, timestamp: -1 });
-auditLogSchema.index({ institute: 1, timestamp: -1 });
 auditLogSchema.index({ action: 1, timestamp: -1 });
 auditLogSchema.index({ 'resource.type': 1, 'resource.id': 1 });
 auditLogSchema.index({ 'result.status': 1 });
@@ -166,7 +165,6 @@ auditLogSchema.index({ timestamp: -1 }); // For general time-based queries
 
 // Compound indexes for common queries
 auditLogSchema.index({ user: 1, action: 1, timestamp: -1 });
-auditLogSchema.index({ institute: 1, action: 1, timestamp: -1 });
 auditLogSchema.index({ 'security.riskLevel': 1, timestamp: -1 });
 
 // TTL index for automatic log cleanup (keep logs for 2 years)
@@ -267,14 +265,12 @@ auditLogSchema.statics.getUserActivity = function(userId, options = {}) {
     .sort({ timestamp: -1 })
     .limit(limit)
     .skip((page - 1) * limit)
-    .populate('user', 'fullName email')
-    .populate('institute', 'name code');
+    .populate('user', 'fullName email');
 };
 
 // Static method to get security alerts
 auditLogSchema.statics.getSecurityAlerts = function(options = {}) {
   const {
-    institute = null,
     riskLevel = ['HIGH', 'CRITICAL'],
     requiresReview = true,
     startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
@@ -286,22 +282,17 @@ auditLogSchema.statics.getSecurityAlerts = function(options = {}) {
     'security.riskLevel': { $in: riskLevel }
   };
   
-  if (institute) {
-    query.institute = institute;
-  }
-  
   if (requiresReview !== null) {
     query['security.requiresReview'] = requiresReview;
   }
   
   return this.find(query)
     .sort({ timestamp: -1 })
-    .populate('user', 'fullName email role')
-    .populate('institute', 'name code');
+    .populate('user', 'fullName email role');
 };
 
 // Static method to get audit statistics
-auditLogSchema.statics.getStatistics = function(instituteId, period = '24h') {
+auditLogSchema.statics.getStatistics = function(period = '24h') {
   const periodMap = {
     '1h': 60 * 60 * 1000,
     '24h': 24 * 60 * 60 * 1000,
@@ -314,7 +305,6 @@ auditLogSchema.statics.getStatistics = function(instituteId, period = '24h') {
   return this.aggregate([
     {
       $match: {
-        institute: new mongoose.Types.ObjectId(instituteId),
         timestamp: { $gte: startDate }
       }
     },

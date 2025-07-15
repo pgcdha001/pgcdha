@@ -6,10 +6,10 @@ const sessionSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'User is required']
   },
-  institute: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Institute',
-    required: [true, 'Institute is required']
+  instituteName: {
+    type: String,
+    default: 'Punjab Group of Colleges - DHA Campus',
+    immutable: true
   },
   
   // Token Information
@@ -114,7 +114,6 @@ sessionSchema.index({ createdAt: -1 });
 
 // Compound indexes
 sessionSchema.index({ user: 1, deviceInfo: 1 });
-sessionSchema.index({ institute: 1, isActive: 1 });
 
 // Virtual to check if session is expired
 sessionSchema.virtual('isExpired').get(function() {
@@ -185,16 +184,6 @@ sessionSchema.statics.getActiveSessions = function(userId) {
     isRevoked: false,
     expiresAt: { $gt: new Date() }
   }).sort({ lastActivity: -1 });
-};
-
-// Static method to count active sessions per institute
-sessionSchema.statics.getInstituteActiveSessionCount = function(instituteId) {
-  return this.countDocuments({
-    institute: instituteId,
-    isActive: true,
-    isRevoked: false,
-    expiresAt: { $gt: new Date() }
-  });
 };
 
 // Pre-save middleware to set expiry if not provided

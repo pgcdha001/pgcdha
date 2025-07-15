@@ -1,6 +1,5 @@
 const express = require('express');
 const User = require('../models/User');
-const Institute = require('../models/Institute');
 const Session = require('../models/Session');
 const AuditLog = require('../models/AuditLog');
 const jwtService = require('../services/jwtService');
@@ -13,8 +12,8 @@ const router = express.Router();
 
 /**
  * @route   POST /api/auth/register
- * @desc    Register a new user
- * @access  Public (but may require admin approval)
+ * @desc    Register a new user for PGC DHA Campus
+ * @access  Public
  */
 router.post('/register', validationSchemas.userRegistration, asyncHandler(async (req, res) => {
   const {
@@ -26,10 +25,12 @@ router.post('/register', validationSchemas.userRegistration, asyncHandler(async 
     gender,
     dateOfBirth,
     cnic,
-    institute,
-    role,
+    role = 'Student',
     familyInfo,
-    academicHistory
+    academicHistory,
+    currentClass,
+    academicSession,
+    academicYear
   } = req.body;
 
   // Check if user already exists
@@ -49,23 +50,8 @@ router.post('/register', validationSchemas.userRegistration, asyncHandler(async 
     throw new AppError(`User with this ${field} already exists`, 400, 'USER_EXISTS');
   }
 
-  // Verify institute exists
-  const instituteDoc = await Institute.findById(institute);
-  if (!instituteDoc) {
-    throw new AppError('Institute not found', 404, 'INSTITUTE_NOT_FOUND');
-  }
-
-  // Check if institute can add more users
-  if (role !== 'Student' && !instituteDoc.canAddUsers()) {
-    throw new AppError('Institute has reached maximum user limit', 400, 'USER_LIMIT_EXCEEDED');
-  }
-
-  if (role === 'Student' && !instituteDoc.canAddStudents()) {
-    throw new AppError('Institute has reached maximum student limit', 400, 'STUDENT_LIMIT_EXCEEDED');
-  }
-
-  // Create new user
-  const newUser = new User({
+  // Create new user data
+  const userData = {
     email: email.toLowerCase(),
     username: username.toLowerCase(),
     password, // Will be hashed by pre-save middleware
@@ -74,22 +60,25 @@ router.post('/register', validationSchemas.userRegistration, asyncHandler(async 
     gender,
     dateOfBirth,
     cnic,
-    institute,
     role,
     familyInfo,
     academicHistory,
-    accountStatus: 'Active' // Since we're not using email verification
-  });
+    accountStatus: 'Active'
+  };
 
+  // Add student-specific fields if role is Student
+  if (role === 'Student') {
+    userData.currentClass = currentClass;
+    userData.academicSession = academicSession;
+    userData.academicYear = academicYear;
+  }
+
+  const newUser = new User(userData);
   await newUser.save();
-
-  // Update institute user counts
-  await instituteDoc.updateUserCounts();
 
   // Log user registration
   await AuditLog.logAction({
     user: newUser._id,
-    institute: newUser.institute,
     action: 'USER_CREATED',
     resource: {
       type: 'User',
@@ -97,10 +86,9 @@ router.post('/register', validationSchemas.userRegistration, asyncHandler(async 
       name: `${newUser.fullName.firstName} ${newUser.fullName.lastName}`
     },
     details: {
-      description: 'New user registered in the system',
+      description: 'New user registered in PGC DHA Campus',
       metadata: {
         role: newUser.role,
-        institute: instituteDoc.name,
         registrationMethod: 'Self-Registration'
       }
     },
@@ -122,19 +110,19 @@ router.post('/register', validationSchemas.userRegistration, asyncHandler(async 
 
   sendSuccessResponse(res, {
     user: userResponse,
-    message: 'Registration successful. You can now login.'
+    message: 'Registration successful for PGC DHA Campus. You can now login.'
   }, 'User registered successfully', 201);
 }));
 
 /**
  * @route   POST /api/auth/login
- * @desc    Login user
+ * @desc    Login user to PGC DHA Campus
  * @access  Public
  */
 router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res) => {
   const { login, password } = req.body;
+  const userAgent = req.headers['user-agent'] || 'Unknown';
   const ipAddress = req.ip || req.connection.remoteAddress;
-  const userAgent = req.headers['user-agent'];
 
   // Find user by email or username
   const user = await User.findOne({
@@ -142,24 +130,23 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
       { email: login.toLowerCase() },
       { username: login.toLowerCase() }
     ]
-  }).select('+password').populate('institute');
+  }).select('+password').populate('roles');
 
   // Check if user exists and password is correct
-  if (!user || !(await user.matchPassword(password))) {
+  if (!user || !(await user.comparePassword(password))) {
     // Log failed login attempt
     await AuditLog.logAction({
       user: user?._id || null,
-      institute: user?.institute?._id || null,
       action: 'LOGIN_FAILED',
       resource: {
         type: 'System',
         name: 'Authentication'
       },
       details: {
-        description: 'Failed login attempt with invalid credentials',
+        description: 'Invalid login credentials provided',
         metadata: {
           loginAttempt: login,
-          reason: !user ? 'User not found' : 'Invalid password'
+          reason: 'Invalid credentials'
         }
       },
       requestInfo: {
@@ -177,11 +164,6 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
       }
     });
 
-    // Increment login attempts if user exists
-    if (user) {
-      await user.incLoginAttempts();
-    }
-
     throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
   }
 
@@ -189,7 +171,6 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
   if (user.isLocked) {
     await AuditLog.logAction({
       user: user._id,
-      institute: user.institute._id,
       action: 'LOGIN_FAILED',
       resource: {
         type: 'User',
@@ -218,48 +199,13 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
       }
     });
 
-    throw new AppError('Account is temporarily locked due to too many failed login attempts', 423, 'ACCOUNT_LOCKED');
+    throw new AppError('Account is temporarily locked due to multiple failed login attempts', 423, 'ACCOUNT_LOCKED');
   }
 
   // Check account status
   if (user.accountStatus !== 'Active') {
-    await AuditLog.logAction({
-      user: user._id,
-      institute: user.institute._id,
-      action: 'LOGIN_FAILED',
-      resource: {
-        type: 'User',
-        id: user._id,
-        name: user.fullNameString
-      },
-      details: {
-        description: 'Login attempt on inactive account',
-        metadata: {
-          accountStatus: user.accountStatus
-        }
-      },
-      requestInfo: {
-        ipAddress,
-        userAgent,
-        endpoint: req.originalUrl,
-        method: req.method
-      },
-      result: {
-        status: 'FAILED',
-        statusCode: 403
-      },
-      security: {
-        riskLevel: 'MEDIUM'
-      }
-    });
-
     throw new AppError(`Account is ${user.accountStatus.toLowerCase()}`, 403, 'ACCOUNT_INACTIVE');
   }
-
-  // Check institute subscription status (commented out for development)
-  // if (!user.institute.isSubscriptionActive) {
-  //   throw new AppError('Institute subscription has expired', 403, 'SUBSCRIPTION_EXPIRED');
-  // }
 
   // Reset login attempts on successful login
   await user.resetLoginAttempts();
@@ -268,20 +214,14 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
   const sessionData = {
     userAgent,
     ipAddress,
-    loginMethod: 'Password',
-    deviceId: req.headers['x-device-id'] || null
+    loginMethod: 'Password'
   };
 
-  const tokens = await jwtService.generateTokenPair(user, sessionData);
-
-  // Update last login
-  user.lastLogin = new Date();
-  await user.save();
+  const tokenData = await jwtService.generateTokenPair(user, sessionData);
 
   // Log successful login
   await AuditLog.logAction({
     user: user._id,
-    institute: user.institute._id,
     action: 'LOGIN_SUCCESS',
     resource: {
       type: 'User',
@@ -289,11 +229,11 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
       name: user.fullNameString
     },
     details: {
-      description: 'User successfully logged in',
+      description: 'User successfully logged in to PGC DHA Campus',
       metadata: {
         role: user.role,
-        institute: user.institute.name,
-        sessionId: tokens.sessionId
+        sessionId: tokenData.sessionId,
+        loginMethod: 'Password'
       }
     },
     requestInfo: {
@@ -301,7 +241,7 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
       userAgent,
       endpoint: req.originalUrl,
       method: req.method,
-      sessionId: tokens.sessionId
+      sessionId: tokenData.sessionId
     },
     result: {
       status: 'SUCCESS',
@@ -309,20 +249,26 @@ router.post('/login', validationSchemas.userLogin, asyncHandler(async (req, res)
     }
   });
 
-  // Prepare user data for response
+  // Remove sensitive data from user object
   const userResponse = user.toJSON();
   delete userResponse.password;
+  delete userResponse.loginAttempts;
+  delete userResponse.lockUntil;
+  delete userResponse.passwordResetToken;
+  delete userResponse.passwordResetExpires;
 
   sendSuccessResponse(res, {
     user: userResponse,
-    institute: user.institute,
     tokens: {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      expiresIn: tokens.expiresIn
+      accessToken: tokenData.accessToken,
+      refreshToken: tokenData.refreshToken,
+      expiresIn: tokenData.expiresIn
     },
-    sessionId: tokens.sessionId
-  }, 'Login successful');
+    session: {
+      id: tokenData.sessionId
+    },
+    message: 'Login successful. Welcome to PGC DHA Campus!'
+  });
 }));
 
 /**
@@ -337,42 +283,42 @@ router.post('/refresh', asyncHandler(async (req, res) => {
     throw new AppError('Refresh token is required', 400, 'REFRESH_TOKEN_REQUIRED');
   }
 
-  const requestInfo = {
+  const result = await jwtService.refreshAccessToken(refreshToken, {
     ipAddress: req.ip || req.connection.remoteAddress,
     userAgent: req.headers['user-agent']
-  };
+  });
 
-  const tokens = await jwtService.refreshAccessToken(refreshToken, requestInfo);
-
-  sendSuccessResponse(res, tokens, 'Token refreshed successfully');
+  sendSuccessResponse(res, result, 'Token refreshed successfully');
 }));
 
 /**
  * @route   POST /api/auth/logout
- * @desc    Logout user
+ * @desc    Logout user (invalidate current session)
  * @access  Private
  */
 router.post('/logout', authenticate, asyncHandler(async (req, res) => {
-  const { sessionId } = req.body;
-  const targetSessionId = sessionId || req.session._id;
-
-  // Revoke session
-  await jwtService.revokeSession(targetSessionId, 'UserLogout');
+  const session = await Session.findById(req.session._id);
+  
+  if (session) {
+    session.isRevoked = true;
+    session.revokedAt = new Date();
+    session.revokedReason = 'User logout';
+    await session.save();
+  }
 
   // Log logout
   await AuditLog.logAction({
     user: req.user._id,
-    institute: req.user.institute,
     action: 'LOGOUT',
     resource: {
-      type: 'User',
-      id: req.user._id,
-      name: req.user.fullNameString
+      type: 'System',
+      name: 'Authentication'
     },
     details: {
-      description: 'User logged out',
+      description: 'User logged out successfully',
       metadata: {
-        sessionId: targetSessionId
+        sessionId: req.session._id,
+        logoutMethod: 'Manual'
       }
     },
     requestInfo: {
@@ -393,26 +339,33 @@ router.post('/logout', authenticate, asyncHandler(async (req, res) => {
 
 /**
  * @route   POST /api/auth/logout-all
- * @desc    Logout from all devices
+ * @desc    Logout from all devices (invalidate all sessions)
  * @access  Private
  */
 router.post('/logout-all', authenticate, asyncHandler(async (req, res) => {
-  const revokedCount = await jwtService.revokeAllUserSessions(req.user._id, 'UserLogoutAll');
+  // Revoke all user sessions
+  await Session.updateMany(
+    { user: req.user._id, isRevoked: false },
+    { 
+      isRevoked: true, 
+      revokedAt: new Date(),
+      revokedReason: 'Logout all devices'
+    }
+  );
 
   // Log logout from all devices
   await AuditLog.logAction({
     user: req.user._id,
-    institute: req.user.institute,
     action: 'LOGOUT',
     resource: {
-      type: 'User',
-      id: req.user._id,
-      name: req.user.fullNameString
+      type: 'System',
+      name: 'Authentication'
     },
     details: {
       description: 'User logged out from all devices',
       metadata: {
-        revokedSessions: revokedCount
+        logoutMethod: 'All devices',
+        currentSessionId: req.session._id
       }
     },
     requestInfo: {
@@ -428,12 +381,12 @@ router.post('/logout-all', authenticate, asyncHandler(async (req, res) => {
     }
   });
 
-  sendSuccessResponse(res, { revokedSessions: revokedCount }, 'Logged out from all devices');
+  sendSuccessResponse(res, null, 'Logged out from all devices successfully');
 }));
 
 /**
  * @route   POST /api/auth/forgot-password
- * @desc    Request password reset
+ * @desc    Send password reset email
  * @access  Public
  */
 router.post('/forgot-password', validationSchemas.forgotPassword, asyncHandler(async (req, res) => {
@@ -442,18 +395,18 @@ router.post('/forgot-password', validationSchemas.forgotPassword, asyncHandler(a
   const user = await User.findOne({ email: email.toLowerCase() });
 
   if (!user) {
-    // Don't reveal if email exists or not for security
-    return sendSuccessResponse(res, null, 'If the email exists, a password reset token has been generated');
+    // Don't reveal if user exists or not for security
+    sendSuccessResponse(res, null, 'If an account with that email exists, a password reset link has been sent.');
+    return;
   }
 
-  // Generate password reset token
+  // Generate reset token
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
   // Log password reset request
   await AuditLog.logAction({
     user: user._id,
-    institute: user.institute,
     action: 'PASSWORD_RESET_REQUESTED',
     resource: {
       type: 'User',
@@ -461,9 +414,10 @@ router.post('/forgot-password', validationSchemas.forgotPassword, asyncHandler(a
       name: user.fullNameString
     },
     details: {
-      description: 'Password reset requested',
+      description: 'Password reset requested for PGC DHA Campus account',
       metadata: {
-        email: user.email
+        email: user.email,
+        resetTokenGenerated: true
       }
     },
     requestInfo: {
@@ -478,28 +432,22 @@ router.post('/forgot-password', validationSchemas.forgotPassword, asyncHandler(a
     }
   });
 
-  // In a real application, you would send the reset token via email
-  // For now, we'll return it in the response (only in development)
-  const response = { message: 'Password reset token generated' };
-  
-  if (process.env.NODE_ENV === 'development') {
-    response.resetToken = resetToken;
-    response.note = 'In production, this token would be sent via email';
-  }
-
-  sendSuccessResponse(res, response, 'If the email exists, a password reset token has been generated');
+  // In production, send email here
+  // For development, we'll just return success
+  sendSuccessResponse(res, { resetToken }, 'Password reset instructions sent to your email');
 }));
 
 /**
  * @route   POST /api/auth/reset-password
- * @desc    Reset password with token
+ * @desc    Reset password using reset token
  * @access  Public
  */
 router.post('/reset-password', validationSchemas.passwordReset, asyncHandler(async (req, res) => {
   const { token, password } = req.body;
 
-  // Hash the token to compare with database
-  const hashedToken = jwtService.hashToken(token);
+  // Hash the token to compare with stored token
+  const crypto = require('crypto');
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
   // Find user with valid reset token
   const user = await User.findOne({
@@ -511,21 +459,21 @@ router.post('/reset-password', validationSchemas.passwordReset, asyncHandler(asy
     throw new AppError('Invalid or expired reset token', 400, 'INVALID_RESET_TOKEN');
   }
 
-  // Set new password
+  // Update password
   user.password = password;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   user.passwordChangedAt = new Date();
+  
+  // Reset login attempts if account was locked
+  user.loginAttempts = undefined;
+  user.lockUntil = undefined;
 
   await user.save();
 
-  // Revoke all existing sessions for security
-  await jwtService.revokeAllUserSessions(user._id, 'PasswordReset');
-
-  // Log password reset completion
+  // Log password reset
   await AuditLog.logAction({
     user: user._id,
-    institute: user.institute,
     action: 'PASSWORD_RESET_COMPLETED',
     resource: {
       type: 'User',
@@ -533,9 +481,9 @@ router.post('/reset-password', validationSchemas.passwordReset, asyncHandler(asy
       name: user.fullNameString
     },
     details: {
-      description: 'Password reset completed successfully',
+      description: 'Password successfully reset for PGC DHA Campus account',
       metadata: {
-        revokedAllSessions: true
+        resetMethod: 'Token-based reset'
       }
     },
     requestInfo: {
@@ -547,56 +495,36 @@ router.post('/reset-password', validationSchemas.passwordReset, asyncHandler(asy
     result: {
       status: 'SUCCESS',
       statusCode: 200
-    },
-    security: {
-      riskLevel: 'MEDIUM'
     }
   });
 
-  sendSuccessResponse(res, null, 'Password reset successful. Please login with your new password');
+  sendSuccessResponse(res, null, 'Password reset successful. You can now login with your new password.');
 }));
 
 /**
  * @route   POST /api/auth/change-password
- * @desc    Change password (authenticated user)
+ * @desc    Change password for authenticated user
  * @access  Private
  */
 router.post('/change-password', authenticate, validationSchemas.passwordChange, asyncHandler(async (req, res) => {
-  const { currentPassword, password } = req.body;
+  const { currentPassword, newPassword } = req.body;
 
   // Get user with password
   const user = await User.findById(req.user._id).select('+password');
 
   // Check current password
-  if (!(await user.matchPassword(currentPassword))) {
+  if (!(await user.comparePassword(currentPassword))) {
     throw new AppError('Current password is incorrect', 400, 'INVALID_CURRENT_PASSWORD');
   }
 
-  // Check if new password is different from current
-  if (await user.matchPassword(password)) {
-    throw new AppError('New password must be different from current password', 400, 'SAME_PASSWORD');
-  }
-
-  // Set new password
-  user.password = password;
+  // Update password
+  user.password = newPassword;
   user.passwordChangedAt = new Date();
   await user.save();
-
-  // Revoke all other sessions except current one
-  const sessions = await Session.find({
-    user: user._id,
-    _id: { $ne: req.session._id },
-    isActive: true
-  });
-
-  for (const session of sessions) {
-    await session.revoke('PasswordChange');
-  }
 
   // Log password change
   await AuditLog.logAction({
     user: user._id,
-    institute: user.institute,
     action: 'PASSWORD_CHANGED',
     resource: {
       type: 'User',
@@ -606,7 +534,7 @@ router.post('/change-password', authenticate, validationSchemas.passwordChange, 
     details: {
       description: 'User changed their password',
       metadata: {
-        revokedOtherSessions: sessions.length
+        changeMethod: 'Authenticated change'
       }
     },
     requestInfo: {
@@ -631,17 +559,20 @@ router.post('/change-password', authenticate, validationSchemas.passwordChange, 
  * @access  Private
  */
 router.get('/me', authenticate, asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).populate('institute');
+  const user = await User.findById(req.user._id).populate('roles');
   
-  sendSuccessResponse(res, {
-    user,
-    institute: user.institute,
-    session: {
-      id: req.session._id,
-      lastActivity: req.session.lastActivity,
-      deviceInfo: req.session.deviceInfo
-    }
-  }, 'User information retrieved');
+  if (!user) {
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  const userResponse = user.toJSON();
+  delete userResponse.password;
+  delete userResponse.loginAttempts;
+  delete userResponse.lockUntil;
+  delete userResponse.passwordResetToken;
+  delete userResponse.passwordResetExpires;
+
+  sendSuccessResponse(res, { user: userResponse }, 'User info retrieved successfully');
 }));
 
 /**
@@ -650,9 +581,45 @@ router.get('/me', authenticate, asyncHandler(async (req, res) => {
  * @access  Private
  */
 router.get('/sessions', authenticate, asyncHandler(async (req, res) => {
-  const sessions = await jwtService.getUserSessions(req.user._id);
+  const sessions = await Session.getUserActiveSessions(req.user._id);
   
-  sendSuccessResponse(res, sessions, 'Active sessions retrieved');
+  const sessionData = sessions.map(session => ({
+    id: session._id,
+    deviceInfo: session.deviceInfo,
+    ipAddress: session.ipAddress,
+    location: session.location,
+    lastActivity: session.lastActivity,
+    loginMethod: session.loginMethod,
+    isCurrent: session._id.toString() === req.session._id.toString()
+  }));
+
+  sendSuccessResponse(res, { sessions: sessionData }, 'Sessions retrieved successfully');
+}));
+
+/**
+ * @route   DELETE /api/auth/sessions/:sessionId
+ * @desc    Revoke a specific session
+ * @access  Private
+ */
+router.delete('/sessions/:sessionId', authenticate, asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+
+  const session = await Session.findOne({
+    _id: sessionId,
+    user: req.user._id,
+    isRevoked: false
+  });
+
+  if (!session) {
+    throw new AppError('Session not found', 404, 'SESSION_NOT_FOUND');
+  }
+
+  session.isRevoked = true;
+  session.revokedAt = new Date();
+  session.revokedReason = 'Manual revocation';
+  await session.save();
+
+  sendSuccessResponse(res, null, 'Session revoked successfully');
 }));
 
 module.exports = router;

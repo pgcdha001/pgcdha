@@ -14,7 +14,6 @@ const DashboardPage = () => {
     permissions: user?.permissions,
     hasPermissions: {
       super_admin: hasPermission('super_admin'),
-      institute_admin: hasPermission('institute_admin'),
       manage_students: hasPermission('manage_students')
     }
   });
@@ -23,8 +22,8 @@ const DashboardPage = () => {
     // First check by role field (string)
     if (user?.role === 'SystemAdmin' || hasPermission('super_admin')) {
       return <SuperAdminDashboard />;
-    } else if (user?.role === 'InstituteAdmin' || hasPermission('institute_admin')) {
-      return <InstituteAdminDashboard />;
+    } else if (user?.role === 'CollegeAdmin' || hasPermission('manage_users')) {
+      return <CollegeAdminDashboard />;
     } else if (user?.role === 'Teacher' || hasPermission('manage_students')) {
       return <TeacherDashboard />;
     } else if (user?.role === 'Student') {
@@ -50,7 +49,7 @@ const DashboardPage = () => {
             Welcome back, {user?.fullName?.firstName || user?.firstName || 'User'}!
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Role: {user?.role} • {user?.institute?.name || 'No Institute'}
+            Role: {user?.role} • Punjab Group of Colleges - DHA Campus
           </p>
           {/* Debug info - remove in production */}
           <div className="mt-2 text-xs text-gray-500 bg-gray-100 p-2 rounded">
@@ -95,7 +94,7 @@ const SuperAdminDashboard = () => {
   );
 };
 
-const InstituteAdminDashboard = () => {
+const CollegeAdminDashboard = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <DashboardCard

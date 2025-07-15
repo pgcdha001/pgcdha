@@ -28,7 +28,6 @@ const authenticate = async (req, res, next) => {
       // Log suspicious activity
       await AuditLog.logAction({
         user: decoded.userId || null,
-        institute: decoded.instituteId || null,
         action: 'INVALID_TOKEN_ACCESS',
         resource: {
           type: 'System',
@@ -80,7 +79,6 @@ const authenticate = async (req, res, next) => {
     // Log authentication error
     await AuditLog.logAction({
       user: null,
-      institute: null,
       action: 'AUTHENTICATION_ERROR',
       resource: {
         type: 'System',

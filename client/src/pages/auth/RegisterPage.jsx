@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../hooks/useAuth';
-import { instituteAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Eye, EyeOff, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -43,8 +42,7 @@ const registerSchema = z.object({
     .string()
     .regex(/^(\+92|0)?[0-9]{10}$/, 'Please enter a valid phone number'),
   
-  // Institute Info
-  institute: z.string().min(1, 'Please select an institute'),
+  // Role Info
   role: z.enum(['Student', 'Teacher', 'SRO', 'Accounts', 'IT', 'EMS'], { 
     required_error: 'Please select a role' 
   }),
@@ -70,8 +68,6 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [institutes, setInstitutes] = useState([]);
-  const [loadingInstitutes, setLoadingInstitutes] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
   
@@ -85,25 +81,6 @@ const RegisterPage = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Load institutes
-  useEffect(() => {
-    loadInstitutes();
-  }, []);
-
-  const loadInstitutes = async () => {
-    try {
-      setLoadingInstitutes(true);
-      const response = await instituteAPI.getInstitutes();
-      if (response.success) {
-        setInstitutes(response.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to load institutes:', err);
-    } finally {
-      setLoadingInstitutes(false);
-    }
-  };
-
   // Form setup
   const {
     register,
@@ -111,7 +88,6 @@ const RegisterPage = () => {
     formState: { errors },
     setError,
     clearErrors,
-    watch,
     trigger
   } = useForm({
     resolver: zodResolver(registerSchema),
@@ -166,7 +142,7 @@ const RegisterPage = () => {
         // Handle registration errors
         setError('root', { message: result.error });
       }
-    } catch (err) {
+    } catch {
       setError('root', { message: 'An unexpected error occurred. Please try again.' });
     } finally {
       setIsSubmitting(false);
@@ -430,35 +406,6 @@ const RegisterPage = () => {
         />
         {errors.primaryPhone && (
           <p className="mt-1 text-sm text-red-600">{errors.primaryPhone.message}</p>
-        )}
-      </div>
-
-      {/* Institute */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Institute
-        </label>
-        {loadingInstitutes ? (
-          <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-            Loading institutes...
-          </div>
-        ) : (
-          <select
-            {...register('institute')}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.institute ? 'border-red-300' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select an institute</option>
-            {institutes.map((institute) => (
-              <option key={institute._id} value={institute._id}>
-                {institute.name} ({institute.code})
-              </option>
-            ))}
-          </select>
-        )}
-        {errors.institute && (
-          <p className="mt-1 text-sm text-red-600">{errors.institute.message}</p>
         )}
       </div>
 

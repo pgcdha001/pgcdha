@@ -287,49 +287,6 @@ export const authAPI = {
   }
 };
 
-// Institute API methods
-export const instituteAPI = {
-  // Get all institutes
-  getInstitutes: async () => {
-    try {
-      const response = await api.get('/institutes');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to get institutes' };
-    }
-  },
-
-  // Get institute by ID
-  getInstitute: async (id) => {
-    try {
-      const response = await api.get(`/institutes/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to get institute' };
-    }
-  },
-
-  // Create institute
-  createInstitute: async (instituteData) => {
-    try {
-      const response = await api.post('/institutes', instituteData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to create institute' };
-    }
-  },
-
-  // Update institute
-  updateInstitute: async (id, instituteData) => {
-    try {
-      const response = await api.put(`/institutes/${id}`, instituteData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to update institute' };
-    }
-  }
-};
-
 // User API methods
 export const userAPI = {
   // Get user profile
@@ -415,7 +372,6 @@ const refreshAccessToken = async () => {
 // Export aliases for consistency
 export const authApi = authAPI;
 export const userApi = userAPI;
-export const instituteApi = instituteAPI;
 
 // Export the configured axios instance
 export default api;

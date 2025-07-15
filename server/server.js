@@ -68,12 +68,10 @@ connectDB();
 // Import Routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
-const instituteRoutes = require('./routes/institutes');
 
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/institutes', instituteRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

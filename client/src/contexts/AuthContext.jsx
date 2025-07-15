@@ -7,8 +7,7 @@ const initialState = {
   isLoading: true,
   user: null,
   error: null,
-  permissions: [],
-  institute: null
+  permissions: []
 };
 
 // Action types
@@ -39,7 +38,6 @@ const authReducer = (state, action) => {
         isLoading: false,
         user: action.payload.user,
         permissions: action.payload.permissions || [],
-        institute: action.payload.institute || null,
         error: null
       };
 
@@ -50,7 +48,6 @@ const authReducer = (state, action) => {
         isLoading: false,
         user: null,
         permissions: [],
-        institute: null,
         error: action.payload
       };
 
@@ -65,7 +62,6 @@ const authReducer = (state, action) => {
         ...state,
         user: action.payload.user,
         permissions: action.payload.permissions || state.permissions,
-        institute: action.payload.institute || state.institute,
         isAuthenticated: true,
         isLoading: false
       };
@@ -117,8 +113,7 @@ export const AuthProvider = ({ children }) => {
               type: AUTH_ACTIONS.LOGIN_SUCCESS,
               payload: {
                 user: response.data,
-                permissions: response.data.permissions || [],
-                institute: response.data.institute || null
+                permissions: response.data.permissions || []
               }
             });
           } else {
@@ -156,8 +151,7 @@ export const AuthProvider = ({ children }) => {
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
           payload: {
             user: response.data.user,
-            permissions: response.data.user.permissions || [],
-            institute: response.data.user.institute || null
+            permissions: response.data.user.permissions || []
           }
         });
         return { success: true, data: response.data };
@@ -187,8 +181,7 @@ export const AuthProvider = ({ children }) => {
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
           payload: {
             user: response.data.user,
-            permissions: response.data.user.permissions || [],
-            institute: response.data.user.institute || null
+            permissions: response.data.user.permissions || []
           }
         });
         return { success: true, data: response.data };
@@ -347,7 +340,7 @@ export const AuthProvider = ({ children }) => {
     
     // User info shortcuts
     isSystemAdmin: state.user?.role === 'SystemAdmin',
-    isInstituteAdmin: state.user?.role === 'InstituteAdmin',
+    isCollegeAdmin: state.user?.role === 'CollegeAdmin',
     isTeacher: state.user?.role === 'Teacher',
     isStudent: state.user?.role === 'Student',
     isSRO: state.user?.role === 'SRO',

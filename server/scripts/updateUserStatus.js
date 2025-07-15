@@ -4,7 +4,7 @@ const User = require('../models/User');
 
 async function updateUserStatus() {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect("mongodb+srv://sajidmehmood:3V4PyBh3h4SFnw%40@cluster0.yhma3.mongodb.net/pgc");
     console.log('Connected to database');
     
     // Update all users to Active status
