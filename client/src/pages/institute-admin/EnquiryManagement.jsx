@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowLeft, 
   Search, 
@@ -27,8 +27,7 @@ const ENQUIRY_LEVELS = [
   { id: 2, name: 'Purchased', description: 'Prospectus purchased by student', color: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
   { id: 3, name: 'Returned', description: 'Prospectus returned with application', color: 'bg-yellow-500', bgColor: 'bg-yellow-50', textColor: 'text-yellow-700' },
   { id: 4, name: 'Admission Fee Submitted', description: 'AF paid, partial admission', color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  { id: 5, name: '1st Installment Submitted', description: 'Full admission confirmed', color: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  { id: 6, name: 'Custom', description: 'Special cases and exceptions', color: 'bg-purple-500', bgColor: 'bg-purple-50', textColor: 'text-purple-700' }
+  { id: 5, name: '1st Installment Submitted', description: 'Full admission confirmed', color: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700' }
 ];
 
 const EnquiryManagement = () => {
@@ -37,16 +36,13 @@ const EnquiryManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
+  const [filterGender, setFilterGender] = useState('');
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [updatingLevel, setUpdatingLevel] = useState(false);
 
-  useEffect(() => {
-    fetchEnquiries();
-  }, []);
-
-  const fetchEnquiries = async () => {
+  const fetchEnquiries = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch all students from the database
@@ -61,6 +57,7 @@ const EnquiryManagement = () => {
         phone: student.phone || 'No phone',
         course: student.course || student.program || 'Not specified',
         level: student.prospectusStage || 1, // Use prospectusStage as enquiry level
+        gender: student.gender || 'Not specified',
         dateCreated: student.registrationDate ? new Date(student.registrationDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         lastUpdated: student.lastUpdated ? new Date(student.lastUpdated).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         notes: student.notes || 'No additional notes',
@@ -76,14 +73,19 @@ const EnquiryManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchEnquiries();
+  }, [fetchEnquiries]);
 
   const filteredEnquiries = enquiries.filter(enquiry => {
     const matchesSearch = enquiry.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          enquiry.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          enquiry.course.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesLevel = filterLevel === '' || enquiry.level.toString() === filterLevel;
-    return matchesSearch && matchesLevel;
+    const matchesGender = filterGender === '' || enquiry.gender.toLowerCase() === filterGender.toLowerCase();
+    return matchesSearch && matchesLevel && matchesGender;
   });
 
   const getLevelInfo = (levelId) => {
@@ -173,39 +175,34 @@ const EnquiryManagement = () => {
                 </p>
               </div>
             </div>
-            <Button
-              onClick={fetchEnquiries}
-              disabled={loading}
-              variant="outline"
-              className="px-4 py-2 bg-white shadow-md hover:shadow-lg transition-all duration-200"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {loading ? 'Refreshing...' : 'Refresh'}
-            </Button>
-          </div>
-
-          {/* Level Legend */}
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Enquiry Levels</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {ENQUIRY_LEVELS.map((level) => (
-                <div key={level.id} className={`${level.bgColor} rounded-lg p-3 border border-gray-200`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
-                    <span className="font-semibold text-sm">{level.name}</span>
-                  </div>
-                  <p className="text-xs text-gray-600">{level.description}</p>
-                </div>
-              ))}
+            <div className="flex gap-3">
+              <Link
+                to="/reports"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-105 font-medium"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                View Analytics
+              </Link>
+              <Button
+                onClick={fetchEnquiries}
+                disabled={loading}
+                variant="outline"
+                className="px-4 py-2 bg-white shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Filters and Search */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -218,7 +215,7 @@ const EnquiryManagement = () => {
                 />
               </div>
             </div>
-            <div className="sm:w-48">
+            <div className="lg:w-48">
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <select
@@ -232,6 +229,21 @@ const EnquiryManagement = () => {
                       {level.name}
                     </option>
                   ))}
+                </select>
+              </div>
+            </div>
+            <div className="lg:w-48">
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <select
+                  value={filterGender}
+                  onChange={(e) => setFilterGender(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                >
+                  <option value="">All Genders</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Not specified">Not Specified</option>
                 </select>
               </div>
             </div>

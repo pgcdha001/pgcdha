@@ -69,8 +69,8 @@ const InstituteAdminDashboard = () => {
 
   const reportCards = [
     { 
-      title: 'Enquiry Management', 
-      href: '/institute-admin/enquiries', 
+      title: 'Enquiry Reports', 
+      href: '/reports?section=enquiries', 
       icon: MessageSquare, 
       recentActivity: dashboardData.recentEnquiry 
         ? `Latest: ${dashboardData.recentEnquiry.fullName?.firstName || ''} ${dashboardData.recentEnquiry.fullName?.lastName || ''}`
@@ -80,8 +80,8 @@ const InstituteAdminDashboard = () => {
       type: 'normal'
     },
     { 
-      title: 'Student Attendance', 
-      href: '/institute-admin/student-attendance', 
+      title: 'Student Attendance Reports', 
+      href: '/reports?section=student-attendance', 
       icon: UserX,
       slidingItems: studentAbsentees,
       todayCount: '156 absentees today',
@@ -89,8 +89,8 @@ const InstituteAdminDashboard = () => {
       type: 'sliding'
     },
     { 
-      title: 'Lecture Attendance', 
-      href: '/institute-admin/lecture-attendance', 
+      title: 'Lecture Attendance Reports', 
+      href: '/reports?section=lecture-attendance', 
       icon: BookOpen, 
       slidingItems: lectureAbsentees,
       todayCount: '3 issues today',
@@ -98,8 +98,8 @@ const InstituteAdminDashboard = () => {
       type: 'sliding'
     },
     { 
-      title: 'Examinations', 
-      href: '/institute-admin/examinations', 
+      title: 'Examination Reports', 
+      href: '/reports?section=examinations', 
       icon: ClipboardList, 
       recentActivity: 'Mid-term examinations scheduled',
       todayCount: `${dashboardData.upcomingExams} exams this week`,
@@ -107,8 +107,8 @@ const InstituteAdminDashboard = () => {
       type: 'normal'
     },
     { 
-      title: 'Correspondence', 
-      href: '/institute-admin/correspondence', 
+      title: 'Correspondence Reports', 
+      href: '/reports?section=correspondence', 
       icon: Mail, 
       recentActivity: 'Parent-teacher communications',
       todayCount: `${dashboardData.pendingCorrespondence} pending`,
@@ -135,7 +135,7 @@ const InstituteAdminDashboard = () => {
     },
     { 
       title: 'Principal Appointments', 
-      href: '/institute-admin/appointments', 
+      href: '/reports?section=appointments', 
       icon: Calendar, 
       recentActivity: 'Meeting schedule and appointments',
       todayCount: `${dashboardData.scheduledAppointments} scheduled`,
