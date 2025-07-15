@@ -5,12 +5,14 @@
 
 // Role mapping for frontend use (should match backend)
 const ROLE_MAPPING = {
-  // Super Admin variations
-  'Super Admin': 'SystemAdmin',
-  'SuperAdmin': 'SystemAdmin',
-  'SUPER_ADMIN': 'SystemAdmin',
-  'super_admin': 'SystemAdmin',
-  'superadmin': 'SystemAdmin',
+  // Institute Admin variations
+  'Institute Admin': 'InstituteAdmin',
+  'InstituteAdmin': 'InstituteAdmin',
+  'INSTITUTE_ADMIN': 'InstituteAdmin',
+  'institute_admin': 'InstituteAdmin',
+  'instituteadmin': 'InstituteAdmin',
+  'Principal': 'InstituteAdmin',
+  'principal': 'InstituteAdmin',
   
   // College Admin variations
   'College Admin': 'CollegeAdmin',
@@ -72,7 +74,7 @@ const ROLE_MAPPING = {
 
 // Valid roles in the new system
 const VALID_ROLES = [
-  'SystemAdmin',
+  'InstituteAdmin',
   'CollegeAdmin', 
   'FinanceAdmin',
   'Teacher',
@@ -84,7 +86,7 @@ const VALID_ROLES = [
 
 // Role display names
 const ROLE_DISPLAY_NAMES = {
-  'SystemAdmin': 'Super Admin',
+  'InstituteAdmin': 'Institute Admin',
   'CollegeAdmin': 'College Admin',
   'FinanceAdmin': 'Finance Admin',
   'Teacher': 'Teacher',
@@ -96,7 +98,7 @@ const ROLE_DISPLAY_NAMES = {
 
 // Role colors for UI
 const ROLE_COLORS = {
-  'SystemAdmin': 'bg-red-500',
+  'InstituteAdmin': 'bg-red-500',
   'CollegeAdmin': 'bg-blue-600',
   'FinanceAdmin': 'bg-green-600',
   'Teacher': 'bg-purple-600',
@@ -108,7 +110,7 @@ const ROLE_COLORS = {
 
 // Role icons (using Lucide icon names)
 const ROLE_ICONS = {
-  'SystemAdmin': 'Shield',
+  'InstituteAdmin': 'Shield',
   'CollegeAdmin': 'Building2',
   'FinanceAdmin': 'DollarSign',
   'Teacher': 'GraduationCap',
@@ -227,7 +229,7 @@ export function getRoleBadgeProps(role) {
  */
 export function isAdminRole(role) {
   const normalizedRole = normalizeRole(role);
-  return ['SystemAdmin', 'CollegeAdmin', 'FinanceAdmin'].includes(normalizedRole);
+  return ['InstituteAdmin', 'CollegeAdmin', 'FinanceAdmin'].includes(normalizedRole);
 }
 
 /**

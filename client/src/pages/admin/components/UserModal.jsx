@@ -16,6 +16,9 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
     cnic: '',
     primaryPhone: '',
     secondaryPhone: '',
+    address: '',
+    reference: '',
+    oldSchoolName: '',
     role: 'Student',
     isActive: true,
     isApproved: false,
@@ -40,9 +43,7 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
   const isCreateMode = mode === 'create';
 
   const roles = [
-    'SystemAdmin',
-    'InstituteAdmin',
-    'Principal',
+    'InstituteAdmin', // Principal is same as InstituteAdmin
     'Teacher',
     'HOD',
     'SRO',
@@ -52,6 +53,7 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
     'IT',
     'StoreKeeper',
     'LabAssistant',
+    'Receptionist',
     'Student'
   ];
 
@@ -70,8 +72,11 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
         gender: user.gender || '',
         dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
         cnic: user.cnic || '',
-        primaryPhone: user.phoneNumbers?.primary || '',
-        secondaryPhone: user.phoneNumbers?.secondary || '',
+        primaryPhone: user.phoneNumbers?.primary || user.phoneNumber || '',
+        secondaryPhone: user.phoneNumbers?.secondary || user.secondaryPhone || '',
+        address: user.address || '',
+        reference: user.reference || '',
+        oldSchoolName: user.oldSchoolName || user.previousSchool || '',
         role: user.role || 'Student',
         isActive: user.isActive ?? true,
         isApproved: user.isApproved ?? false,
@@ -79,12 +84,18 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
         emergencyContactName: user.familyInfo?.emergencyContact?.name || '',
         emergencyContactRelationship: user.familyInfo?.emergencyContact?.relationship || '',
         emergencyContactPhone: user.familyInfo?.emergencyContact?.phone || '',
-        instituteId: user.academicInfo?.instituteId || '',
+        instituteId: 'PGC-DHA-001', // Hardcoded since there's only one institute
         classId: user.academicInfo?.classId || '',
         session: user.academicInfo?.session || '',
         specializedIn: user.professionalInfo?.specializedIn || '',
         duties: user.professionalInfo?.duties || ''
       });
+    } else {
+      // For create mode, set default institute ID
+      setFormData(prev => ({
+        ...prev,
+        instituteId: 'PGC-DHA-001'
+      }));
     }
   }, [user, isEditMode, isViewMode]);
 
@@ -168,19 +179,14 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
           primary: formData.primaryPhone,
           secondary: formData.secondaryPhone
         },
+        address: formData.address,
+        reference: formData.reference,
+        oldSchoolName: formData.oldSchoolName,
         role: formData.role,
         isActive: formData.isActive,
         isApproved: formData.isApproved,
-        familyInfo: {
-          fatherName: formData.fatherName,
-          emergencyContact: {
-            name: formData.emergencyContactName,
-            relationship: formData.emergencyContactRelationship,
-            phone: formData.emergencyContactPhone
-          }
-        },
         academicInfo: {
-          instituteId: formData.instituteId,
+          instituteId: 'PGC-DHA-001', // Always hardcoded
           classId: formData.classId,
           session: formData.session
         },
@@ -189,6 +195,18 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
           duties: formData.duties
         }
       };
+
+      // Only include family info for students
+      if (formData.role === 'Student') {
+        userData.familyInfo = {
+          fatherName: formData.fatherName,
+          emergencyContact: {
+            name: formData.emergencyContactName,
+            relationship: formData.emergencyContactRelationship,
+            phone: formData.emergencyContactPhone
+          }
+        };
+      }
 
       if (isCreateMode && formData.password) {
         userData.password = formData.password;
@@ -215,8 +233,8 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 animate-fade-in">
-      <div className="w-full h-full bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl flex flex-col"
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] animate-fade-in flex items-start justify-center p-4 pt-20">
+      <div className="w-full max-w-4xl max-h-[80vh] bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl flex flex-col rounded-xl overflow-hidden mt-4"
            style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.37)'}}>
         
         {/* Header */}
@@ -249,7 +267,7 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto bg-white/20 backdrop-blur-md">
-          <form onSubmit={handleSubmit} className="p-4 space-y-4 h-full">{/*Compressed spacing*/}
+          <form onSubmit={handleSubmit} className="p-4 space-y-4">{/*Compressed spacing*/}
             {/* Error Message */}
             {errors.submit && (
               <div className="bg-red-50/80 backdrop-blur-sm border border-red-200/60 text-red-700 px-4 py-3 rounded-2xl text-sm shadow-lg animate-fade-in">
@@ -528,25 +546,32 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
                 </div>
-              </div>
-            </div>
 
-            {/* Family Information Card */}
-            <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
-              <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
-                <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                Family Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-primary/80 mb-2">
+                    Complete Address
+                  </label>
+                  <textarea 
+                    name="address" 
+                    value={formData.address} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter complete address including street, city, and postal code" 
+                    rows="3" 
+                    disabled={isViewMode}
+                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60 resize-none"
+                  ></textarea>
+                </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-primary/80 mb-2">
-                    Father's Name
+                    Reference
                   </label>
                   <input
                     type="text"
-                    name="fatherName"
-                    value={formData.fatherName}
+                    name="reference"
+                    value={formData.reference}
                     onChange={handleInputChange}
+                    placeholder="Enter reference person name"
                     disabled={isViewMode}
                     className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
@@ -554,52 +579,92 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
 
                 <div>
                   <label className="block text-sm font-semibold text-primary/80 mb-2">
-                    Emergency Contact Name
+                    Previous School/College
                   </label>
                   <input
                     type="text"
-                    name="emergencyContactName"
-                    value={formData.emergencyContactName}
+                    name="oldSchoolName"
+                    value={formData.oldSchoolName}
                     onChange={handleInputChange}
-                    disabled={isViewMode}
-                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-primary/80 mb-2">
-                    Emergency Contact Relationship
-                  </label>
-                  <select
-                    name="emergencyContactRelationship"
-                    value={formData.emergencyContactRelationship}
-                    onChange={handleInputChange}
-                    disabled={isViewMode}
-                    className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
-                  >
-                    <option value="">Select Relationship</option>
-                    {relationships.map(relationship => (
-                      <option key={relationship} value={relationship}>{relationship}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-primary/80 mb-2">
-                    Emergency Contact Phone
-                  </label>
-                  <input
-                    type="text"
-                    name="emergencyContactPhone"
-                    value={formData.emergencyContactPhone}
-                    onChange={handleInputChange}
-                    placeholder="+923001234567"
+                    placeholder="Enter previous institution name"
                     disabled={isViewMode}
                     className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
                   />
                 </div>
               </div>
             </div>
+
+            {/* Family Information Card - Only for Students */}
+            {formData.role === 'Student' && (
+              <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
+                <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  Family Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-2">
+                      Father's Name
+                    </label>
+                    <input
+                      type="text"
+                      name="fatherName"
+                      value={formData.fatherName}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-2">
+                      Emergency Contact Name
+                    </label>
+                    <input
+                      type="text"
+                      name="emergencyContactName"
+                      value={formData.emergencyContactName}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-2">
+                      Emergency Contact Relationship
+                    </label>
+                    <select
+                      name="emergencyContactRelationship"
+                      value={formData.emergencyContactRelationship}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
+                    >
+                      <option value="">Select Relationship</option>
+                      {relationships.map(relationship => (
+                        <option key={relationship} value={relationship}>{relationship}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-2">
+                      Emergency Contact Phone
+                    </label>
+                    <input
+                      type="text"
+                      name="emergencyContactPhone"
+                      value={formData.emergencyContactPhone}
+                      onChange={handleInputChange}
+                      placeholder="+923001234567"
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Status Information Card */}
             {!isCreateMode && (
@@ -641,18 +706,14 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
             )}
 
             {/* Dynamic sections based on role */}
-            {/* Academic Info for Student, Teacher, HOD, Principal, InstituteAdmin */}
-            {(formData.role === 'Student' || formData.role === 'Teacher' || formData.role === 'HOD' || formData.role === 'Principal' || formData.role === 'InstituteAdmin') && (
+            {/* Academic Info for Student, Teacher, HOD, InstituteAdmin */}
+            {(formData.role === 'Student' || formData.role === 'Teacher' || formData.role === 'HOD' || formData.role === 'InstituteAdmin') && (
               <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 shadow-lg border border-border/30 transition-all duration-200 hover:shadow-xl hover:bg-white/70">
                 <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] mb-4 flex items-center gap-2">
                   <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
                   Academic Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-primary/80 mb-2">Institute ID</label>
-                    <input type="text" name="instituteId" value={formData.instituteId || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 disabled:bg-gray-100/60" />
-                  </div>
                   {formData.role === 'Student' && (
                     <>
                       <div>

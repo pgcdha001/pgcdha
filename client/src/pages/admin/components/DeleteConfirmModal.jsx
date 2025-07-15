@@ -28,14 +28,14 @@ const DeleteConfirmModal = ({ user, onClose, onConfirm }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-[9999] animate-fade-in pt-20">
       {/* Animated gradient background elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/3 left-1/3 w-[250px] h-[250px] rounded-full bg-gradient-to-br from-red-500/20 via-accent/15 to-red-600/25 blur-[80px] opacity-60 animate-float-slow" />
         <div className="absolute bottom-1/3 right-1/3 w-[180px] h-[180px] rounded-full bg-gradient-to-tr from-accent/25 via-red-500/15 to-accent/20 blur-[60px] opacity-40 animate-float-slower" />
       </div>
       
-      <div className="relative bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl w-full h-full border border-border/50 font-[Inter,sans-serif] transition-all duration-300 hover:shadow-[0_25px_80px_0_rgba(229,57,53,0.20)] flex flex-col" style={{boxShadow: '0 20px 64px 0 rgba(229,57,53,0.15)'}}>
+      <div className="relative bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl w-full max-w-md border border-border/50 font-[Inter,sans-serif] transition-all duration-300 hover:shadow-[0_25px_80px_0_rgba(229,57,53,0.20)] flex flex-col mt-4" style={{boxShadow: '0 20px 64px 0 rgba(229,57,53,0.15)'}}>
         {/* Animated gradient bar at the top */}
         <span className="absolute top-0 left-6 right-6 h-1 rounded-b-xl bg-gradient-to-r from-red-500 via-accent to-red-600 animate-gradient-x" />
         

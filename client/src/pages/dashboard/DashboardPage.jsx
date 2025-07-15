@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import SuperAdminDashboard from './SuperAdminDashboard';
 import CollegeAdminDashboard from './CollegeAdminDashboard';
+import InstituteAdminDashboard from './InstituteAdminDashboard';
 import TeacherDashboard from './TeacherDashboard';
 import StudentDashboard from './StudentDashboard';
 import FinanceAdminDashboard from './FinanceAdminDashboard';
@@ -23,13 +23,12 @@ const DashboardPage = () => {
 
     // Role-based dashboard routing
     switch (user.role) {
-      case 'SystemAdmin':
-        console.log('Rendering SuperAdminDashboard');
-        return <SuperAdminDashboard />;
       case 'College Admin':
         return <CollegeAdminDashboard />;
       case 'Academic Admin':
         return <CollegeAdminDashboard />; // Academic Admin uses College Admin dashboard
+      case 'InstituteAdmin':
+        return <InstituteAdminDashboard />;
       case 'Teacher':
         return <TeacherDashboard />;
       case 'Student':

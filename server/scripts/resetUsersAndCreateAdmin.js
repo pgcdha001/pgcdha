@@ -1,5 +1,5 @@
 // resetUsersAndCreateAdmin.js
-// Script to delete all users and create a single SystemAdmin
+// Script to delete all users and create a single InstituteAdmin
 
 const mongoose = require('mongoose');
 const User = require('../models/User');
@@ -25,20 +25,20 @@ async function main() {
     const deleteResult = await User.deleteMany({});
     console.log(`Deleted ${deleteResult.deletedCount} users.`);
 
-    // Create SystemAdmin user
+    // Create InstituteAdmin user
     const hashedPassword = await bcrypt.hash(adminPassword, 12);
     const adminUser = new User({
       userName: adminUserName,
       email: adminEmail,
       password: hashedPassword,
       fullName: adminFullName,
-      role: 'SystemAdmin',
+      role: 'InstituteAdmin',
       status: 1,
       isActive: true,
       isApproved: true
     });
     await adminUser.save();
-    console.log('SystemAdmin user created:', {
+    console.log('InstituteAdmin user created:', {
       email: adminEmail,
       password: adminPassword,
       userName: adminUserName

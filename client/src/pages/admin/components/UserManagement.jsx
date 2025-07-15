@@ -16,10 +16,12 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { userAPI } from '../../../services/api';
+import { useToast } from '../../../contexts/ToastContext';
 import UserModal from './UserModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 
 const UserManagement = () => {
+  const { toast } = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,13 +40,17 @@ const UserManagement = () => {
 
   const roles = [
     { value: '', label: 'All Roles' },
-    { value: 'Super Admin', label: 'Super Admin' },
-    { value: 'College Admin', label: 'College Admin' },
-    { value: 'Academic Admin', label: 'Academic Admin' },
+    { value: 'InstituteAdmin', label: 'Institute Admin' },
     { value: 'Teacher', label: 'Teacher' },
     { value: 'Student', label: 'Student' },
-    { value: 'Finance Admin', label: 'Finance Admin' },
-    { value: 'Receptionist', label: 'Receptionist' }
+    { value: 'HOD', label: 'HOD' },
+    { value: 'SRO', label: 'SRO' },
+    { value: 'CampusCoordinator', label: 'Campus Coordinator' },
+    { value: 'EMS', label: 'EMS' },
+    { value: 'Accounts', label: 'Accounts' },
+    { value: 'IT', label: 'IT' },
+    { value: 'StoreKeeper', label: 'Store Keeper' },
+    { value: 'LabAssistant', label: 'Lab Assistant' }
   ];
 
   const statusOptions = [
@@ -117,12 +123,13 @@ const UserManagement = () => {
     setShowDeleteModal(true);
   };
 
-  const handleUserSaved = () => {
-    setShowUserModal(false);
-    loadUsers(); // Refresh the list
-  };
-
   const handleUserDeleted = () => {
+    const userName = selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : 'User';
+    if (selectedUser?.role === 'Student') {
+      toast.studentDeleted(userName);
+    } else {
+      toast.staffDeleted(userName);
+    }
     setShowDeleteModal(false);
     loadUsers(); // Refresh the list
   };
@@ -390,7 +397,22 @@ const UserManagement = () => {
             setSelectedUser(null);
             setModalMode('create');
           }}
-          onUserCreated={() => {
+          onSave={() => {
+            const userName = selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : 'User';
+            const role = selectedUser?.role || 'User';
+            if (modalMode === 'create') {
+              if (selectedUser?.role === 'Student') {
+                toast.studentAdded(userName);
+              } else {
+                toast.staffAdded(userName, role);
+              }
+            } else if (modalMode === 'edit') {
+              if (selectedUser?.role === 'Student') {
+                toast.studentUpdated(userName);
+              } else {
+                toast.staffUpdated(userName);
+              }
+            }
             loadUsers();
             setShowUserModal(false);
             setSelectedUser(null);

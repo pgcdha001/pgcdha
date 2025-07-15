@@ -16,7 +16,7 @@ router.use(authenticate);
  */
 router.get('/stats', asyncHandler(async (req, res) => {
   // Check if user is admin
-  if (req.user.role !== 'SystemAdmin' && req.user.role !== 'Super Admin') {
+  if (req.user.role !== 'InstituteAdmin') {
     return res.status(403).json({
       success: false,
       message: 'Access denied. Admin privileges required.'
@@ -83,7 +83,7 @@ router.get('/stats', asyncHandler(async (req, res) => {
  */
 router.get('/activity', asyncHandler(async (req, res) => {
   // Check if user is admin
-  if (req.user.role !== 'SystemAdmin' && req.user.role !== 'Super Admin') {
+  if (req.user.role !== 'InstituteAdmin') {
     return res.status(403).json({
       success: false,
       message: 'Access denied. Admin privileges required.'

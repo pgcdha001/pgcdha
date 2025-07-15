@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/ui/button';
 import { Eye, EyeOff, LogIn, AlertCircle, Mail, Lock } from 'lucide-react';
 import logo from '../../../assets/logo.png';
@@ -23,6 +24,7 @@ const loginSchema = z.object({
 });
 
 const LoginPage = () => {
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -66,8 +68,12 @@ const LoginPage = () => {
         password: data.password
       });
       if (result.success) {
+        toast.success('Welcome back! Login successful', {
+          icon: '👋'
+        });
         // Login successful, navigation handled by useEffect
       } else {
+        toast.error(result.error);
         if (result.error.includes('email') || result.error.includes('username')) {
           setError('login', { message: result.error });
         } else if (result.error.includes('password')) {
@@ -77,7 +83,9 @@ const LoginPage = () => {
         }
       }
     } catch {
-      setError('root', { message: 'An unexpected error occurred. Please try again.' });
+      const errorMessage = 'An unexpected error occurred. Please try again.';
+      toast.error(errorMessage);
+      setError('root', { message: errorMessage });
     } finally {
       setIsSubmitting(false);
     }

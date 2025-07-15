@@ -55,7 +55,17 @@ const UserSchema = new mongoose.Schema({
   phoneNumber: String,
   phoneNumber2: String,
   phoneNumber3: String,
+  secondaryPhone: String,  // Added for new form structure
+  phoneNumbers: {          // Added for structured phone numbers
+    primary: String,
+    secondary: String
+  },
   address: String,
+  reference: String,       // Added for reference person
+  
+  // Academic Background
+  previousSchool: String,  // Added for previous school/college
+  oldSchoolName: String,   // Alternative field name for previous school
   
   // Personal Information
   gender: String,
@@ -104,6 +114,14 @@ const UserSchema = new mongoose.Schema({
 
   // Attendance (relationship)
   attendance: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Attendance' }],
+
+  // Receptionist Remarks
+  receptionistRemarks: [{
+    remark: { type: String, required: true },
+    receptionistId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    receptionistName: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now }
+  }],
 
   // Misc
   isActive: { type: Boolean, default: true },

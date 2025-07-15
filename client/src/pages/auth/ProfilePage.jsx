@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '../../components/ui/button';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../contexts/ToastContext';
 import { userApi } from '../../services/api';
 
 const profileSchema = z.object({
@@ -29,6 +30,7 @@ const passwordSchema = z.object({
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -55,9 +57,12 @@ const ProfilePage = () => {
 
       const response = await userApi.updateProfile(data);
       updateUser(response.data.user);
+      toast.profileUpdated();
       setMessage('Profile updated successfully!');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile');
+      const errorMessage = err.response?.data?.message || 'Failed to update profile';
+      toast.error(errorMessage);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -74,10 +79,13 @@ const ProfilePage = () => {
         newPassword: data.newPassword,
       });
       
+      toast.passwordChanged();
       setMessage('Password changed successfully!');
       passwordForm.reset();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to change password');
+      const errorMessage = err.response?.data?.message || 'Failed to change password';
+      toast.error(errorMessage);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

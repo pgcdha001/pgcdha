@@ -5,12 +5,14 @@
 
 // Legacy to new role mapping
 const ROLE_MAPPING = {
-  // Super Admin variations
-  'Super Admin': 'SystemAdmin',
-  'SuperAdmin': 'SystemAdmin',
-  'SUPER_ADMIN': 'SystemAdmin',
-  'super_admin': 'SystemAdmin',
-  'superadmin': 'SystemAdmin',
+  // Institute Admin variations (previously Super Admin)
+  'Institute Admin': 'InstituteAdmin',
+  'InstituteAdmin': 'InstituteAdmin',
+  'INSTITUTE_ADMIN': 'InstituteAdmin',
+  'institute_admin': 'InstituteAdmin',
+  'instituteadmin': 'InstituteAdmin',
+  'Principal': 'InstituteAdmin',
+  'principal': 'InstituteAdmin',
   
   // College Admin variations
   'College Admin': 'CollegeAdmin',
@@ -135,7 +137,6 @@ const ROLE_MAPPING = {
 
 // Valid roles in the new system
 const VALID_ROLES = [
-  'SystemAdmin',
   'InstituteAdmin',
   'Principal',
   'Teacher',
@@ -213,7 +214,6 @@ function isValidRole(role) {
  */
 function getRoleDisplayName(role) {
   const displayNames = {
-    'SystemAdmin': 'System Admin',
     'InstituteAdmin': 'Institute Admin',
     'Principal': 'Principal',
     'Teacher': 'Teacher',
@@ -242,7 +242,7 @@ function getRoleDisplayName(role) {
  */
 function getRolePermissions(role) {
   const permissions = {
-    'SystemAdmin': ['*'], // All permissions
+    'InstituteAdmin': ['*'], // All permissions
     'CollegeAdmin': ['user_management', 'academic_management', 'reports'],
     'FinanceAdmin': ['financial_management', 'fee_management', 'reports'],
     'Teacher': ['attendance_management', 'grade_management', 'student_view'],

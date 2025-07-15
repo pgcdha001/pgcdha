@@ -2,8 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import Card from '../../components/ui/card';
 import { default as api } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
+import { FileDown, FileSpreadsheet, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const STAGE_LABELS = [
   'Not Purchased',
@@ -14,6 +17,7 @@ const STAGE_LABELS = [
 ];
 
 const StudentReport = () => {
+  const { toast } = useToast();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,16 +58,195 @@ const StudentReport = () => {
       `${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim(),
       s.cnic || '',
       s.email || '',
-      `Stage ${s.prospectusStage || 1}: ${STAGE_LABELS[(s.prospectusStage || 1) - 1] || 'Unknown'}`
+      `Stage ${s.prospectusStage || 1}: ${STAGE_LABELS[(s.prospectusStage || 1) - 1] || 'Unknown'}`,
+      s.receptionistRemarks && s.receptionistRemarks.length > 0 ? 
+        `${s.receptionistRemarks.length} remarks` : 'No remarks'
     ]);
     autoTable(doc, {
-      head: [['#', 'Name', 'CNIC', 'Email', 'Stage']],
+      head: [['#', 'Name', 'CNIC', 'Email', 'Stage', 'Correspondence']],
       body: tableData,
       startY: 22,
       styles: { fontSize: 10 },
       headStyles: { fillColor: [26, 35, 126] }
     });
-    doc.save('student_report.pdf');
+    
+    // Add correspondence details on a new page if there are remarks
+    const studentsWithRemarks = filteredStudents.filter(s => s.receptionistRemarks && s.receptionistRemarks.length > 0);
+    if (studentsWithRemarks.length > 0) {
+      doc.addPage();
+      doc.text('Correspondence Details', 14, 16);
+      
+      let startY = 25;
+      studentsWithRemarks.forEach(student => {
+        const studentName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
+        doc.text(`Student: ${studentName}`, 14, startY);
+        startY += 7;
+        
+        const remarksData = student.receptionistRemarks.map((remark, idx) => [
+          idx + 1,
+          remark.remark || '',
+          remark.receptionistName || 'Unknown',
+          new Date(remark.timestamp).toLocaleDateString()
+        ]);
+        
+        autoTable(doc, {
+          head: [['#', 'Remark', 'By', 'Date']],
+          body: remarksData,
+          startY: startY,
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [26, 35, 126] },
+          margin: { left: 20 }
+        });
+        
+        startY = doc.lastAutoTable.finalY + 10;
+        if (startY > 250) {
+          doc.addPage();
+          startY = 20;
+        }
+      });
+    }
+    
+    doc.save('student_report_with_correspondence.pdf');
+    
+    // Show success toast
+    toast.dataExported('Student Report with Correspondence (PDF)');
+  };
+
+  const exportExcel = () => {
+    // Prepare main student data for Excel export
+    const excelData = filteredStudents.map((s, idx) => ({
+      '#': idx + 1,
+      'Name': `${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim(),
+      'CNIC': s.cnic || '',
+      'Email': s.email || '',
+      'Primary Phone': s.phoneNumbers?.primary || s.phoneNumber || s.phone || '',
+      'Secondary Phone': s.phoneNumbers?.secondary || s.secondaryPhone || '',
+      'Address': s.address || '',
+      'Reference': s.reference || '',
+      'Previous School': s.oldSchoolName || s.previousSchool || '',
+      'Stage': `Stage ${s.prospectusStage || 1}: ${STAGE_LABELS[(s.prospectusStage || 1) - 1] || 'Unknown'}`,
+      'Registration Date': s.registrationDate || '',
+      'Last Updated': s.lastUpdated || '',
+      'Total Remarks': s.receptionistRemarks ? s.receptionistRemarks.length : 0,
+      'Latest Remark': s.receptionistRemarks && s.receptionistRemarks.length > 0 ? 
+        s.receptionistRemarks[s.receptionistRemarks.length - 1].remark : 'No remarks',
+      'Last Contact Date': s.receptionistRemarks && s.receptionistRemarks.length > 0 ? 
+        new Date(s.receptionistRemarks[s.receptionistRemarks.length - 1].timestamp).toLocaleDateString() : 'Never'
+    }));
+
+    // Create workbook and add main student sheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths for main sheet
+    const columnWidths = [
+      { wch: 5 },   // #
+      { wch: 25 },  // Name
+      { wch: 15 },  // CNIC
+      { wch: 30 },  // Email
+      { wch: 15 },  // Primary Phone
+      { wch: 15 },  // Secondary Phone
+      { wch: 30 },  // Address
+      { wch: 20 },  // Reference
+      { wch: 25 },  // Previous School
+      { wch: 35 },  // Stage
+      { wch: 15 },  // Registration Date
+      { wch: 15 },  // Last Updated
+      { wch: 12 },  // Total Remarks
+      { wch: 40 },  // Latest Remark
+      { wch: 15 }   // Last Contact Date
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Add main worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+
+    // Add correspondence details sheet
+    const correspondenceData = [];
+    filteredStudents.forEach(student => {
+      if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
+        student.receptionistRemarks.forEach((remark, idx) => {
+          correspondenceData.push({
+            'Student Name': `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+            'Student Email': student.email || '',
+            'Remark #': idx + 1,
+            'Remark': remark.remark || '',
+            'Receptionist': remark.receptionistName || 'Unknown',
+            'Date': new Date(remark.timestamp).toLocaleDateString(),
+            'Time': new Date(remark.timestamp).toLocaleTimeString()
+          });
+        });
+      }
+    });
+
+    if (correspondenceData.length > 0) {
+      const correspondenceSheet = XLSX.utils.json_to_sheet(correspondenceData);
+      const corrColumnWidths = [
+        { wch: 25 },  // Student Name
+        { wch: 30 },  // Student Email
+        { wch: 10 },  // Remark #
+        { wch: 50 },  // Remark
+        { wch: 20 },  // Receptionist
+        { wch: 12 },  // Date
+        { wch: 12 }   // Time
+      ];
+      correspondenceSheet['!cols'] = corrColumnWidths;
+      XLSX.utils.book_append_sheet(workbook, correspondenceSheet, 'Correspondence');
+    }
+
+    // Generate filename with current date
+    const currentDate = new Date().toISOString().split('T')[0];
+    const filename = `student_report_with_correspondence_${currentDate}.xlsx`;
+
+    // Save the file
+    XLSX.writeFile(workbook, filename);
+    
+    // Show success toast
+    toast.dataExported('Student Report with Correspondence (Excel)');
+  };
+
+  const exportCSV = () => {
+    // Prepare data for CSV export with correspondence
+    const csvData = filteredStudents.map((s, idx) => ({
+      '#': idx + 1,
+      'Name': `${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim(),
+      'CNIC': s.cnic || '',
+      'Email': s.email || '',
+      'Phone': s.phone || '',
+      'Stage': `Stage ${s.prospectusStage || 1}: ${STAGE_LABELS[(s.prospectusStage || 1) - 1] || 'Unknown'}`,
+      'Registration Date': s.registrationDate || '',
+      'Last Updated': s.lastUpdated || '',
+      'Total Remarks': s.receptionistRemarks ? s.receptionistRemarks.length : 0,
+      'Latest Remark': s.receptionistRemarks && s.receptionistRemarks.length > 0 ? 
+        s.receptionistRemarks[s.receptionistRemarks.length - 1].remark.replace(/"/g, '""') : 'No remarks',
+      'Last Contact Date': s.receptionistRemarks && s.receptionistRemarks.length > 0 ? 
+        new Date(s.receptionistRemarks[s.receptionistRemarks.length - 1].timestamp).toLocaleDateString() : 'Never'
+    }));
+
+    // Convert to CSV format
+    const csvHeaders = Object.keys(csvData[0] || {}).join(',');
+    const csvRows = csvData.map(row => Object.values(row).map(value => `"${value}"`).join(','));
+    const csvContent = [csvHeaders, ...csvRows].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `student_report_with_correspondence_${currentDate}.csv`;
+      
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    // Show success toast
+    toast.dataExported('Student Report with Correspondence (CSV)');
   };
 
   return (
@@ -82,16 +265,32 @@ const StudentReport = () => {
               <p className="text-muted-foreground font-medium">Comprehensive student data and analytics</p>
             </div>
           </div>
-          <Button 
-            onClick={exportPDF} 
-            variant="default"
-            className="px-6 py-3 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export as PDF
-          </Button>
+          <div className="flex gap-3 flex-wrap">
+            <Button 
+              onClick={exportPDF} 
+              variant="default"
+              className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <FileDown className="w-5 h-5 mr-2" />
+              Export as PDF
+            </Button>
+            <Button 
+              onClick={exportExcel} 
+              variant="default"
+              className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <FileSpreadsheet className="w-5 h-5 mr-2" />
+              Export as Excel
+            </Button>
+            <Button 
+              onClick={exportCSV} 
+              variant="default"
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <FileText className="w-5 h-5 mr-2" />
+              Export as CSV
+            </Button>
+          </div>
         </div>
       </div>
 

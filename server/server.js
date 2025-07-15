@@ -21,10 +21,18 @@ app.use(helmet({
 
 // CORS Configuration
 const corsOptions = {
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://pgc-blond.vercel.app',
+    'https://pgc.vercel.app'
+  ],
   credentials: true,
-  optionSuccessStatus: 200
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  optionsSuccessStatus: 200
 };
+
 app.use(cors(corsOptions));
 
 // Rate Limiting
@@ -70,12 +78,14 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const dashboardRoutes = require('./routes/dashboard');
 const studentRoutes = require('./routes/students');
+const remarksRoutes = require('./routes/remarks');
 
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/remarks', remarksRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

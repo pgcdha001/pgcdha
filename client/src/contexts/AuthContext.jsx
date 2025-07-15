@@ -270,8 +270,8 @@ export const AuthProvider = ({ children }) => {
   const hasPermission = (permission) => {
     if (!state.user) return false;
     
-    // SystemAdmin has all permissions
-    if (state.user.role === 'SystemAdmin') return true;
+    // InstituteAdmin has all permissions
+    if (state.user.role === 'InstituteAdmin') return true;
     
     // Check if user has the specific permission
     return state.permissions.some(perm => perm.name === permission);
@@ -339,7 +339,7 @@ export const AuthProvider = ({ children }) => {
     hasAnyRole,
     
     // User info shortcuts
-    isSystemAdmin: state.user?.role === 'SystemAdmin',
+    isInstituteAdmin: state.user?.role === 'InstituteAdmin',
     isCollegeAdmin: state.user?.role === 'CollegeAdmin',
     isTeacher: state.user?.role === 'Teacher',
     isStudent: state.user?.role === 'Student',

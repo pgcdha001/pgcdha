@@ -1,160 +1,352 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Users, Phone, Calendar, FileText, Clock, UserCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { default as api } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
+import Card from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { 
+  Users, Phone, MessageSquare, Search, CheckCircle, Clock
+} from 'lucide-react';
 
 const ReceptionistDashboard = () => {
-  const stats = [
-    { name: 'Daily Visitors', value: '45', icon: Users, color: 'bg-blue-500' },
-    { name: 'Pending Calls', value: '8', icon: Phone, color: 'bg-orange-500' },
-    { name: 'Appointments Today', value: '12', icon: Calendar, color: 'bg-green-500' },
-    { name: 'Messages', value: '23', icon: FileText, color: 'bg-purple-500' },
-  ];
+  const { toast } = useToast();
+  
+  // State management
+  const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showRemarkModal, setShowRemarkModal] = useState(false);
+  const [remarkText, setRemarkText] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [studentRemarks, setStudentRemarks] = useState({});
 
-  const quickActions = [
-    { title: 'Visitor Management', href: '/reception/visitors', icon: Users, description: 'Register visitors' },
-    { title: 'Appointments', href: '/reception/appointments', icon: Calendar, description: 'Schedule meetings' },
-    { title: 'Call Log', href: '/reception/calls', icon: Phone, description: 'Manage phone calls' },
-    { title: 'Messages', href: '/reception/messages', icon: FileText, description: 'Handle messages' },
-  ];
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
-  const todayAppointments = [
-    { time: '09:00 AM', visitor: 'Mr. Ahmed Khan', purpose: 'Admission Inquiry', status: 'confirmed' },
-    { time: '10:30 AM', visitor: 'Ms. Fatima Ali', purpose: 'Fee Payment', status: 'waiting' },
-    { time: '11:15 AM', visitor: 'Dr. Hassan', purpose: 'Faculty Meeting', status: 'confirmed' },
-    { time: '02:00 PM', visitor: 'Mrs. Zainab', purpose: 'Student Progress', status: 'confirmed' },
-  ];
+  const fetchStudents = async () => {
+    setLoading(true);
+    try {
+      // Try the new endpoint first
+      let response;
+      try {
+        response = await api.get('/remarks/students-with-remarks');
+        const studentsData = response.data?.data?.students || [];
+        setStudents(studentsData);
+        
+        // Set remarks status from API response
+        const remarksData = {};
+        studentsData.forEach(student => {
+          remarksData[student._id] = student.hasRemarks;
+        });
+        setStudentRemarks(remarksData);
+      } catch (error) {
+        console.log('Falling back to regular users endpoint');
+        // Fall back to regular users endpoint
+        response = await api.get('/users?role=Student&limit=1000');
+        const studentsData = response.data?.data?.users || [];
+        setStudents(studentsData);
+        
+        // Initialize empty remarks status
+        const remarksData = {};
+        studentsData.forEach(student => {
+          remarksData[student._id] = !!(student.receptionistRemarks && student.receptionistRemarks.length > 0);
+        });
+        setStudentRemarks(remarksData);
+      }
+      
+      toast.success('Students loaded successfully');
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to load students');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const recentVisitors = [
-    { name: 'Ahmed Hassan', purpose: 'Admission', time: '30 min ago', status: 'completed' },
-    { name: 'Fatima Khan', purpose: 'Document Collection', time: '1 hour ago', status: 'completed' },
-    { name: 'Muhammad Ali', purpose: 'Fee Inquiry', time: '2 hours ago', status: 'completed' },
-  ];
+  const handleAddRemark = async () => {
+    if (!selectedStudent || !remarkText.trim()) {
+      toast.error('Please enter a remark');
+      return;
+    }
+
+    try {
+      const remarkData = {
+        studentId: selectedStudent._id,
+        remark: remarkText
+      };
+
+      console.log('Sending remark data:', remarkData);
+      const response = await api.post('/remarks/add-remark', remarkData);
+      console.log('Response:', response.data);
+      
+      if (response.data.success) {
+        // Update local state to show badge
+        setStudentRemarks(prev => ({
+          ...prev,
+          [selectedStudent._id]: true
+        }));
+
+        // Update the student in the local state with the new remark
+        setStudents(prev => prev.map(student => {
+          if (student._id === selectedStudent._id) {
+            const updatedStudent = { ...student };
+            if (!updatedStudent.receptionistRemarks) {
+              updatedStudent.receptionistRemarks = [];
+            }
+            updatedStudent.receptionistRemarks.push(response.data.data);
+            return updatedStudent;
+          }
+          return student;
+        }));
+        
+        setShowRemarkModal(false);
+        setRemarkText('');
+        setSelectedStudent(null);
+        
+        toast.success(`Remark added for ${selectedStudent.fullName?.firstName}`);
+      } else {
+        toast.error(response.data.message || 'Failed to save remark');
+      }
+    } catch (error) {
+      console.error('Error saving remark:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        toast.error(error.response.data.message || 'Failed to save remark');
+      } else {
+        toast.error('Network error. Please try again.');
+      }
+    }
+  };
+
+  const getCurrentTime = () => {
+    return new Date().toLocaleString();
+  };
+
+  const filteredStudents = students.filter(student => {
+    const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase();
+    const search = searchTerm.toLowerCase();
+    return fullName.includes(search);
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+          <span className="text-lg font-medium text-primary">Loading Students...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Header Card */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70" style={{boxShadow: '0 12px 48px 0 rgba(26,35,126,0.12)'}}>
+    <div className="space-y-8 mt-20">
+      {/* Header */}
+      <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8">
         <div className="flex items-center gap-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-accent/80 text-white shadow-lg">
-            <Users className="h-8 w-8" />
+            <Phone className="h-8 w-8" />
           </div>
           <div>
-            <h2 className="text-3xl font-bold text-primary mb-2 font-[Sora,Inter,sans-serif] tracking-tight">Reception Dashboard</h2>
-            <p className="text-muted-foreground font-medium">Manage visitors, appointments, and front desk operations</p>
+            <h2 className="text-3xl font-bold text-primary mb-2 font-[Sora,Inter,sans-serif] tracking-tight">
+              Receptionist Dashboard
+            </h2>
+            <p className="text-muted-foreground font-medium">
+              Add remarks for correspondence
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <div key={stat.name} className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70 hover:scale-105" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-primary/80 mb-1">{stat.name}</p>
-                <p className="text-3xl font-bold text-primary">{stat.value}</p>
+      {/* Student List */}
+      <Card className="bg-white/60 backdrop-blur-xl border-border/50 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-primary flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Student List ({filteredStudents.length})
+          </h3>
+          
+          {/* Search Bar */}
+          <div className="relative w-80">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search students by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-border/50 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+        </div>
+
+        {/* Students Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredStudents.map((student) => {
+            const latestRemark = student.receptionistRemarks && student.receptionistRemarks.length > 0 
+              ? student.receptionistRemarks[student.receptionistRemarks.length - 1] 
+              : null;
+            
+            return (
+              <div 
+                key={student._id} 
+                className="relative p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-border/30 hover:border-primary/50 transition-all duration-200 hover:shadow-md"
+              >
+                {/* Remarked Badge */}
+                {studentRemarks[student._id] && (
+                  <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full p-1">
+                    <CheckCircle className="h-4 w-4" />
+                  </div>
+                )}
+                
+                {/* Student Avatar */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-semibold text-lg">
+                    {student.fullName?.firstName?.charAt(0) || 'S'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-primary truncate">
+                      {student.fullName?.firstName} {student.fullName?.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {student.email}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Latest Remark Display */}
+                {latestRemark && (
+                  <div className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-800 font-medium mb-1">Latest Remark:</p>
+                    <p className="text-xs text-blue-700 line-clamp-2">
+                      {latestRemark.remark}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      {new Date(latestRemark.timestamp).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Action Button */}
+                <Button
+                  onClick={() => {
+                    setSelectedStudent(student);
+                    setShowRemarkModal(true);
+                  }}
+                  className="w-full bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg transition-all duration-200"
+                  size="sm"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  {latestRemark ? 'Add Another Remark' : 'Add Remark'}
+                </Button>
               </div>
-              <div className={`${stat.color} rounded-2xl p-4 shadow-lg`}>
-                <stat.icon className="h-7 w-7 text-white" />
+            );
+          })}
+        </div>
+
+        {filteredStudents.length === 0 && (
+          <div className="text-center py-12">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No students found</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Add Remark Modal */}
+      {showRemarkModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-primary to-accent text-white p-6 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-[Sora,Inter,sans-serif]">Add Remark</h3>
+                  <p className="text-white/80 text-sm">
+                    {selectedStudent.fullName?.firstName} {selectedStudent.fullName?.lastName}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Current Time Display */}
+              <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
+                <div className="flex items-center gap-2 text-sm text-primary">
+                  <Clock className="h-4 w-4" />
+                  <span className="font-medium">Current Time:</span>
+                  <span className="font-semibold">{getCurrentTime()}</span>
+                </div>
+              </div>
+
+              {/* Remark Input */}
+              <div>
+                <label className="block text-sm font-semibold text-primary mb-2">Remarks</label>
+                <textarea
+                  value={remarkText}
+                  onChange={(e) => setRemarkText(e.target.value)}
+                  placeholder="Enter your remarks about the correspondence..."
+                  rows={4}
+                  className="w-full p-3 border border-border/50 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  autoFocus
+                />
+              </div>
+
+              {/* Student Info */}
+              <div className="bg-gray-50 rounded-xl p-3">
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p><strong>Email:</strong> {selectedStudent.email}</p>
+                  <p><strong>Phone:</strong> {selectedStudent.phoneNumbers?.primary || 'Not provided'}</p>
+                  <p><strong>Stage:</strong> {selectedStudent.prospectusStage || 1}</p>
+                </div>
+              </div>
+
+              {/* Previous Remarks */}
+              {selectedStudent.receptionistRemarks && selectedStudent.receptionistRemarks.length > 0 && (
+                <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2 text-sm">Previous Remarks:</h4>
+                  <div className="space-y-2 max-h-24 overflow-y-auto">
+                    {selectedStudent.receptionistRemarks.map((remark, index) => (
+                      <div key={index} className="text-xs text-blue-700 p-2 bg-white rounded border">
+                        <p className="font-medium">{remark.remark}</p>
+                        <p className="text-blue-600 mt-1">
+                          {remark.receptionistName} - {new Date(remark.timestamp).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="bg-white/80 backdrop-blur-xl border-t border-border/50 p-4">
+              <div className="flex justify-end gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowRemarkModal(false);
+                    setSelectedStudent(null);
+                    setRemarkText('');
+                  }}
+                  className="px-4 py-2"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleAddRemark}
+                  disabled={!remarkText.trim()}
+                  className="px-4 py-2 bg-gradient-to-r from-primary to-accent text-white"
+                >
+                  Save Remark
+                </Button>
               </div>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action) => (
-            <Link
-              key={action.title}
-              to={action.href}
-              className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all"
-            >
-              <action.icon className="h-8 w-8 text-blue-600 mb-2" />
-              <h4 className="font-medium text-gray-900">{action.title}</h4>
-              <p className="text-sm text-gray-600">{action.description}</p>
-            </Link>
-          ))}
         </div>
-      </div>
-
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's Appointments */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Today's Appointments</h3>
-          <div className="space-y-3">
-            {todayAppointments.map((appointment, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-900">{appointment.time}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{appointment.visitor}</p>
-                    <p className="text-sm text-gray-600">{appointment.purpose}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                  appointment.status === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {appointment.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Visitors */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Visitors</h3>
-          <div className="space-y-3">
-            {recentVisitors.map((visitor, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <UserCheck className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">{visitor.name}</p>
-                    <p className="text-sm text-gray-600">{visitor.purpose}</p>
-                    <p className="text-xs text-gray-500">{visitor.time}</p>
-                  </div>
-                </div>
-                <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                  {visitor.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Daily Summary */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Daily Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">45</div>
-            <div className="text-sm text-gray-600">Total Visitors</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">32</div>
-            <div className="text-sm text-gray-600">Calls Handled</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">12</div>
-            <div className="text-sm text-gray-600">Appointments</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">8</div>
-            <div className="text-sm text-gray-600">Pending Tasks</div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
