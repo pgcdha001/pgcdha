@@ -131,7 +131,7 @@ const Toast = ({ toast, onRemove }) => {
       </button>
 
       {/* CSS for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes toastProgress {
           from { width: 100%; }
           to { width: 0%; }

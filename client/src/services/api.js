@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 // Get API URL and append /api to all requests
 const getApiUrl = () => {
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-  const apiUrl = `${baseUrl}/api`;
+  const apiUrl = `${baseUrl}`;
   console.log('API URL configured:', apiUrl);
   return apiUrl;
 };
@@ -13,7 +13,7 @@ const getApiUrl = () => {
 const api = axios.create({
   baseURL: getApiUrl(),
   withCredentials: true,
-  timeout: 10000,
+  timeout: 30000, // Increased to 30 seconds
   headers: {
     'Content-Type': 'application/json',
   },

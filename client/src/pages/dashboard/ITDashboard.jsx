@@ -298,7 +298,7 @@ const ITDashboard = () => {
   };
 
   return (
-    <div className="space-y-8 mt-20">
+    <div className="space-y-8">
 
       {/* System Statistics */}
       <Card className="bg-white/60 backdrop-blur-xl border-border/50 p-6">

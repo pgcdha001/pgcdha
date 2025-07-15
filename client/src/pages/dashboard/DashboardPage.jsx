@@ -46,19 +46,9 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 rounded-2xl">
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 mt-20 ">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user?.fullName?.firstName || user?.firstName || 'User'}!
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Role: {user?.role} • Punjab Group of Colleges - DHA Campus
-          </p>
-        </div>
+    <div className="min-h-screen max-w-[90vw] mx-auto bg-gray-50 rounded-2xl">
 
-        {getDashboardContent()}
-      </div>
+      {getDashboardContent()}
     </div>
   );
 };

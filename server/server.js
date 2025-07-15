@@ -59,7 +59,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Database Connection
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/pgc', {
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

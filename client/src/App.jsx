@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { DashboardProvider } from './contexts/DashboardContext';
 import ToastContainer from './components/ui/ToastContainer';
 import AuthenticatedRoute from './components/AuthenticatedRoute';
 import RoleBasedRoute from './components/RoleBasedRoute';
@@ -37,7 +38,8 @@ const App = () => {
     <Router>
       <AuthProvider>
         <ToastProvider>
-        <Routes>
+          <DashboardProvider>
+            <Routes>
           {/* Public routes */}
           <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/register" element={<RegisterPage />} />
@@ -76,7 +78,7 @@ const App = () => {
             <AuthenticatedRoute>
               <Layout>
                 <RoleBasedRoute allowedRoles={['IT']}>
-                  <div className="p-6 mt-20">
+                  <div className="p-6">
                     <ITReportsPage />
                   </div>
                 </RoleBasedRoute>
@@ -170,7 +172,7 @@ const App = () => {
           <Route path="/institutes" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6 mt-20">
+                <div className="p-6">
                   <h1 className="text-2xl font-bold">Institute Management</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
@@ -227,6 +229,7 @@ const App = () => {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <ToastContainer />
+          </DashboardProvider>
         </ToastProvider>
       </AuthProvider>
     </Router>

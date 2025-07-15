@@ -349,7 +349,7 @@ const AdvancedStatistics = () => {
   }
 
   return (
-    <div className="space-y-8 mt-20">
+    <div className="space-y-8">
       {/* Header */}
       <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">

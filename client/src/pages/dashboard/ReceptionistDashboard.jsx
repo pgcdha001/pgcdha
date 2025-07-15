@@ -140,7 +140,7 @@ const ReceptionistDashboard = () => {
   }
 
   return (
-    <div className="space-y-8 mt-20">
+    <div className="space-y-8">
       {/* Header */}
       <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8">
         <div className="flex items-center gap-4">
