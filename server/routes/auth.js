@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Session = require('../models/Session');
 const jwtService = require('../services/jwtService');
 const passwordService = require('../services/passwordService');
+const { normalizeRole, getValidRoles, getRoleDisplayName } = require('../services/roleNormalizer');
 const { authenticate } = require('../middleware/auth');
 const { asyncHandler, AppError, sendSuccessResponse, sendErrorResponse } = require('../middleware/errorHandler');
 
@@ -16,7 +17,7 @@ const router = express.Router();
 router.post('/register', asyncHandler(async (req, res) => {
   const {
     email,
-    username,
+    userName,
     password,
     phoneNumbers,
     fullName,
@@ -35,41 +36,48 @@ router.post('/register', asyncHandler(async (req, res) => {
   const existingUser = await User.findOne({
     $or: [
       { email: email.toLowerCase() },
-      { username: username.toLowerCase() },
+      { userName: userName?.toLowerCase() },
       { cnic }
     ]
   });
 
   if (existingUser) {
     let field = 'email';
-    if (existingUser.username === username.toLowerCase()) field = 'username';
+    if (existingUser.userName === userName?.toLowerCase()) field = 'userName';
     if (existingUser.cnic === cnic) field = 'cnic';
-    
     throw new AppError(`User with this ${field} already exists`, 400, 'USER_EXISTS');
   }
+
+  // Normalize role before creating user
+  const normalizedRole = normalizeRole(role);
 
   // Create user data
   const userData = {
     email: email.toLowerCase(),
-    username: username.toLowerCase(),
+    userName: userName?.toLowerCase(),
     password,
-    phoneNumbers,
-    fullName,
+    phoneNumber: phoneNumbers?.primary || phoneNumbers,
+    phoneNumber2: phoneNumbers?.secondary,
+    phoneNumber3: phoneNumbers?.tertiary,
+    fullName: {
+      firstName: fullName?.firstName || fullName?.split(' ')[0] || '',
+      lastName: fullName?.lastName || fullName?.split(' ').slice(1).join(' ') || ''
+    },
     gender,
-    dateOfBirth,
+    dob: dateOfBirth,
     cnic,
-    role,
+    role: normalizedRole,
     familyInfo,
-    academicHistory,
-    currentClass,
-    academicSession,
-    academicYear,
+    academicRecords: academicHistory,
+    classId: currentClass,
+    session: academicSession,
+    sessionActiveYear: academicYear,
     isActive: true,
     isApproved: false, // Requires approval
-    accountStatus: 'Pending'
+    status: 1 // Active status
   };
 
-  // Create and save user
+  // Create and save user (password will be hashed by pre-save hook)
   const newUser = new User(userData);
   await newUser.save();
 
@@ -93,11 +101,11 @@ router.post('/login', asyncHandler(async (req, res) => {
   const userAgent = req.headers['user-agent'] || 'Unknown';
   const ipAddress = req.ip || req.connection.remoteAddress;
 
-  // Find user by email or username
+  // Find user by email or userName
   const user = await User.findOne({
     $or: [
       { email: login.toLowerCase() },
-      { username: login.toLowerCase() }
+      { userName: login }
     ]
   }).select('+password');
 
@@ -106,18 +114,20 @@ router.post('/login', asyncHandler(async (req, res) => {
     throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
   }
 
-  // Check if account is locked
+  // Check if account is locked (optional: implement lock logic if needed)
   if (user.isLocked) {
     throw new AppError('Account is temporarily locked due to multiple failed login attempts', 423, 'ACCOUNT_LOCKED');
   }
 
-  // Check account status
+  // Check account status using virtual
   if (user.accountStatus !== 'Active') {
     throw new AppError(`Account is ${user.accountStatus.toLowerCase()}`, 403, 'ACCOUNT_INACTIVE');
   }
 
-  // Reset login attempts on successful login
-  await user.resetLoginAttempts();
+  // Reset login attempts on successful login (optional: implement if needed)
+  if (typeof user.resetLoginAttempts === 'function') {
+    await user.resetLoginAttempts();
+  }
 
   // Generate tokens
   const sessionData = {
@@ -291,7 +301,7 @@ router.put('/profile', authenticate, asyncHandler(async (req, res) => {
   // Remove sensitive fields that shouldn't be updated via this endpoint
   delete updateData.password;
   delete updateData.email;
-  delete updateData.username;
+  delete updateData.userName;
   delete updateData.role;
   delete updateData.isActive;
   delete updateData.isApproved;
@@ -336,6 +346,24 @@ router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
 
   sendSuccessResponse(res, {
     message: 'Password changed successfully'
+  });
+}));
+
+/**
+ * @route   GET /api/auth/roles
+ * @desc    Get all valid roles with display names
+ * @access  Public
+ */
+router.get('/roles', asyncHandler(async (req, res) => {
+  const validRoles = getValidRoles();
+  const rolesWithDisplayNames = validRoles.map(role => ({
+    value: role,
+    label: getRoleDisplayName(role)
+  }));
+
+  sendSuccessResponse(res, {
+    roles: rolesWithDisplayNames,
+    message: 'Roles retrieved successfully'
   });
 }));
 

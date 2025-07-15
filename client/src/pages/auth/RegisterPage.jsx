@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/button';
 import { Eye, EyeOff, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
+import { authAPI } from '../../services/api';
+import { normalizeRole } from '../../utils/roleUtils';
 
 // Validation schema
 const registerSchema = z.object({
@@ -70,9 +72,28 @@ const RegisterPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
-  
+  const [roleOptions, setRoleOptions] = useState([
+    { value: 'Student', label: 'Student' },
+    { value: 'Teacher', label: 'Teacher' }
+  ]);
+
   const navigate = useNavigate();
   const { register: registerUser, error, clearError, isAuthenticated } = useAuth();
+
+  // Fetch valid roles from backend on mount
+  useEffect(() => {
+    async function fetchRoles() {
+      try {
+        const res = await authAPI.getRoles();
+        if (res && res.roles) {
+          setRoleOptions(res.roles);
+        }
+      } catch (e) {
+        // fallback to default
+      }
+    }
+    fetchRoles();
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -109,7 +130,7 @@ const RegisterPage = () => {
       // Format data for API
       const userData = {
         email: data.email,
-        username: data.username,
+        userName: data.username, // FIX: send as userName
         password: data.password,
         fullName: {
           firstName: data.firstName,
@@ -122,7 +143,7 @@ const RegisterPage = () => {
           primary: data.primaryPhone
         },
         institute: data.institute,
-        role: data.role,
+        role: normalizeRole(data.role), // Normalize role
         familyInfo: {
           fatherName: data.fatherName,
           emergencyContact: {
@@ -421,12 +442,9 @@ const RegisterPage = () => {
           }`}
         >
           <option value="">Select your role</option>
-          <option value="Student">Student</option>
-          <option value="Teacher">Teacher</option>
-          <option value="SRO">Student Registration Officer</option>
-          <option value="Accounts">Accounts</option>
-          <option value="IT">IT Support</option>
-          <option value="EMS">Examination Management</option>
+          {roleOptions.map((role) => (
+            <option key={role.value} value={role.value}>{role.label}</option>
+          ))}
         </select>
         {errors.role && (
           <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>

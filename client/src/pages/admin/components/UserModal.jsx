@@ -22,7 +22,12 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
     fatherName: '',
     emergencyContactName: '',
     emergencyContactRelationship: '',
-    emergencyContactPhone: ''
+    emergencyContactPhone: '',
+    instituteId: '',
+    classId: '',
+    session: '',
+    specializedIn: '',
+    duties: ''
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -35,13 +40,19 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
   const isCreateMode = mode === 'create';
 
   const roles = [
-    'Super Admin',
-    'College Admin', 
-    'Academic Admin',
+    'SystemAdmin',
+    'InstituteAdmin',
+    'Principal',
     'Teacher',
-    'Student',
-    'Finance Admin',
-    'Receptionist'
+    'HOD',
+    'SRO',
+    'CampusCoordinator',
+    'EMS',
+    'Accounts',
+    'IT',
+    'StoreKeeper',
+    'LabAssistant',
+    'Student'
   ];
 
   const genders = ['Male', 'Female', 'Other'];
@@ -67,7 +78,12 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
         fatherName: user.familyInfo?.fatherName || '',
         emergencyContactName: user.familyInfo?.emergencyContact?.name || '',
         emergencyContactRelationship: user.familyInfo?.emergencyContact?.relationship || '',
-        emergencyContactPhone: user.familyInfo?.emergencyContact?.phone || ''
+        emergencyContactPhone: user.familyInfo?.emergencyContact?.phone || '',
+        instituteId: user.academicInfo?.instituteId || '',
+        classId: user.academicInfo?.classId || '',
+        session: user.academicInfo?.session || '',
+        specializedIn: user.professionalInfo?.specializedIn || '',
+        duties: user.professionalInfo?.duties || ''
       });
     }
   }, [user, isEditMode, isViewMode]);
@@ -162,6 +178,15 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
             relationship: formData.emergencyContactRelationship,
             phone: formData.emergencyContactPhone
           }
+        },
+        academicInfo: {
+          instituteId: formData.instituteId,
+          classId: formData.classId,
+          session: formData.session
+        },
+        professionalInfo: {
+          specializedIn: formData.specializedIn,
+          duties: formData.duties
         }
       };
 
@@ -223,6 +248,24 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
 
             {/* Basic Information */}
             <div>
+              {/* Role Selection */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Role *</label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                  disabled={isViewMode}
+                  className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  required
+                >
+                  <option value="">Select Role</option>
+                  {roles.map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+                {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role}</p>}
+              </div>
               <h3 className="text-base font-bold text-primary font-[Sora,Inter,sans-serif] mb-2">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
@@ -576,6 +619,49 @@ const UserModal = ({ user, mode, onClose, onSave }) => {
                     <label className="ml-2 text-sm text-gray-700">
                       Approved User
                     </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dynamic sections based on role */}
+            {/* Academic Info for Student, Teacher, HOD, Principal, InstituteAdmin */}
+            {(formData.role === 'Student' || formData.role === 'Teacher' || formData.role === 'HOD' || formData.role === 'Principal' || formData.role === 'InstituteAdmin') && (
+              <div className="col-span-2 mt-4">
+                <h3 className="text-base font-bold text-primary font-[Sora,Inter,sans-serif] mb-2">Academic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Example: InstituteId, ClassId, etc. */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Institute ID</label>
+                    <input type="text" name="instituteId" value={formData.instituteId || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                  </div>
+                  {formData.role === 'Student' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Class ID</label>
+                        <input type="text" name="classId" value={formData.classId || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Session</label>
+                        <input type="text" name="session" value={formData.session || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* Professional Info for Teacher, HOD, IT, etc. */}
+            {(formData.role === 'Teacher' || formData.role === 'HOD' || formData.role === 'IT' || formData.role === 'EMS' || formData.role === 'Accounts' || formData.role === 'StoreKeeper' || formData.role === 'LabAssistant') && (
+              <div className="col-span-2 mt-4">
+                <h3 className="text-base font-bold text-primary font-[Sora,Inter,sans-serif] mb-2">Professional Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Specialized In</label>
+                    <input type="text" name="specializedIn" value={formData.specializedIn || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Duties</label>
+                    <input type="text" name="duties" value={formData.duties || ''} onChange={handleInputChange} disabled={isViewMode} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
                   </div>
                 </div>
               </div>

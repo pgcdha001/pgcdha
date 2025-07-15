@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const { normalizeRole, getRoleDisplayName, getValidRoles } = require('../services/roleNormalizer');
+const migrationService = require('../services/migrationService');
 const { authenticate } = require('../middleware/auth');
 const { asyncHandler, sendSuccessResponse } = require('../middleware/errorHandler');
 
@@ -39,9 +41,9 @@ router.get('/',
       ];
     }
 
-    // Role filter
+    // Role filter - normalize the role before filtering
     if (role) {
-      filter.role = role;
+      filter.role = normalizeRole(role);
     }
 
     // Status filter
@@ -118,6 +120,7 @@ router.get('/:id',
  */
 router.post('/',
   asyncHandler(async (req, res) => {
+    console.log('Received body:', req.body); // Debug log
     const {
       email,
       username,
@@ -135,8 +138,15 @@ router.post('/',
 
     // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      $or: [{ email }, { userName: username }]
     });
+
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username, email, and password are required'
+      });
+    }
 
     if (existingUser) {
       return res.status(400).json({
@@ -145,29 +155,37 @@ router.post('/',
       });
     }
 
+    // Normalize role before creating user
+    const normalizedRole = normalizeRole(role);
+    
     // Create new user
     const userData = {
       email,
-      username,
+      userName: username, // Match schema field name
       password,
-      fullName,
+      fullName: {
+        firstName: fullName?.firstName || fullName?.split(' ')[0] || '',
+        lastName: fullName?.lastName || fullName?.split(' ').slice(1).join(' ') || ''
+      },
       gender,
-      dateOfBirth,
+      dob: dateOfBirth,
       cnic,
-      phoneNumbers,
-      role,
+      phoneNumber: phoneNumbers?.primary || phoneNumbers,
+      phoneNumber2: phoneNumbers?.secondary,
+      phoneNumber3: phoneNumbers?.tertiary,
+      role: normalizedRole,
       familyInfo,
       isActive,
       isApproved
     };
 
-    // Set accountStatus based on isActive and isApproved
+    // Set status based on isActive and isApproved (using the new schema field)
     if (isApproved && isActive) {
-      userData.accountStatus = 'Active';
+      userData.status = 1; // Active
     } else if (isApproved && !isActive) {
-      userData.accountStatus = 'Paused';
+      userData.status = 2; // Paused
     } else {
-      userData.accountStatus = 'Pending';
+      userData.status = 3; // Pending/Inactive
     }
 
     const user = await User.create(userData);
@@ -195,7 +213,12 @@ router.put('/:id',
     delete updateData._id;
     delete updateData.__v;
 
-    // Set accountStatus based on isActive and isApproved if they are provided
+    // Normalize role if provided
+    if (updateData.role) {
+      updateData.role = normalizeRole(updateData.role);
+    }
+    
+    // Set status based on isActive and isApproved if they are provided
     if (updateData.hasOwnProperty('isActive') || updateData.hasOwnProperty('isApproved')) {
       // Get current user to check existing values
       const currentUser = await User.findById(userId);
@@ -204,11 +227,11 @@ router.put('/:id',
         const isApproved = updateData.hasOwnProperty('isApproved') ? updateData.isApproved : currentUser.isApproved;
         
         if (isApproved && isActive) {
-          updateData.accountStatus = 'Active';
+          updateData.status = 1; // Active
         } else if (isApproved && !isActive) {
-          updateData.accountStatus = 'Paused';
+          updateData.status = 2; // Paused
         } else {
-          updateData.accountStatus = 'Pending';
+          updateData.status = 3; // Pending/Inactive
         }
       }
     }
@@ -386,5 +409,70 @@ router.patch('/:id/activate',
     sendSuccessResponse(res, { user }, 'User activated successfully');
   })
 );
+
+/**
+ * @route   GET /api/users/roles
+ * @desc    Get all valid roles with display names
+ * @access  Private
+ */
+router.get('/roles', asyncHandler(async (req, res) => {
+  const validRoles = getValidRoles();
+  const rolesWithDisplayNames = validRoles.map(role => ({
+    value: role,
+    label: getRoleDisplayName(role)
+  }));
+
+  sendSuccessResponse(res, {
+    roles: rolesWithDisplayNames,
+    message: 'Roles retrieved successfully'
+  });
+}));
+
+/**
+ * @route   GET /api/users/migration/stats
+ * @desc    Get migration statistics
+ * @access  Private (Admin only)
+ */
+router.get('/migration/stats', asyncHandler(async (req, res) => {
+  const stats = await migrationService.getMigrationStats();
+  
+  sendSuccessResponse(res, {
+    stats,
+    message: 'Migration statistics retrieved successfully'
+  });
+}));
+
+/**
+ * @route   POST /api/users/migration/validate
+ * @desc    Validate all user roles
+ * @access  Private (Admin only)
+ */
+router.post('/migration/validate', asyncHandler(async (req, res) => {
+  const validationResults = await migrationService.validateUserRoles();
+  
+  sendSuccessResponse(res, {
+    validation: validationResults,
+    message: 'User role validation completed'
+  });
+}));
+
+/**
+ * @route   POST /api/users/migration/migrate
+ * @desc    Migrate all users to normalized roles
+ * @access  Private (Admin only)
+ */
+router.post('/migration/migrate', asyncHandler(async (req, res) => {
+  // Create backup first
+  const backup = await migrationService.createUserBackup();
+  
+  // Perform migration
+  const migrationResults = await migrationService.migrateUserRoles();
+  
+  sendSuccessResponse(res, {
+    backup,
+    migration: migrationResults,
+    message: 'User role migration completed'
+  });
+}));
 
 module.exports = router;

@@ -311,6 +311,16 @@ export const authAPI = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to revoke session' };
     }
+  },
+
+  // Get valid roles
+  getRoles: async () => {
+    try {
+      const response = await api.get('/auth/roles');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get roles' };
+    }
   }
 };
 
@@ -438,6 +448,46 @@ export const userAPI = {
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to activate user' };
+    }
+  },
+
+  // Get valid roles
+  getRoles: async () => {
+    try {
+      const response = await api.get('/users/roles');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get roles' };
+    }
+  },
+
+  // Get migration statistics
+  getMigrationStats: async () => {
+    try {
+      const response = await api.get('/users/migration/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get migration stats' };
+    }
+  },
+
+  // Validate user roles
+  validateUserRoles: async () => {
+    try {
+      const response = await api.post('/users/migration/validate');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to validate user roles' };
+    }
+  },
+
+  // Migrate user roles
+  migrateUserRoles: async () => {
+    try {
+      const response = await api.post('/users/migration/migrate');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to migrate user roles' };
     }
   }
 };
