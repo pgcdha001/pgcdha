@@ -10,6 +10,16 @@ function requireIT(req, res, next) {
   return res.status(403).json({ success: false, message: 'Only IT users can perform this action.' });
 }
 
+// Get all students/enquiries (authenticated users)
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const students = await User.find({ role: 'Student' }).select('-password');
+    res.json({ success: true, data: students });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Register a new student (IT only, auto-generate username/password)
 router.post('/register', authenticate, requireIT, async (req, res) => {
   try {

@@ -55,6 +55,18 @@ const ROLE_MAPPING = {
   'FRONT_DESK': 'Receptionist',
   'front_desk': 'Receptionist',
   
+  // IT variations
+  'IT': 'IT',
+  'it': 'IT',
+  'IT Admin': 'IT',
+  'ITAdmin': 'IT',
+  'IT_ADMIN': 'IT',
+  'it_admin': 'IT',
+  'Information Technology': 'IT',
+  'Tech Support': 'IT',
+  'TECH_SUPPORT': 'IT',
+  'tech_support': 'IT',
+  
   // Staff variations
   'Staff': 'Staff',
   'STAFF': 'Staff',
@@ -80,6 +92,7 @@ const VALID_ROLES = [
   'Teacher',
   'Student',
   'Receptionist',
+  'IT',
   'Staff',
   'Parent'
 ];
@@ -92,6 +105,7 @@ const ROLE_DISPLAY_NAMES = {
   'Teacher': 'Teacher',
   'Student': 'Student',
   'Receptionist': 'Receptionist',
+  'IT': 'IT',
   'Staff': 'Staff',
   'Parent': 'Parent'
 };
@@ -104,6 +118,7 @@ const ROLE_COLORS = {
   'Teacher': 'bg-purple-600',
   'Student': 'bg-indigo-600',
   'Receptionist': 'bg-orange-600',
+  'IT': 'bg-cyan-600',
   'Staff': 'bg-gray-600',
   'Parent': 'bg-teal-600'
 };
@@ -116,6 +131,7 @@ const ROLE_ICONS = {
   'Teacher': 'GraduationCap',
   'Student': 'User',
   'Receptionist': 'Phone',
+  'IT': 'Monitor',
   'Staff': 'Users',
   'Parent': 'Heart'
 };
@@ -252,10 +268,59 @@ export function isStudentRole(role) {
   return normalizedRole === 'Student';
 }
 
-export {
-  VALID_ROLES,
-  ROLE_DISPLAY_NAMES,
-  ROLE_COLORS,
-  ROLE_ICONS,
-  ROLE_MAPPING
-}; 
+// ============================================================================
+// ROLE-BASED PERMISSIONS
+// ============================================================================
+
+export const rolePermissions = {
+  'Institute Admin': [
+    // User Management Permissions
+    'view_users', 'create_users', 'edit_users', 'delete_users', 'view_user_statistics',
+    // Enquiry Management Permissions  
+    'view_enquiries', 'create_enquiries', 'edit_enquiries', 'delete_enquiries',
+    'view_enquiry_details', 'update_enquiry_level', 'view_enquiry_statistics',
+    // Reports and Analytics
+    'view_reports', 'export_reports', 'view_analytics',
+    // Full System Access
+    'manage_system', 'view_all_data'
+  ],
+  
+  'IT': [
+    // User Management Permissions (limited)
+    'view_users', 'create_users', 'edit_users', 'view_user_statistics',
+    // Enquiry Management Permissions
+    'view_enquiries', 'edit_enquiries', 'view_enquiry_details', 'update_enquiry_level', 'view_enquiry_statistics',
+    // Technical Reports
+    'view_reports', 'export_reports',
+    // System Maintenance
+    'manage_technical_settings'
+  ],
+  
+  'Receptionist': [
+    // Limited User Management
+    'view_users', 'create_users', 'edit_users',
+    // Basic Enquiry Management
+    'view_enquiries', 'edit_enquiries', 'view_enquiry_details', 'update_enquiry_level',
+    // Basic Reports
+    'view_reports'
+  ],
+  
+  'College Admin': [
+    'view_users', 'view_enquiries', 'view_reports', 'manage_college_data'
+  ],
+  
+  'Finance Admin': [
+    'view_users', 'view_enquiries', 'view_reports', 'manage_financial_data'
+  ],
+  
+  'Teacher': [
+    'view_users', 'view_enquiries', 'view_reports'
+  ],
+  
+  'Student': [
+    'view_own_data'
+  ]
+};
+
+// ============================================================================
+// EXISTING CODE CONTINUES...

@@ -62,15 +62,6 @@ const errorHandler = async (err, req, res, next) => {
     };
   }
 
-  // Rate limiting error
-  if (err.status === 429) {
-    error = {
-      message: 'Too many requests, please try again later',
-      statusCode: 429,
-      code: 'RATE_LIMIT_EXCEEDED'
-    };
-  }
-
   // Default to 500 server error
   const statusCode = error.statusCode || 500;
   const message = error.message || 'Server Error';

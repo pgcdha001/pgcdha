@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
+import { getQuickAccessForRole } from '../../config/dashboardCards';
 import { Button } from '../ui/button';
 import { Menu, X, LogOut, Bell } from 'lucide-react';
+import * as Icons from 'lucide-react';
 import logo from '../../../assets/logo.png';
 
 const Layout = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const { user, logout } = useAuth();
+  const { userRole } = usePermissions();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -24,71 +28,26 @@ const Layout = ({ children }) => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
-  // Role-based navigation
-  const getNavigationForRole = (role) => {
+  // Get dynamic navigation based on permissions
+  const getNavigationItems = () => {
     const baseNavigation = [
-      { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
+      { name: 'Dashboard', href: '/dashboard', icon: 'Home' },
     ];
 
-    switch (role) {
-      case 'College Admin':
-      case 'Academic Admin':
-        return [
-          ...baseNavigation,
-          { name: 'Students', href: '/students', icon: '🎓' },
-          { name: 'Teachers', href: '/teachers', icon: '👨‍🏫' },
-          { name: 'Courses', href: '/courses', icon: '📚' },
-          { name: 'Reports', href: '/reports', icon: '📊' },
-          { name: 'Advanced Statistics', href: '/admin/advanced-statistics', icon: '📈' },
-        ];
-      case 'Teacher':
-        return [
-          ...baseNavigation,
-          { name: 'My Classes', href: '/classes', icon: '📖' },
-          { name: 'Students', href: '/students', icon: '🎓' },
-          { name: 'Courses', href: '/courses', icon: '📚' },
-        ];
-      case 'Student':
-        return [
-          ...baseNavigation,
-          { name: 'My Courses', href: '/courses', icon: '📚' },
-          { name: 'Assignments', href: '/assignments', icon: '📝' },
-          { name: 'Grades', href: '/grades', icon: '🏆' },
-          { name: 'Schedule', href: '/schedule', icon: '📅' },
-        ];
-      case 'Finance Admin':
-        return [
-          ...baseNavigation,
-          { name: 'Fee Management', href: '/fees', icon: '💰' },
-          { name: 'Students', href: '/students', icon: '🎓' },
-          { name: 'Reports', href: '/reports', icon: '📊' },
-          { name: 'Advanced Statistics', href: '/admin/advanced-statistics', icon: '📈' },
-        ];
-      case 'Receptionist':
-        return [
-          ...baseNavigation,
-        ];
-      case 'IT':
-        return [
-          ...baseNavigation,
-          { name: 'Student Management', href: '/it/students', icon: '👨‍🎓' },
-          { name: 'System Reports', href: '/it/reports', icon: '📊' },
-        ];
-      case 'InstituteAdmin':
-        return [
-          ...baseNavigation,
-          { name: 'Staff Management', href: '/institute-admin/staff', icon: '👥' },
-          { name: 'Student Management', href: '/institute-admin/students', icon: '🎓' },
-          { name: 'Enquiry Management', href: '/institute-admin/enquiries', icon: '📋' },
-          { name: 'Reports', href: '/reports', icon: '📊' },
-          { name: 'Advanced Statistics', href: '/admin/advanced-statistics', icon: '📈' },
-        ];
-      default:
-        return baseNavigation;
-    }
+    // Get role-specific quick access items from dashboard config
+    const quickAccessItems = getQuickAccessForRole(userRole);
+    
+    // Convert quick access items to navigation format
+    const dynamicNavigation = quickAccessItems.map(item => ({
+      name: item.title,
+      href: item.href,
+      icon: item.icon
+    }));
+
+    return [...baseNavigation, ...dynamicNavigation];
   };
 
-  const navigation = getNavigationForRole(user?.role || '');
+  const navigation = getNavigationItems();
 
   return (
     <div className="relative min-h-screen flex bg-background overflow-hidden font-sans">
@@ -141,6 +100,8 @@ const Layout = ({ children }) => {
             <nav className="flex flex-col gap-2 w-full">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                const IconComponent = Icons[item.icon] || Icons.Circle;
+                
                 return (
                   <Link
                     key={item.name}
@@ -148,9 +109,7 @@ const Layout = ({ children }) => {
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 group shadow-none hover:shadow-md hover:bg-primary/10 hover:text-primary focus:bg-primary/20 focus:text-primary ${isActive ? 'bg-primary/90 text-white shadow-lg' : 'text-foreground'}`}
                     style={{fontFamily: 'Inter, sans-serif'}}
                   >
-                    <span className="text-base md:text-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 flex-shrink-0">
-                      {item.icon}
-                    </span>
+                    <IconComponent className="h-5 w-5 transition-transform duration-200 group-hover:scale-110 group-active:scale-95 flex-shrink-0" />
                     <span className="text-sm font-medium truncate">{item.name}</span>
                   </Link>
                 );

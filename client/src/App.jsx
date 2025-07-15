@@ -5,8 +5,9 @@ import { ToastProvider } from './contexts/ToastContext';
 import { DashboardProvider } from './contexts/DashboardContext';
 import ToastContainer from './components/ui/ToastContainer';
 import AuthenticatedRoute from './components/AuthenticatedRoute';
-import RoleBasedRoute from './components/RoleBasedRoute';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import Layout from './components/layout/Layout';
+import { PERMISSIONS } from './utils/rolePermissions';
 
 // Auth pages
 import LoginPage from './pages/auth/LoginPage';
@@ -23,14 +24,14 @@ import ReceptionistDashboard from './pages/dashboard/ReceptionistDashboard';
 // Admin pages
 import StudentReport from './pages/admin/StudentReport';
 import AdvancedStatistics from './pages/admin/AdvancedStatistics';
+import UserManagementContainer from './components/user-management/UserManagementContainer';
 
 // Institute Admin pages
-import EnquiryManagement from './pages/institute-admin/EnquiryManagement';
-import StaffManagement from './pages/institute-admin/StaffManagement';
-import StudentManagement from './pages/institute-admin/StudentManagement';
+import EnquiryManagementContainer from './components/enquiry/EnquiryManagementContainer';
+
 
 // Reports
-import ReportsPage from './pages/reports/ReportsPage';
+import ReportsContainer from './components/reports/ReportsContainer';
 import ITReportsPage from './pages/dashboard/ITReportsPage';
 
 const App = () => {
@@ -63,13 +64,13 @@ const App = () => {
             </AuthenticatedRoute>
           } />
 
-          {/* IT routes */}
+          {/* IT routes with permission-based protection */}
           <Route path="/it/students" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['IT']}>
+                <ProtectedRoute allowedRoles={['IT']}>
                   <ITDashboard />
-                </RoleBasedRoute>
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -77,22 +78,22 @@ const App = () => {
           <Route path="/it/reports" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['IT']}>
+                <ProtectedRoute allowedRoles={['IT']}>
                   <div className="p-6">
                     <ITReportsPage />
                   </div>
-                </RoleBasedRoute>
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
 
-          {/* Receptionist routes */}
+          {/* Receptionist routes with permission-based protection */}
           <Route path="/receptionist/communications" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['Receptionist']}>
+                <ProtectedRoute allowedRoles={['Receptionist']}>
                   <ReceptionistDashboard />
-                </RoleBasedRoute>
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -100,9 +101,9 @@ const App = () => {
           <Route path="/receptionist/directory" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['Receptionist']}>
+                <ProtectedRoute allowedRoles={['Receptionist']}>
                   <ReceptionistDashboard />
-                </RoleBasedRoute>
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -110,20 +111,23 @@ const App = () => {
           <Route path="/receptionist/call-logs" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['Receptionist']}>
+                <ProtectedRoute allowedRoles={['Receptionist']}>
                   <ReceptionistDashboard />
-                </RoleBasedRoute>
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
 
-          {/* Institute Admin routes */}
+          {/* Institute Admin routes with permission-based protection */}
           <Route path="/institute-admin/enquiries" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['InstituteAdmin']}>
-                  <EnquiryManagement />
-                </RoleBasedRoute>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                >
+                  <EnquiryManagementContainer />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -131,9 +135,12 @@ const App = () => {
           <Route path="/institute-admin/staff" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['InstituteAdmin']}>
-                  <StaffManagement />
-                </RoleBasedRoute>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.MANAGEMENT.STAFF_MANAGEMENT}
+                  allowedRoles={['InstituteAdmin']}
+                >
+                  <UserManagementContainer userType="staff" />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -141,41 +148,140 @@ const App = () => {
           <Route path="/institute-admin/students" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['InstituteAdmin']}>
-                  <StudentManagement />
-                </RoleBasedRoute>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT}
+                  allowedRoles={['InstituteAdmin']}
+                >
+                  <UserManagementContainer userType="student" />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
 
-          {/* Reports */}
+          {/* Reports with proper permission checking */}
           <Route path="/reports" element={
             <AuthenticatedRoute>
               <Layout>
-                <RoleBasedRoute allowedRoles={['InstituteAdmin', 'CollegeAdmin', 'FinanceAdmin']}>
-                  <ReportsPage />
-                </RoleBasedRoute>
+                <ProtectedRoute 
+                  requiredPermissions={[
+                    PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS,
+                    PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS,
+                    PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS,
+                    PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS,
+                    PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
+                  ]}
+                  requireAll={false}
+                  allowedRoles={['InstituteAdmin', 'IT']}
+                >
+                  <ReportsContainer />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
 
-          {/* Advanced Statistics */}
+          {/* Advanced Statistics - Institute Admin only */}
           <Route path="/admin/advanced-statistics" element={
             <AuthenticatedRoute>
               <Layout>
-                <AdvancedStatistics />
+                <ProtectedRoute allowedRoles={['InstituteAdmin']}>
+                  <AdvancedStatistics />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
 
-          {/* Future feature placeholders */}
+          {/* User Management routes */}
+          <Route path="/admin/users" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.USER_MANAGEMENT.VIEW_USERS}
+                  allowedRoles={['InstituteAdmin', 'IT']}
+                >
+                  <UserManagementContainer />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          <Route path="/admin/add-student" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                >
+                  <UserManagementContainer />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Legacy route - redirect to new user management */}
+          <Route path="/institute-admin/staff" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.MANAGEMENT.STAFF_MANAGEMENT}
+                  allowedRoles={['InstituteAdmin']}
+                >
+                  <UserManagementContainer />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Correspondence routes */}
+          <Route path="/correspondence" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermissions={[
+                    PERMISSIONS.CORRESPONDENCE.VIEW_ENQUIRY_CORRESPONDENCE,
+                    PERMISSIONS.CORRESPONDENCE.VIEW_STUDENT_CORRESPONDENCE
+                  ]}
+                  requireAll={false}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                >
+                  <div className="p-6">
+                    <h1 className="text-2xl font-bold">Correspondence Management</h1>
+                    <p className="text-gray-600">Coming soon...</p>
+                  </div>
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          <Route path="/correspondence/add" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermissions={[
+                    PERMISSIONS.CORRESPONDENCE.ADD_ENQUIRY_CORRESPONDENCE,
+                    PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
+                  ]}
+                  requireAll={false}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                >
+                  <div className="p-6">
+                    <h1 className="text-2xl font-bold">Add Correspondence</h1>
+                    <p className="text-gray-600">Coming soon...</p>
+                  </div>
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Future feature placeholders with proper protection */}
           <Route path="/institutes" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold">Institute Management</h1>
-                  <p className="text-gray-600">Coming soon...</p>
-                </div>
+                <ProtectedRoute allowedRoles={['InstituteAdmin']}>
+                  <div className="p-6">
+                    <h1 className="text-2xl font-bold">Institute Management</h1>
+                    <p className="text-gray-600">Coming soon...</p>
+                  </div>
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -183,10 +289,12 @@ const App = () => {
           <Route path="/users" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold">User Management</h1>
-                  <p className="text-gray-600">Coming soon...</p>
-                </div>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.USER_MANAGEMENT.VIEW_USERS}
+                  allowedRoles={['InstituteAdmin', 'IT']}
+                >
+                  <UserManagementContainer />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -194,10 +302,12 @@ const App = () => {
           <Route path="/students" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold">Student Management</h1>
-                  <p className="text-gray-600">Coming soon...</p>
-                </div>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT}
+                  allowedRoles={['InstituteAdmin']}
+                >
+                  <UserManagementContainer userType="student" />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -205,10 +315,12 @@ const App = () => {
           <Route path="/teachers" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold">Teacher Management</h1>
-                  <p className="text-gray-600">Coming soon...</p>
-                </div>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.MANAGEMENT.STAFF_MANAGEMENT}
+                  allowedRoles={['InstituteAdmin']}
+                >
+                  <UserManagementContainer userType="staff" />
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -216,10 +328,12 @@ const App = () => {
           <Route path="/courses" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold">Course Management</h1>
-                  <p className="text-gray-600">Coming soon...</p>
-                </div>
+                <ProtectedRoute allowedRoles={['InstituteAdmin', 'Teacher']}>
+                  <div className="p-6">
+                    <h1 className="text-2xl font-bold">Course Management</h1>
+                    <p className="text-gray-600">Coming soon...</p>
+                  </div>
+                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
