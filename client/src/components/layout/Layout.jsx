@@ -70,6 +70,12 @@ const Layout = ({ children }) => {
           { name: 'Students', href: '/students', icon: '🎓' },
           { name: 'Visitors', href: '/visitors', icon: '👥' },
         ];
+      case 'IT':
+        return [
+          ...baseNavigation,
+          { name: 'Student Management', href: '/it/students', icon: '👨‍🎓' },
+          { name: 'System Reports', href: '/it/reports', icon: '📊' },
+        ];
       default:
         return baseNavigation;
     }
@@ -85,13 +91,13 @@ const Layout = ({ children }) => {
         <div className="absolute bottom-0 right-0 w-[340px] h-[340px] rounded-full bg-gradient-to-tr from-accent/70 via-primary/40 to-accent/90 blur-[100px] opacity-50 animate-float-slower" />
       </div>
       {/* Sidebar */}
-      <aside className="fixed top-0 left-0 z-20 flex flex-col w-20 md:w-64 h-screen bg-white/60 backdrop-blur-xl shadow-2xl border-r border-border rounded-tl-3xl rounded-bl-3xl transition-all duration-300">
-        <div className="flex flex-col items-center md:items-start px-4 pt-8 pb-4">
-          <div className="mb-8 flex flex-col items-center w-full">
-            <div className="rounded-2xl bg-white/80 shadow-lg border-2 border-primary p-2 mb-2 transition-transform duration-300 hover:scale-105 hover:shadow-2xl">
-              <img src={logo} alt="PGC Logo" className="w-12 h-12 md:w-16 md:h-16 rounded-xl" />
+      <aside className="fixed top-0 left-0 z-20 flex flex-col w-16 md:w-56 h-screen bg-white/60 backdrop-blur-xl shadow-2xl border-r border-border rounded-tl-3xl rounded-bl-3xl transition-all duration-300">
+        <div className="flex flex-col items-center md:items-start px-3 pt-6 pb-4">
+          <div className="mb-6 flex flex-col items-center w-full">
+            <div className="rounded-2xl bg-white/80 shadow-lg border-2 border-primary p-2 mb-2 transition-transform duration-300 hover:scale-105 hover:shadow-2xl flex-shrink-0">
+              <img src={logo} alt="PGC Logo" className="w-10 h-10 md:w-12 md:h-12 rounded-xl object-contain" />
             </div>
-            <span className="hidden md:block text-xl font-bold text-primary tracking-tight font-[Sora,Inter,sans-serif]">PGC</span>
+            <span className="hidden md:block text-sm font-bold text-primary tracking-tight font-[Sora,Inter,sans-serif] whitespace-nowrap">PGC</span>
           </div>
           <nav className="flex flex-col gap-2 w-full">
             {navigation.map((item) => {
@@ -100,13 +106,13 @@ const Layout = ({ children }) => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-base transition-all duration-200 group shadow-none hover:shadow-md hover:bg-primary/10 hover:text-primary focus:bg-primary/20 focus:text-primary ${isActive ? 'bg-primary/90 text-white shadow-lg' : 'text-foreground'}`}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 group shadow-none hover:shadow-md hover:bg-primary/10 hover:text-primary focus:bg-primary/20 focus:text-primary ${isActive ? 'bg-primary/90 text-white shadow-lg' : 'text-foreground'}`}
                   style={{fontFamily: 'Inter, sans-serif'}}
                 >
-                  <span className="text-lg md:text-xl transition-transform duration-200 group-hover:scale-110 group-active:scale-95">
+                  <span className="text-base md:text-lg transition-transform duration-200 group-hover:scale-110 group-active:scale-95 flex-shrink-0">
                     {item.icon}
                   </span>
-                  <span className="hidden md:inline-block">{item.name}</span>
+                  <span className="hidden md:inline-block text-sm font-medium truncate">{item.name}</span>
                 </Link>
               );
             })}
@@ -114,12 +120,11 @@ const Layout = ({ children }) => {
         </div>
       </aside>
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-h-screen relative z-10 ml-20 md:ml-64">
+      <div className="flex-1 flex flex-col min-h-screen relative z-10 ml-16 md:ml-56">
         {/* Topbar */}
-        <header className="fixed top-0 left-20 md:left-64 right-0 z-30 flex items-center justify-between px-10 py-5 bg-white/70 backdrop-bl-xl shadow-md border-b border-border" style={{ borderRadius: 0 }}>
+        <header className="fixed top-0 left-16 md:left-56 right-0 z-30 flex items-center justify-between px-6 py-4 bg-white/70 backdrop-blur-xl shadow-md border-b border-border" style={{ borderRadius: 0 }}>
           <div className="flex-1 flex items-center gap-4">
             {/* Placeholder for search or page title */}
-            <span className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] tracking-tight">Dashboard</span>
           </div>
           <div className="flex items-center gap-6">
             {/* Notifications (placeholder) */}
@@ -128,13 +133,13 @@ const Layout = ({ children }) => {
               <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-primary"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg>
             </button>
             {/* User info */}
-            <div className="flex items-center gap-3 bg-white/80 px-3 py-2 rounded-xl shadow border border-border">
-              <span className="text-primary font-semibold font-[Inter,sans-serif]">{user?.firstName} {user?.lastName}</span>
+            <div className="flex items-center gap-2 bg-white/80 px-3 py-2 rounded-xl shadow border border-border">
+              <span className="text-primary font-medium text-sm font-[Inter,sans-serif] truncate max-w-32">{user?.firstName} {user?.lastName}</span>
               <Button
                 onClick={handleLogout}
                 variant="outline"
                 size="sm"
-                className="text-accent border-accent hover:bg-accent hover:text-white transition-colors font-semibold font-[Inter,sans-serif]"
+                className="text-accent border-accent hover:bg-accent hover:text-white transition-colors font-medium text-sm font-[Inter,sans-serif] px-3 py-1"
               >
                 Logout
               </Button>
@@ -142,7 +147,7 @@ const Layout = ({ children }) => {
           </div>
         </header>
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 bg-transparent relative z-10 pt-[72px]">
+        <main className="flex-1 p-3 md:p-4 bg-transparent relative z-10 pt-16">
           {children}
         </main>
       </div>

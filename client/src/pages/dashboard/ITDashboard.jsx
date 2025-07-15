@@ -37,7 +37,6 @@ const ITDashboard = () => {
   const [success, setSuccess] = useState('');
   const [stageModal, setStageModal] = useState({ open: false, student: null });
   const [stageUpdating, setStageUpdating] = useState(false);
-  const [tab, setTab] = useState('overview');
   const [deleteModal, setDeleteModal] = useState({ open: false, student: null });
   const [deleting, setDeleting] = useState(false);
 
@@ -132,7 +131,7 @@ const ITDashboard = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 mt-20">
       {/* Header Card */}
       <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70" style={{boxShadow: '0 12px 48px 0 rgba(26,35,126,0.12)'}}>
         <div className="flex items-center gap-4">
@@ -148,56 +147,21 @@ const ITDashboard = () => {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
-        <div className="flex gap-4 border-b border-border/30 pb-4">
-          <button
-            className={`px-6 py-3 font-bold rounded-xl transition-all duration-200 ${tab === 'overview' ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg' : 'text-primary hover:bg-primary/10'}`}
-            onClick={() => setTab('overview')}
-          >
-            Overview
-          </button>
-          <button
-            className={`px-6 py-3 font-bold rounded-xl transition-all duration-200 ${tab === 'student' ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg' : 'text-primary hover:bg-primary/10'}`}
-            onClick={() => setTab('student')}
-          >
-            Student Management
-          </button>
-        </div>
-      </div>
-
-      {/* Overview Tab */}
-      {tab === 'overview' && (
-        <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-8 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
-          <h3 className="text-xl font-bold text-primary mb-6 font-[Sora,Inter,sans-serif] flex items-center gap-2">
+      {/* Student Management */}
+      <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-8 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-primary font-[Sora,Inter,sans-serif] flex items-center gap-2">
             <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-            Student Statistics
+            Student Management
           </h3>
-          <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-border/30">
-            <div className="text-center">
-              <div className="text-5xl font-bold text-primary mb-2">{students.length}</div>
-              <div className="text-muted-foreground font-medium">Registered Students</div>
-            </div>
-          </div>
+          <Button 
+            variant="default" 
+            onClick={() => setShowModal(true)}
+            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg"
+          >
+            Register New Student
+          </Button>
         </div>
-      )}
-
-      {/* Student Management Tab */}
-      {tab === 'student' && (
-        <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-8 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-primary font-[Sora,Inter,sans-serif] flex items-center gap-2">
-              <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-              Student Management
-            </h3>
-            <Button 
-              variant="default" 
-              onClick={() => setShowModal(true)}
-              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg"
-            >
-              Register New Student
-            </Button>
-          </div>
           {error && (
             <div className="bg-red-50/80 backdrop-blur-sm border border-red-200/60 text-red-700 px-4 py-3 rounded-2xl mb-4 shadow-lg">
               <div className="flex items-center gap-2">
@@ -215,8 +179,8 @@ const ITDashboard = () => {
             </div>
           )}
           {showModal && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="w-full h-full bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border/50 flex flex-col overflow-hidden">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="w-screen h-screen bg-white/70 backdrop-blur-2xl shadow-2xl border-0 flex flex-col overflow-hidden">
                 <div className="bg-gradient-to-r from-primary to-accent text-white p-6 shadow-lg flex justify-between items-center">
                   <h3 className="text-2xl font-bold font-[Sora,Inter,sans-serif]">Register Student</h3>
                   <Button
@@ -323,49 +287,191 @@ const ITDashboard = () => {
             )}
           </div>
           {stageModal.open && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-              <Card className="w-full max-w-xs p-0">
-                <div className="p-6">
-                  <h3 className="text-lg font-bold mb-4 text-primary">Change Stage</h3>
-                  <div className="space-y-2">
-                    {STAGE_LABELS.map((label, idx) => (
-                      <Button
-                        key={label}
-                        variant={stageModal.student.prospectusStage === idx + 1 ? 'default' : 'outline'}
-                        className={`w-full flex items-center justify-between ${STAGE_COLORS[idx]} ${stageModal.student.prospectusStage === idx + 1 ? 'text-white' : ''}`}
-                        onClick={() => handleStageSelect(idx + 1)}
-                        disabled={stageUpdating || stageModal.student.prospectusStage === idx + 1}
-                      >
-                        <span>{label}</span>
-                        {stageModal.student.prospectusStage === idx + 1 && <span>&#10003;</span>}
-                      </Button>
-                    ))}
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="w-full max-w-2xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-primary to-accent text-white p-6 shadow-lg flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold font-[Sora,Inter,sans-serif]">Change Stage</h3>
+                      <p className="text-white/80 text-sm">Update student progression status</p>
+                    </div>
                   </div>
-                  <div className="flex justify-end mt-4">
-                    <Button variant="outline" onClick={() => setStageModal({ open: false, student: null })} disabled={stageUpdating}>
+                  <Button
+                    onClick={() => setStageModal({ open: false, student: null })}
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/20 rounded-xl"
+                    disabled={stageUpdating}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Button>
+                </div>
+                
+                {/* Content */}
+                <div className="p-8">
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-primary mb-2 font-[Sora,Inter,sans-serif]">
+                      Student: {stageModal.student?.fullName?.firstName} {stageModal.student?.fullName?.lastName}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">Select the new stage for this student</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-3">
+                    {STAGE_LABELS.map((label, idx) => {
+                      const isCurrentStage = stageModal.student.prospectusStage === idx + 1;
+                      return (
+                        <Button
+                          key={label}
+                          variant={isCurrentStage ? 'default' : 'outline'}
+                          className={`w-full flex items-center justify-between p-4 text-left transition-all duration-200 ${
+                            isCurrentStage 
+                              ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg' 
+                              : 'hover:bg-white/50 hover:border-primary/30'
+                          }`}
+                          onClick={() => handleStageSelect(idx + 1)}
+                          disabled={stageUpdating || isCurrentStage}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded-full ${isCurrentStage ? 'bg-white' : STAGE_COLORS[idx]}`}></div>
+                            <span className="font-medium">{label}</span>
+                          </div>
+                          {isCurrentStage && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">Current</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                {/* Footer */}
+                <div className="bg-white/80 backdrop-blur-xl border-t border-border/50 p-6 shadow-lg">
+                  <div className="flex justify-end gap-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setStageModal({ open: false, student: null })} 
+                      disabled={stageUpdating}
+                      className="px-6 py-3"
+                    >
                       Cancel
                     </Button>
                   </div>
                 </div>
-              </Card>
+              </div>
             </div>
           )}
           {deleteModal.open && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-              <Card className="w-full max-w-xs p-0">
-                <div className="p-6">
-                  <h3 className="text-lg font-bold mb-4 text-primary">Confirm Delete</h3>
-                  <p className="mb-4 text-gray-700">Are you sure you want to delete <span className="font-semibold">{deleteModal.student?.fullName?.firstName} {deleteModal.student?.fullName?.lastName}</span>? This action cannot be undone.</p>
-                  <div className="flex justify-end gap-2 mt-4">
-                    <Button variant="outline" onClick={() => setDeleteModal({ open: false, student: null })} disabled={deleting}>Cancel</Button>
-                    <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="w-full max-w-xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-destructive to-red-600 text-white p-6 shadow-lg flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold font-[Sora,Inter,sans-serif]">Confirm Delete</h3>
+                      <p className="text-white/80 text-sm">This action cannot be undone</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setDeleteModal({ open: false, student: null })}
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/20 rounded-xl"
+                    disabled={deleting}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Button>
+                </div>
+                
+                {/* Content */}
+                <div className="p-8">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </div>
+                    
+                    <h4 className="text-xl font-semibold text-foreground mb-3 font-[Sora,Inter,sans-serif]">
+                      Delete Student Record
+                    </h4>
+                    
+                    <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4 mb-6">
+                      <p className="text-sm text-foreground/80 mb-2">
+                        Are you sure you want to delete this student record?
+                      </p>
+                      <div className="text-sm font-medium text-destructive">
+                        <strong>{deleteModal.student?.fullName?.firstName} {deleteModal.student?.fullName?.lastName}</strong>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-amber-800">Warning</p>
+                          <p className="text-xs text-amber-700 mt-1">
+                            This will permanently remove all student data including records, submissions, and history. This action cannot be reversed.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </Card>
+                
+                {/* Footer */}
+                <div className="bg-white/80 backdrop-blur-xl border-t border-border/50 p-6 shadow-lg">
+                  <div className="flex justify-end gap-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setDeleteModal({ open: false, student: null })} 
+                      disabled={deleting}
+                      className="px-6 py-3"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleDeleteConfirm} 
+                      disabled={deleting}
+                      className="px-6 py-3 bg-gradient-to-r from-destructive to-red-600 hover:from-destructive/90 hover:to-red-700"
+                    >
+                      {deleting ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Deleting...
+                        </div>
+                      ) : (
+                        'Delete Student'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
-      )}
     </div>
   );
 };

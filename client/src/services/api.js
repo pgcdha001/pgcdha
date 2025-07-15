@@ -506,9 +506,33 @@ const refreshAccessToken = async () => {
   return response.data;
 };
 
+// Dashboard API
+export const dashboardAPI = {
+  // Get dashboard statistics
+  getStats: async () => {
+    try {
+      const response = await api.get('/dashboard/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get dashboard stats' };
+    }
+  },
+
+  // Get recent activity
+  getActivity: async (limit = 10) => {
+    try {
+      const response = await api.get('/dashboard/activity', { params: { limit } });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get dashboard activity' };
+    }
+  }
+};
+
 // Export aliases for consistency
 export const authApi = authAPI;
 export const userApi = userAPI;
+export const dashboardApi = dashboardAPI;
 
 // Export the configured axios instance
 export default api;

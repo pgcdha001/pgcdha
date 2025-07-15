@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthenticatedRoute from './components/AuthenticatedRoute';
+import RoleBasedRoute from './components/RoleBasedRoute';
 import Layout from './components/layout/Layout';
 
 // Auth pages
@@ -13,6 +14,7 @@ import ProfilePage from './pages/auth/ProfilePage';
 
 // Dashboard
 import DashboardPage from './pages/dashboard/DashboardPage';
+import ITDashboard from './pages/dashboard/ITDashboard';
 
 // Admin pages
 import SuperAdminPage from './pages/admin/SuperAdminPage';
@@ -55,11 +57,35 @@ const App = () => {
             </AuthenticatedRoute>
           } />
 
+          {/* IT routes */}
+          <Route path="/it/students" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <RoleBasedRoute allowedRoles={['IT']}>
+                  <ITDashboard />
+                </RoleBasedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          <Route path="/it/reports" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <RoleBasedRoute allowedRoles={['IT']}>
+                  <div className="p-6 mt-20">
+                    <h1 className="text-2xl font-bold">IT System Reports</h1>
+                    <p className="text-gray-600">Coming soon...</p>
+                  </div>
+                </RoleBasedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
           {/* Future feature placeholders */}
           <Route path="/institutes" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6">
+                <div className="p-6 mt-20">
                   <h1 className="text-2xl font-bold">Institute Management</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
@@ -114,8 +140,7 @@ const App = () => {
           <Route path="/reports" element={
             <AuthenticatedRoute>
               <Layout>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold">Reports</h1>
+                <div className="p-6 mt-20 ">
                   <StudentReport />
                 </div>
               </Layout>

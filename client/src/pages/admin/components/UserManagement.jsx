@@ -191,7 +191,7 @@ const UserManagement = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button
+            {/* <Button
               variant="outline"
               size="sm"
               className="flex items-center gap-2 px-3 py-2 text-sm border-border/50 hover:bg-white/50 hover:border-primary/30"
@@ -206,7 +206,7 @@ const UserManagement = () => {
             >
               <Upload className="w-4 h-4" />
               <span>Import</span>
-            </Button>
+            </Button> */}
             <Button
               onClick={handleCreateUser}
               className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white px-3 py-2 text-sm shadow-lg"
