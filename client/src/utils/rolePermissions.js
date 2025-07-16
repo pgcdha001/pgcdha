@@ -176,10 +176,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CORRESPONDENCE.EDIT_CORRESPONDENCE,
     PERMISSIONS.CORRESPONDENCE.EXPORT_CORRESPONDENCE,
     
-    // Reports - Limited access
+    // Reports - Limited access (can view but not export)
     PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS,
     PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS,
-    PERMISSIONS.REPORTS.EXPORT_REPORTS,
     
     // Management - Enquiry management only
     PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT,
@@ -219,6 +218,14 @@ export const canAccessManagement = (userRole, managementType) => {
 export const canAccessReports = (userRole, reportType) => {
   const permission = PERMISSIONS.REPORTS[reportType];
   return hasPermission(userRole, permission);
+};
+
+// Helper function to check if user can create any type of user
+export const canCreateAnyUser = (userRole) => {
+  return hasPermission(userRole, PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
+         hasPermission(userRole, PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
+         hasPermission(userRole, PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
+         hasPermission(userRole, PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
 };
 
 // Export role names for easy reference

@@ -3,11 +3,11 @@ import { Users, TrendingUp, Clock, CheckCircle, XCircle, AlertCircle } from 'luc
 import api from '../../services/api';
 
 const ENQUIRY_LEVELS = [
-  { id: 1, name: 'Initial Enquiry', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-800', icon: AlertCircle },
-  { id: 2, name: 'Documents Collection', color: 'yellow', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', icon: Clock },
-  { id: 3, name: 'Application Review', color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-800', icon: Clock },
-  { id: 4, name: 'Interview Scheduled', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', icon: Clock },
-  { id: 5, name: 'Admitted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-800', icon: CheckCircle },
+  { id: 1, name: 'Not Purchased', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-800', icon: AlertCircle },
+  { id: 2, name: 'Purchased', color: 'yellow', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', icon: Clock },
+  { id: 3, name: 'Returned', color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-800', icon: Clock },
+  { id: 4, name: 'Admission Fee Submitted', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', icon: Clock },
+  { id: 5, name: '1st Installment Submitted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-800', icon: CheckCircle },
   { id: 6, name: 'Rejected', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-800', icon: XCircle },
 ];
 

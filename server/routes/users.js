@@ -122,38 +122,71 @@ router.post('/',
   asyncHandler(async (req, res) => {
     console.log('Received body:', req.body); // Debug log
     const {
+      firstName,
+      lastName,
       email,
-      username,
-      password,
-      fullName,
-      gender,
-      dateOfBirth,
+      fatherName,
       cnic,
-      phoneNumbers,
+      gender,
+      phoneNumber,
+      mobileNumber,
       role = 'Student',
-      familyInfo,
-      isActive = true,
-      isApproved = false
+      program,
+      dateOfBirth,
+      address,
+      reference,
+      emergencyContact,
+      status = 'active'
     } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { userName: username }]
-    });
-
-    if (!username || !email || !password) {
+    // Validate required fields
+    if (!firstName || !lastName || !email) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, and password are required'
+        message: 'First name, last name, and email are required'
       });
     }
+
+    // Additional validation for Student role
+    if (role === 'Student') {
+      const missingFields = [];
+      if (!fatherName) missingFields.push('Father name');
+      if (!cnic) missingFields.push('CNIC');
+      if (!gender) missingFields.push('Gender');
+      if (!program) missingFields.push('Program');
+      if (!phoneNumber) missingFields.push('Phone number');
+      
+      if (missingFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `The following fields are required for students: ${missingFields.join(', ')}`
+        });
+      }
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email or username already exists'
+        message: 'User with this email already exists'
       });
     }
+
+    // Generate username from first and last name
+    const baseUserName = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`.replace(/\s+/g, '');
+    
+    // Check if username already exists, if so, append a number
+    let userName = baseUserName;
+    let counter = 1;
+    while (await User.findOne({ userName })) {
+      userName = `${baseUserName}${counter}`;
+      counter++;
+    }
+
+    // Generate default password (first name + last 4 digits of CNIC or "1234")
+    const defaultPassword = `${firstName.toLowerCase()}${cnic ? cnic.slice(-4) : '1234'}`;
 
     // Normalize role before creating user
     const normalizedRole = normalizeRole(role);
@@ -161,28 +194,42 @@ router.post('/',
     // Create new user
     const userData = {
       email,
-      userName: username, // Match schema field name
-      password,
+      userName,
+      password: defaultPassword,
       fullName: {
-        firstName: fullName?.firstName || fullName?.split(' ')[0] || '',
-        lastName: fullName?.lastName || fullName?.split(' ').slice(1).join(' ') || ''
+        firstName,
+        lastName
       },
-      gender,
-      dob: dateOfBirth,
+      fatherName,
       cnic,
-      phoneNumber: phoneNumbers?.primary || phoneNumbers,
-      phoneNumber2: phoneNumbers?.secondary,
-      phoneNumber3: phoneNumbers?.tertiary,
+      gender,
+      dob: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      phoneNumber,
+      mobileNumber,
+      program,
+      address,
+      reference,
       role: normalizedRole,
-      familyInfo,
-      isActive,
-      isApproved
+      isActive: status === 'active',
+      isApproved: true,
+      createdOn: new Date(),
+      updatedOn: new Date()
     };
 
-    // Set status based on isActive and isApproved (using the new schema field)
-    if (isApproved && isActive) {
+    // Handle emergency contact if provided
+    if (emergencyContact) {
+      userData.familyInfo = {
+        fatherName,
+        emergencyContact: typeof emergencyContact === 'string' ? 
+          { name: emergencyContact, relationship: '', phone: '' } : 
+          emergencyContact
+      };
+    }
+
+    // Set status based on isActive and isApproved
+    if (userData.isApproved && userData.isActive) {
       userData.status = 1; // Active
-    } else if (isApproved && !isActive) {
+    } else if (userData.isApproved && !userData.isActive) {
       userData.status = 2; // Paused
     } else {
       userData.status = 3; // Pending/Inactive
@@ -194,10 +241,15 @@ router.post('/',
     const userResponse = user.toJSON();
     delete userResponse.password;
 
-    sendSuccessResponse(res, { user: userResponse }, 'User created successfully');
+    sendSuccessResponse(res, { 
+      user: userResponse,
+      generatedCredentials: {
+        userName,
+        password: defaultPassword
+      }
+    }, 'User created successfully');
   })
 );
-
 /**
  * @route   PUT /api/users/:id
  * @desc    Update user
@@ -206,34 +258,87 @@ router.post('/',
 router.put('/:id',
   asyncHandler(async (req, res) => {
     const userId = req.params.id;
-    const updateData = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      fatherName,
+      cnic,
+      gender,
+      phoneNumber,
+      mobileNumber,
+      role,
+      program,
+      dateOfBirth,
+      address,
+      reference,
+      emergencyContact,
+      status
+    } = req.body;
 
-    // Remove sensitive fields from update data
-    delete updateData.password;
-    delete updateData._id;
-    delete updateData.__v;
+    // Get current user to check if email is changing
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if email is being changed and if new email already exists
+    if (email && email !== currentUser.email) {
+      const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+    }
+
+    // Prepare update data
+    const updateData = {
+      updatedOn: new Date()
+    };
+
+    // Map frontend fields to backend structure
+    if (firstName || lastName) {
+      updateData.fullName = {
+        firstName: firstName || currentUser.fullName?.firstName || '',
+        lastName: lastName || currentUser.fullName?.lastName || ''
+      };
+    }
+
+    if (email) updateData.email = email;
+    if (fatherName) updateData.fatherName = fatherName;
+    if (cnic) updateData.cnic = cnic;
+    if (gender) updateData.gender = gender;
+    if (phoneNumber) updateData.phoneNumber = phoneNumber;
+    if (mobileNumber) updateData.mobileNumber = mobileNumber;
+    if (program) updateData.program = program;
+    if (dateOfBirth) updateData.dob = new Date(dateOfBirth);
+    if (address) updateData.address = address;
+    if (reference) updateData.reference = reference;
 
     // Normalize role if provided
-    if (updateData.role) {
-      updateData.role = normalizeRole(updateData.role);
+    if (role) {
+      updateData.role = normalizeRole(role);
     }
-    
-    // Set status based on isActive and isApproved if they are provided
-    if (updateData.hasOwnProperty('isActive') || updateData.hasOwnProperty('isApproved')) {
-      // Get current user to check existing values
-      const currentUser = await User.findById(userId);
-      if (currentUser) {
-        const isActive = updateData.hasOwnProperty('isActive') ? updateData.isActive : currentUser.isActive;
-        const isApproved = updateData.hasOwnProperty('isApproved') ? updateData.isApproved : currentUser.isApproved;
-        
-        if (isApproved && isActive) {
-          updateData.status = 1; // Active
-        } else if (isApproved && !isActive) {
-          updateData.status = 2; // Paused
-        } else {
-          updateData.status = 3; // Pending/Inactive
-        }
-      }
+
+    // Handle status changes
+    if (status) {
+      updateData.isActive = status === 'active';
+      updateData.status = status === 'active' ? 1 : 2;
+    }
+
+    // Handle emergency contact if provided
+    if (emergencyContact) {
+      updateData.familyInfo = {
+        fatherName: fatherName || currentUser.fatherName,
+        emergencyContact: typeof emergencyContact === 'string' ? 
+          { name: emergencyContact, relationship: '', phone: '' } : 
+          emergencyContact
+      };
     }
 
     const user = await User.findByIdAndUpdate(
@@ -244,13 +349,6 @@ router.put('/:id',
         runValidators: true 
       }
     ).select('-password -passwordResetToken -passwordResetExpires');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
 
     sendSuccessResponse(res, { user }, 'User updated successfully');
   })

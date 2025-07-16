@@ -7,7 +7,18 @@ const DeleteConfirmModal = ({ user, onClose, onConfirm }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Safety check for user prop
+  if (!user) {
+    console.error('DeleteConfirmModal: user prop is required');
+    return null;
+  }
+
   const handleDelete = async () => {
+    if (!user?._id) {
+      setError('User ID is missing');
+      return;
+    }
+
     setLoading(true);
     setError('');
     
@@ -163,30 +174,6 @@ const DeleteConfirmModal = ({ user, onClose, onConfirm }) => {
             )}
           </Button>
         </div>
-
-        {/* CSS Animations */}
-        <style jsx>{`
-          @keyframes fade-in {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-          }
-          @keyframes float-slow {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-15px) scale(1.02); }
-          }
-          @keyframes float-slower {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(10px) scale(0.98); }
-          }
-          @keyframes gradient-x {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-          }
-          .animate-fade-in { animation: fade-in 0.3s ease-out; }
-          .animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
-          .animate-float-slower { animation: float-slower 8s ease-in-out infinite; }
-          .animate-gradient-x { background-size: 200% 200%; animation: gradient-x 3s ease-in-out infinite; }
-        `}</style>
       </div>
     </div>
   );

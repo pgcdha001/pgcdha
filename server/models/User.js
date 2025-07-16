@@ -56,6 +56,7 @@ const UserSchema = new mongoose.Schema({
   phoneNumber2: String,
   phoneNumber3: String,
   secondaryPhone: String,  // Added for new form structure
+  mobileNumber: String,    // Added for student mobile number
   phoneNumbers: {          // Added for structured phone numbers
     primary: String,
     secondary: String
@@ -66,11 +67,13 @@ const UserSchema = new mongoose.Schema({
   // Academic Background
   previousSchool: String,  // Added for previous school/college
   oldSchoolName: String,   // Alternative field name for previous school
+  program: String,         // Added for student program (ICS, ICOM, Pre Engineering, Pre Medical)
   
   // Personal Information
   gender: String,
   dob: Date,
   cnic: String,
+  fatherName: String,      // Added for student father name
   imageUrl: String,
 
   // System Fields
@@ -89,15 +92,21 @@ const UserSchema = new mongoose.Schema({
   session: String,
   sessionActiveYear: String,
   inquiryLevel: String,
+  prospectusStage: { type: Number, default: 1 }, // 1-6 for inquiry/prospectus stages
   boardRegistration: String,
   isEnrolledPreClasses: Boolean,
   isPassedOut: Boolean,
   struckOffCount: Number,
   redNoticeCount: Number,
   biometricId: String,
-  school: String,
-  inquiryDate: Date,
-  prospectusStage: { type: Number, default: 1 }, // 1-6 for inquiry/prospectus stages
+  
+  // Enquiry Progression Tracking Fields
+  prospectusPurchasedOn: Date,
+  prospectusReturnedOn: Date,
+  afSubmittedOn: Date,
+  installmentSubmittedOn: Date,
+  isProcessed: { type: Boolean, default: false },
+  processedYear: String,
 
   // For Staff/Teachers
   specializedIn: String,

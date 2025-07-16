@@ -6,11 +6,11 @@ import EnquiryLevelManager from './EnquiryLevelManager';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 const ENQUIRY_LEVELS = [
-  { id: 1, name: 'Initial Enquiry', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-800' },
-  { id: 2, name: 'Documents Collection', color: 'yellow', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800' },
-  { id: 3, name: 'Application Review', color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-800' },
-  { id: 4, name: 'Interview Scheduled', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800' },
-  { id: 5, name: 'Admitted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-800' },
+  { id: 1, name: 'Not Purchased', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-800' },
+  { id: 2, name: 'Purchased', color: 'yellow', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800' },
+  { id: 3, name: 'Returned', color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-800' },
+  { id: 4, name: 'Admission Fee Submitted', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800' },
+  { id: 5, name: '1st Installment Submitted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-800' },
   { id: 6, name: 'Rejected', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-800' },
 ];
 
@@ -119,11 +119,14 @@ const EnquiryList = ({ config }) => {
   const onLevelUpdated = (updatedEnquiry) => {
     setEnquiries(prev => 
       prev.map(enquiry => 
-        enquiry.id === updatedEnquiry.id ? updatedEnquiry : enquiry
+        (enquiry._id || enquiry.id) === (updatedEnquiry._id || updatedEnquiry.id) ? updatedEnquiry : enquiry
       )
     );
     setShowLevelModal(false);
     setSelectedEnquiry(null);
+    
+    // Refresh the enquiries list to ensure consistency with server
+    fetchEnquiries();
   };
 
   return (

@@ -16,6 +16,20 @@ const STAGE_LABELS = [
   '1st Installment Submitted'
 ];
 
+// Helper function to extract notes from remark text
+const extractNotesFromRemark = (remark) => {
+  if (!remark) return 'No notes';
+  
+  // Check if this is a level change remark
+  const notesMatch = remark.match(/Notes:\s*(.+)$/);
+  if (notesMatch && notesMatch[1]) {
+    return notesMatch[1].trim();
+  }
+  
+  // If it's not a level change remark, return the full remark
+  return remark;
+};
+
 const StudentReport = () => {
   const { toast } = useToast();
   const [students, setStudents] = useState([]);
@@ -112,7 +126,7 @@ const StudentReport = () => {
         
         const remarksData = student.receptionistRemarks.map((remark, idx) => [
           idx + 1,
-          remark.remark || '',
+          extractNotesFromRemark(remark.remark || ''),
           remark.receptionistName || 'Unknown',
           new Date(remark.timestamp).toLocaleDateString()
         ]);
@@ -200,7 +214,7 @@ const StudentReport = () => {
             'Student Name': `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
             'Student Email': student.email || '',
             'Remark #': idx + 1,
-            'Remark': remark.remark || '',
+            'Remark': extractNotesFromRemark(remark.remark || ''),
             'Receptionist': remark.receptionistName || 'Unknown',
             'Date': new Date(remark.timestamp).toLocaleDateString(),
             'Time': new Date(remark.timestamp).toLocaleTimeString()

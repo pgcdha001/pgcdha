@@ -14,7 +14,9 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
     students: 0,
     teachers: 0,
     staff: 0,
-    admins: 0
+    admins: 0,
+    receptionists: 0,
+    it: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -27,17 +29,18 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
         const promises = [];
         
         if (allowedRoles.includes('all') || allowedRoles.includes('Student')) {
-          promises.push(userAPI.getUsers({ role: 'Student', limit: 1 }).then(res => ({ type: 'students', count: res.data?.totalUsers || 0 })));
+          promises.push(userAPI.getUsers({ role: 'Student', limit: 1 }).then(res => ({ type: 'students', count: res.data?.pagination?.totalUsers || 0 })));
         }
         
         if (allowedRoles.includes('all') || allowedRoles.includes('Teacher')) {
-          promises.push(userAPI.getUsers({ role: 'Teacher', limit: 1 }).then(res => ({ type: 'teachers', count: res.data?.totalUsers || 0 })));
+          promises.push(userAPI.getUsers({ role: 'Teacher', limit: 1 }).then(res => ({ type: 'teachers', count: res.data?.pagination?.totalUsers || 0 })));
         }
         
         if (allowedRoles.includes('all')) {
-          promises.push(userAPI.getUsers({ excludeRoles: 'Student', limit: 1 }).then(res => ({ type: 'staff', count: res.data?.totalUsers || 0 })));
-          promises.push(userAPI.getUsers({ role: 'InstituteAdmin,IT', limit: 1 }).then(res => ({ type: 'admins', count: res.data?.totalUsers || 0 })));
-          promises.push(userAPI.getUsers({ limit: 1 }).then(res => ({ type: 'total', count: res.data?.totalUsers || 0 })));
+          promises.push(userAPI.getUsers({ role: 'Receptionist', limit: 1 }).then(res => ({ type: 'receptionists', count: res.data?.pagination?.totalUsers || 0 })));
+          promises.push(userAPI.getUsers({ role: 'InstituteAdmin', limit: 1 }).then(res => ({ type: 'admins', count: res.data?.pagination?.totalUsers || 0 })));
+          promises.push(userAPI.getUsers({ role: 'IT', limit: 1 }).then(res => ({ type: 'it', count: res.data?.pagination?.totalUsers || 0 })));
+          promises.push(userAPI.getUsers({ limit: 1 }).then(res => ({ type: 'total', count: res.data?.pagination?.totalUsers || 0 })));
         }
 
         const results = await Promise.all(promises);
@@ -47,11 +50,16 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
           students: 0,
           teachers: 0,
           staff: 0,
-          admins: 0
+          admins: 0,
+          receptionists: 0,
+          it: 0
         };
         results.forEach(result => {
           newStats[result.type] = result.count;
         });
+        
+        // Calculate staff count (receptionists + admins + it)
+        newStats.staff = newStats.receptionists + newStats.admins + newStats.it;
         
         setStatistics(newStats);
       } catch (error) {

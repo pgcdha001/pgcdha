@@ -14,6 +14,30 @@ function requireIT(req, res, next) {
 router.get('/', authenticate, async (req, res) => {
   try {
     const students = await User.find({ role: 'Student' }).select('-password');
+    
+    // Log potential duplicates for debugging
+    const nameGroups = {};
+    students.forEach(student => {
+      const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
+      if (!nameGroups[fullName]) {
+        nameGroups[fullName] = [];
+      }
+      nameGroups[fullName].push({
+        id: student._id,
+        level: student.prospectusStage || 1,
+        email: student.email
+      });
+    });
+    
+    // Check for potential duplicates
+    const duplicates = Object.entries(nameGroups).filter(([name, records]) => records.length > 1);
+    if (duplicates.length > 0) {
+      console.log('Potential duplicate students found:');
+      duplicates.forEach(([name, records]) => {
+        console.log(`  ${name}:`, records);
+      });
+    }
+    
     res.json({ success: true, data: students });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -90,6 +114,205 @@ router.get('/remarks', authenticate, async (req, res) => {
     
     res.json(students);
   } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Update enquiry level with compulsory notes (authenticated users)
+router.put('/:id/level', authenticate, async (req, res) => {
+  try {
+    const { level, notes } = req.body;
+    
+    // Validate required fields
+    if (level === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Level is required'
+      });
+    }
+    
+    if (!notes || !notes.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notes are required when changing enquiry level'
+      });
+    }
+
+    console.log(`Updating level for student ID: ${req.params.id} from level ${currentLevel} to level ${level}`);
+
+    // Find the student/enquiry
+    const student = await User.findById(req.params.id);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student/Enquiry not found'
+      });
+    }
+
+    // Store the current level before updating
+    const currentLevel = student.prospectusStage || 1;
+    console.log(`Found student: ${student.fullName?.firstName} ${student.fullName?.lastName}, current level: ${currentLevel}, new level: ${level}`);
+    
+    // If student doesn't have prospectusStage set, initialize it
+    if (student.prospectusStage === undefined || student.prospectusStage === null) {
+      student.prospectusStage = 1;
+      console.log(`Initialized prospectusStage to 1 for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
+    }
+    
+    // Validate that level can only be upgraded, not downgraded
+    if (level < currentLevel) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot downgrade from level ${currentLevel} to level ${level}. Only upgrades are allowed.`
+      });
+    }
+    
+    // If trying to set the same level, return early
+    if (level === currentLevel) {
+      return res.status(400).json({
+        success: false,
+        message: `Student is already at level ${level}`
+      });
+    }
+    
+    // Update the level
+    student.prospectusStage = level;
+    student.updatedOn = new Date();
+
+    // Update progression date fields based on level
+    const currentDate = new Date();
+    switch (level) {
+      case 2: // Prospectus Purchased
+        if (!student.prospectusPurchasedOn) {
+          student.prospectusPurchasedOn = currentDate;
+        }
+        break;
+      case 3: // Prospectus Returned (Application Submitted)
+        if (!student.prospectusReturnedOn) {
+          student.prospectusReturnedOn = currentDate;
+        }
+        break;
+      case 4: // Admission Fee Submitted
+        if (!student.afSubmittedOn) {
+          student.afSubmittedOn = currentDate;
+        }
+        break;
+      case 5: // 1st Installment Submitted (Full Admission)
+        if (!student.installmentSubmittedOn) {
+          student.installmentSubmittedOn = currentDate;
+        }
+        if (!student.isProcessed) {
+          student.isProcessed = true;
+          student.processedYear = new Date().getFullYear().toString();
+        }
+        break;
+    }
+
+    // Add correspondence record for the level change
+    const correspondenceData = {
+      remark: `Level changed from ${currentLevel} to ${level}. Notes: ${notes.trim()}`,
+      receptionistId: req.user.id,
+      receptionistName: `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || req.user.userName,
+      timestamp: new Date()
+    };
+
+    // Initialize remarks array if it doesn't exist
+    if (!student.receptionistRemarks) {
+      student.receptionistRemarks = [];
+    }
+
+    student.receptionistRemarks.push(correspondenceData);
+    
+    console.log(`About to save student with level: ${student.prospectusStage}`);
+    await student.save();
+    
+    // Verify the save worked
+    const savedStudent = await User.findById(req.params.id);
+    console.log(`After save - student level in DB: ${savedStudent.prospectusStage}`);
+
+    console.log(`Successfully updated student ${student.fullName?.firstName} ${student.fullName?.lastName} to level ${level}`);
+
+    res.json({
+      success: true,
+      message: 'Enquiry level updated successfully and correspondence recorded',
+      data: {
+        student: savedStudent.toObject(),
+        correspondence: correspondenceData
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating enquiry level:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating enquiry level',
+      error: error.message
+    });
+  }
+});
+
+// Add endpoint to check for and clean up duplicate students
+router.get('/duplicates', authenticate, async (req, res) => {
+  try {
+    const students = await User.find({ role: 'Student' }).select('fullName email cnic prospectusStage createdOn');
+    
+    // Group by name and email to find duplicates
+    const groups = {};
+    students.forEach(student => {
+      const key = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim().toLowerCase();
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(student);
+    });
+    
+    const duplicates = Object.entries(groups)
+      .filter(([name, records]) => records.length > 1)
+      .map(([name, records]) => ({
+        name,
+        count: records.length,
+        records: records.map(r => ({
+          id: r._id,
+          email: r.email,
+          cnic: r.cnic,
+          level: r.prospectusStage || 1,
+          createdOn: r.createdOn
+        }))
+      }));
+      
+    res.json({ success: true, duplicates });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Migration endpoint to fix students without prospectusStage
+router.post('/migrate-levels', authenticate, async (req, res) => {
+  try {
+    const studentsToUpdate = await User.find({ 
+      role: 'Student',
+      $or: [
+        { prospectusStage: { $exists: false } },
+        { prospectusStage: null },
+        { prospectusStage: undefined }
+      ]
+    });
+    
+    console.log(`Found ${studentsToUpdate.length} students without prospectusStage`);
+    
+    for (const student of studentsToUpdate) {
+      student.prospectusStage = 1;
+      await student.save();
+      console.log(`Set prospectusStage to 1 for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
+    }
+    
+    res.json({
+      success: true,
+      message: `Updated ${studentsToUpdate.length} students with default prospectusStage`,
+      updatedCount: studentsToUpdate.length
+    });
+  } catch (err) {
+    console.error('Migration error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

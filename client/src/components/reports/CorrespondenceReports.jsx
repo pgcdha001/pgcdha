@@ -90,12 +90,28 @@ const EnquiryCorrespondenceReport = ({ config }) => {
   const [correspondenceData, setCorrespondenceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [filters, setFilters] = useState({
     stage: 'all',
     gender: 'all',
     dateRange: 'all',
     searchTerm: ''
   });
+
+  // Helper function to extract notes from remark text
+  const extractNotesFromRemark = (remark) => {
+    if (!remark) return 'No notes';
+    
+    // Check if this is a level change remark
+    const notesMatch = remark.match(/Notes:\s*(.+)$/);
+    if (notesMatch && notesMatch[1]) {
+      return notesMatch[1].trim();
+    }
+    
+    // If it's not a level change remark, return the full remark
+    return remark;
+  };
 
   useEffect(() => {
     fetchEnquiryCorrespondence();
@@ -128,6 +144,16 @@ const EnquiryCorrespondenceReport = ({ config }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewDetails = (student) => {
+    setSelectedStudent(student);
+    setShowDetailsModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedStudent(null);
   };
 
   // Filter correspondence data
@@ -174,7 +200,7 @@ const EnquiryCorrespondenceReport = ({ config }) => {
       student.totalRemarks.toString(),
       student.firstContact ? new Date(student.firstContact.timestamp).toLocaleDateString() : 'N/A',
       student.lastContact ? new Date(student.lastContact.timestamp).toLocaleDateString() : 'N/A',
-      student.lastContact ? (student.lastContact.remark || '').substring(0, 50) + '...' : 'N/A'
+      student.lastContact ? extractNotesFromRemark(student.lastContact.remark).substring(0, 50) + '...' : 'N/A'
     ]);
 
     autoTable(doc, {
@@ -198,7 +224,7 @@ const EnquiryCorrespondenceReport = ({ config }) => {
       'Total Contacts': student.totalRemarks,
       'First Contact Date': student.firstContact ? new Date(student.firstContact.timestamp).toLocaleDateString() : 'N/A',
       'Last Contact Date': student.lastContact ? new Date(student.lastContact.timestamp).toLocaleDateString() : 'N/A',
-      'Latest Remark': student.lastContact ? student.lastContact.remark : 'N/A',
+      'Latest Remark': student.lastContact ? extractNotesFromRemark(student.lastContact.remark) : 'N/A',
       'Receptionist': student.lastContact ? student.lastContact.receptionistName : 'N/A'
     }));
 
@@ -351,11 +377,14 @@ const EnquiryCorrespondenceReport = ({ config }) => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900 max-w-xs truncate">
-                      {student.lastContact ? student.lastContact.remark : 'No remarks'}
+                      {student.lastContact ? extractNotesFromRemark(student.lastContact.remark) : 'No remarks'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900 flex items-center gap-1">
+                    <button 
+                      onClick={() => handleViewDetails(student)}
+                      className="text-blue-600 hover:text-blue-900 flex items-center gap-1 transition-colors"
+                    >
                       <Eye className="h-4 w-4" />
                       View Details
                     </button>
@@ -364,6 +393,101 @@ const EnquiryCorrespondenceReport = ({ config }) => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold">
+                    Complete Correspondence History
+                  </h3>
+                  <p className="text-blue-100 mt-1">
+                    {selectedStudent.fullName?.firstName} {selectedStudent.fullName?.lastName}
+                  </p>
+                </div>
+                <button
+                  onClick={closeDetailsModal}
+                  className="text-white hover:text-gray-200 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Email:</span>
+                    <p className="text-sm text-gray-900">{selectedStudent.email || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Phone:</span>
+                    <p className="text-sm text-gray-900">{selectedStudent.phoneNumber || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Stage:</span>
+                    <p className="text-sm text-gray-900">Stage {selectedStudent.prospectusStage || 1}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Correspondence Timeline */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900 text-lg border-b pb-2">
+                  Correspondence Timeline ({selectedStudent.receptionistRemarks?.length || 0} records)
+                </h4>
+                
+                {selectedStudent.receptionistRemarks && selectedStudent.receptionistRemarks.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedStudent.receptionistRemarks
+                      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                      .map((remark, index) => (
+                        <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              <span className="font-medium text-gray-900">
+                                {remark.receptionistName || 'Unknown Staff'}
+                              </span>
+                            </div>
+                            <span className="text-sm text-gray-500">
+                              {remark.timestamp ? new Date(remark.timestamp).toLocaleString() : 'No date'}
+                            </span>
+                          </div>
+                          <div className="ml-4">
+                            <p className="text-gray-700 whitespace-pre-wrap">
+                              {extractNotesFromRemark(remark.remark)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>No correspondence records found</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex justify-end">
+              <Button onClick={closeDetailsModal} variant="outline">
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

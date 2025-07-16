@@ -45,6 +45,15 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
     },
     {
+      id: 'correspondence-management',
+      title: 'Correspondence Management', 
+      href: '/correspondence/manage', 
+      icon: 'MessageSquare', 
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
+    },
+    {
       id: 'correspondence',
       title: 'Correspondence Reports', 
       href: '/reports?section=correspondence', 
@@ -97,6 +106,15 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
     },
     {
+      id: 'correspondence-management',
+      title: 'Correspondence Management', 
+      href: '/correspondence/manage', 
+      icon: 'MessageSquare', 
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
+    },
+    {
       id: 'correspondence',
       title: 'Correspondence Reports', 
       href: '/reports?section=correspondence', 
@@ -128,8 +146,17 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT
     },
     {
+      id: 'correspondence-management',
+      title: 'Correspondence Management', 
+      href: '/correspondence/manage', 
+      icon: 'MessageSquare', 
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
+    },
+    {
       id: 'correspondence',
-      title: 'Correspondence', 
+      title: 'Correspondence Reports', 
       href: '/reports?section=correspondence', 
       icon: 'Mail', 
       bgGradient: 'from-indigo-500 to-indigo-600',

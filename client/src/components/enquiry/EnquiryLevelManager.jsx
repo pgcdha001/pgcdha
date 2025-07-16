@@ -5,11 +5,11 @@ import api from '../../services/api';
 import { useApiWithToast } from '../../hooks/useApiWithToast';
 
 const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated }) => {
-  const [selectedLevel, setSelectedLevel] = useState(enquiry.level);
+  const [selectedLevel, setSelectedLevel] = useState(enquiry?.prospectusStage || enquiry?.level || 1);
   const [notes, setNotes] = useState('');
   const [updating, setUpdating] = useState(false);
 
-  const { executeWithToast } = useApiWithToast();
+  const { handleApiResponse } = useApiWithToast();
 
   const getLevelInfo = (levelId) => {
     return availableLevels.find(level => level.id === levelId) || availableLevels[0];
@@ -28,35 +28,67 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
   };
 
   const handleUpdateLevel = async () => {
-    if (selectedLevel === enquiry.level && !notes.trim()) {
+    const currentLevel = enquiry.prospectusStage || enquiry.level || 1;
+    
+    // Check if level has changed or if it's the same level but user wants to add notes
+    const levelChanged = selectedLevel !== currentLevel;
+    
+    // If level hasn't changed and no notes, just close
+    if (!levelChanged && !notes.trim()) {
       onClose();
+      return;
+    }
+    
+    // Validate upgrade only
+    if (selectedLevel < currentLevel) {
+      alert(`Cannot downgrade from level ${currentLevel} to level ${selectedLevel}. Only upgrades are allowed.`);
+      return;
+    }
+    
+    // If trying to set the same level
+    if (selectedLevel === currentLevel) {
+      alert(`Student is already at level ${currentLevel}`);
+      return;
+    }
+    
+    // If level has changed, notes are compulsory
+    if (levelChanged && (!notes || !notes.trim())) {
+      alert('Notes are required when changing enquiry level');
       return;
     }
 
     setUpdating(true);
-    await executeWithToast(
-      async () => {
-        const response = await api.put(`/students/${enquiry.id}/level`, {
-          level: selectedLevel,
-          notes: notes.trim()
-        });
-        
-        const updatedEnquiry = {
-          ...enquiry,
-          level: selectedLevel,
-          notes: enquiry.notes + (notes.trim() ? `\n\n[${new Date().toLocaleString()}] ${notes.trim()}` : ''),
-          lastUpdated: new Date().toLocaleDateString()
-        };
-        
-        onLevelUpdated(updatedEnquiry);
-        return response;
-      },
-      {
-        success: 'Enquiry level updated successfully',
-        error: 'Failed to update enquiry level'
-      }
-    );
-    setUpdating(false);
+    
+    try {
+      await handleApiResponse(
+        async () => {
+          const response = await api.put(`/students/${enquiry._id || enquiry.id}/level`, {
+            level: selectedLevel,
+            notes: notes.trim()
+          });
+          
+          // Get the updated student data from the server response
+          const updatedStudent = response.data?.data?.student || response.data?.student || response.data;
+          
+          const updatedEnquiry = {
+            ...enquiry,
+            ...updatedStudent,
+            level: selectedLevel,
+            prospectusStage: selectedLevel,
+            lastUpdated: new Date().toLocaleDateString()
+          };
+          
+          onLevelUpdated(updatedEnquiry);
+          return response;
+        },
+        {
+          successMessage: 'Enquiry level updated successfully',
+          errorMessage: 'Failed to update enquiry level'
+        }
+      );
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -78,58 +110,74 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Student: {enquiry.studentName}
+              Student: {enquiry.fullName?.firstName} {enquiry.fullName?.lastName} {enquiry.studentName && !enquiry.fullName ? enquiry.studentName : ''}
             </label>
-            <p className="text-sm text-gray-600">{enquiry.course}</p>
+            <p className="text-sm text-gray-600">{enquiry.email}</p>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Current Level
             </label>
-            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getLevelInfo(enquiry.level).bgColor} ${getLevelInfo(enquiry.level).textColor}`}>
-              {getStatusIcon(enquiry.level)}
-              {getLevelInfo(enquiry.level).name}
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getLevelInfo(enquiry.prospectusStage || enquiry.level || 1).bgColor} ${getLevelInfo(enquiry.prospectusStage || enquiry.level || 1).textColor}`}>
+              {getStatusIcon(enquiry.prospectusStage || enquiry.level || 1)}
+              {getLevelInfo(enquiry.prospectusStage || enquiry.level || 1).name}
             </div>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              New Level
+              New Level (Upgrades Only)
             </label>
             <div className="space-y-2">
-              {availableLevels.map((level) => (
-                <label key={level.id} className="flex items-center">
-                  <input
-                    type="radio"
-                    name="level"
-                    value={level.id}
-                    checked={selectedLevel === level.id}
-                    onChange={(e) => setSelectedLevel(parseInt(e.target.value))}
-                    className="mr-3"
-                    disabled={updating}
-                  />
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${level.bgColor} ${level.textColor}`}>
-                    {getStatusIcon(level.id)}
-                    {level.name}
-                  </div>
-                </label>
-              ))}
+              {availableLevels.map((level) => {
+                const currentLevel = enquiry.prospectusStage || enquiry.level || 1;
+                const isDowngrade = level.id < currentLevel;
+                const isCurrent = level.id === currentLevel;
+                
+                return (
+                  <label key={level.id} className={`flex items-center ${isDowngrade || isCurrent ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <input
+                      type="radio"
+                      name="level"
+                      value={level.id}
+                      checked={selectedLevel === level.id}
+                      onChange={(e) => setSelectedLevel(parseInt(e.target.value))}
+                      className="mr-3"
+                      disabled={updating || isDowngrade || isCurrent}
+                    />
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${level.bgColor} ${level.textColor}`}>
+                      {getStatusIcon(level.id)}
+                      {level.name}
+                      {isCurrent && <span className="text-xs">(Current)</span>}
+                      {isDowngrade && <span className="text-xs">(Cannot downgrade)</span>}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes (Optional)
+              Notes {selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) ? '(Required)' : '(Optional)'}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add notes about this level change..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder={selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) ? "Notes are required when changing level..." : "Add notes about this level change..."}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) && !notes.trim() 
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-gray-300'
+              }`}
               rows="3"
               disabled={updating}
+              required={selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1)}
             />
+            {selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) && !notes.trim() && (
+              <p className="text-red-500 text-sm mt-1">Notes are required when changing enquiry level</p>
+            )}
           </div>
         </div>
         
@@ -143,7 +191,7 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
           </Button>
           <Button
             onClick={handleUpdateLevel}
-            disabled={updating}
+            disabled={updating || (selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) && !notes.trim())}
           >
             {updating ? 'Updating...' : 'Update Level'}
           </Button>

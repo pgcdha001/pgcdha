@@ -18,8 +18,6 @@ import ProfilePage from './pages/auth/ProfilePage';
 
 // Dashboard
 import DashboardPage from './pages/dashboard/DashboardPage';
-import ITDashboard from './pages/dashboard/ITDashboard';
-import ReceptionistDashboard from './pages/dashboard/ReceptionistDashboard';
 
 // Admin pages
 import StudentReport from './pages/admin/StudentReport';
@@ -28,11 +26,11 @@ import UserManagementContainer from './components/user-management/UserManagement
 
 // Institute Admin pages
 import EnquiryManagementContainer from './components/enquiry/EnquiryManagementContainer';
+import CorrespondenceManagement from './components/correspondence/CorrespondenceManagement';
 
 
 // Reports
 import ReportsContainer from './components/reports/ReportsContainer';
-import ITReportsPage from './pages/dashboard/ITReportsPage';
 
 const App = () => {
   return (
@@ -64,60 +62,6 @@ const App = () => {
             </AuthenticatedRoute>
           } />
 
-          {/* IT routes with permission-based protection */}
-          <Route path="/it/students" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute allowedRoles={['IT']}>
-                  <ITDashboard />
-                </ProtectedRoute>
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
-          <Route path="/it/reports" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute allowedRoles={['IT']}>
-                  <div className="p-6">
-                    <ITReportsPage />
-                  </div>
-                </ProtectedRoute>
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
-          {/* Receptionist routes with permission-based protection */}
-          <Route path="/receptionist/communications" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute allowedRoles={['Receptionist']}>
-                  <ReceptionistDashboard />
-                </ProtectedRoute>
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
-          <Route path="/receptionist/directory" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute allowedRoles={['Receptionist']}>
-                  <ReceptionistDashboard />
-                </ProtectedRoute>
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
-          <Route path="/receptionist/call-logs" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute allowedRoles={['Receptionist']}>
-                  <ReceptionistDashboard />
-                </ProtectedRoute>
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
           {/* Institute Admin routes with permission-based protection */}
           <Route path="/institute-admin/enquiries" element={
             <AuthenticatedRoute>
@@ -127,6 +71,20 @@ const App = () => {
                   allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
                 >
                   <EnquiryManagementContainer />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Correspondence Management routes */}
+          <Route path="/correspondence/manage" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                >
+                  <CorrespondenceManagement />
                 </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
@@ -146,7 +104,7 @@ const App = () => {
                     PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
                   ]}
                   requireAll={false}
-                  allowedRoles={['InstituteAdmin', 'IT']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
                 >
                   <ReportsContainer />
                 </ProtectedRoute>
@@ -184,7 +142,7 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   requiredPermission={PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT']}
                 >
                   <UserManagementContainer />
                 </ProtectedRoute>

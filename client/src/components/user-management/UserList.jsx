@@ -13,8 +13,10 @@ import {
   Phone,
   Mail,
   User,
-  Calendar
+  Calendar,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -140,7 +142,12 @@ const UserList = ({
 
   // Handle user actions based on permissions
   const handleAddUser = () => {
-    if (!allowedActions.includes('create') || !can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT)) {
+    const canCreateUser = can(PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
+                         can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
+                         can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
+                         can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
+    
+    if (!allowedActions.includes('create') || !canCreateUser) {
       toast.error('You don\'t have permission to add users');
       return;
     }
@@ -211,6 +218,106 @@ const UserList = ({
     );
   };
 
+  // Export users to Excel
+  const handleExportUsers = () => {
+    if (users.length === 0) {
+      toast.error('No users to export');
+      return;
+    }
+
+    const isStudentOnly = allowedRoles.includes('Student') && allowedRoles.length === 1;
+    
+    let excelData;
+    if (isStudentOnly) {
+      // Student-specific export with all fields
+      excelData = users.map((user, idx) => ({
+        '#': idx + 1,
+        'Student Name': user.firstName || '',
+        'Father Name': user.fatherName || '',
+        'CNIC': user.cnic || '',
+        'Gender': user.gender || '',
+        'Phone Number': user.phoneNumber || '',
+        'Mobile Number': user.mobileNumber || '',
+        'Email': user.email || '',
+        'Date of Birth': user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : '',
+        'Address': user.address || '',
+        'Reference': user.reference || '',
+        'Program': user.program || '',
+        'Status': user.status || 'active',
+        'Registration Date': user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '',
+        'Last Updated': user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : ''
+      }));
+    } else {
+      // General user export
+      excelData = users.map((user, idx) => ({
+        '#': idx + 1,
+        'First Name': user.firstName || '',
+        'Last Name': user.lastName || '',
+        'Email': user.email || '',
+        'Phone Number': user.phoneNumber || '',
+        'Role': user.role || '',
+        'Status': user.status || 'active',
+        'Date of Birth': user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : '',
+        'Address': user.address || '',
+        'Emergency Contact': user.emergencyContact || '',
+        'Registration Date': user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '',
+        'Last Updated': user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : ''
+      }));
+    }
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths
+    const columnWidths = isStudentOnly ? [
+      { wch: 5 },   // #
+      { wch: 20 },  // Student Name
+      { wch: 20 },  // Father Name
+      { wch: 15 },  // CNIC
+      { wch: 10 },  // Gender
+      { wch: 15 },  // Phone Number
+      { wch: 15 },  // Mobile Number
+      { wch: 30 },  // Email
+      { wch: 12 },  // Date of Birth
+      { wch: 30 },  // Address
+      { wch: 20 },  // Reference
+      { wch: 20 },  // Program
+      { wch: 10 },  // Status
+      { wch: 15 },  // Registration Date
+      { wch: 15 }   // Last Updated
+    ] : [
+      { wch: 5 },   // #
+      { wch: 15 },  // First Name
+      { wch: 15 },  // Last Name
+      { wch: 30 },  // Email
+      { wch: 15 },  // Phone Number
+      { wch: 15 },  // Role
+      { wch: 10 },  // Status
+      { wch: 12 },  // Date of Birth
+      { wch: 30 },  // Address
+      { wch: 20 },  // Emergency Contact
+      { wch: 15 },  // Registration Date
+      { wch: 15 }   // Last Updated
+    ];
+    
+    worksheet['!cols'] = columnWidths;
+
+    // Add worksheet to workbook
+    const sheetName = isStudentOnly ? 'Students' : 'Users';
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+    // Generate filename with current date
+    const currentDate = new Date().toISOString().split('T')[0];
+    const filename = `${isStudentOnly ? 'students' : 'users'}_export_${currentDate}.xlsx`;
+
+    // Save the file
+    XLSX.writeFile(workbook, filename);
+    
+    // Show success toast
+    toast.success(`${isStudentOnly ? 'Students' : 'Users'} exported successfully`);
+  };
+
   if (loading) {
     return (
       <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 p-8">
@@ -233,18 +340,35 @@ const UserList = ({
           {userRole === 'Receptionist' ? 'Student List' : 'User List'}
         </h3>
         
-        <PermissionGuard 
-          condition={() => allowedActions.includes('create') && can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT)}
-          fallback={null}
-        >
+        <div className="flex items-center gap-2">
           <Button
-            onClick={handleAddUser}
-            className="bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2"
+            onClick={handleExportUsers}
+            variant="outline"
+            className="flex items-center gap-2"
           >
-            <UserPlus className="h-4 w-4" />
-            {userRole === 'Receptionist' ? 'Add Student' : 'Add User'}
+            <Download className="h-4 w-4" />
+            Export
           </Button>
-        </PermissionGuard>
+          
+          <PermissionGuard 
+            condition={() => {
+              const canCreateUser = can(PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
+                                   can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
+                                   can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
+                                   can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
+              return allowedActions.includes('create') && canCreateUser;
+            }}
+            fallback={null}
+          >
+            <Button
+              onClick={handleAddUser}
+              className="bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2"
+            >
+              <UserPlus className="h-4 w-4" />
+              {userRole === 'Receptionist' ? 'Add Student' : 'Add User'}
+            </Button>
+          </PermissionGuard>
+        </div>
       </div>
 
       {/* Filters */}
@@ -293,10 +417,22 @@ const UserList = ({
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">User</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Role</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Contact</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                {allowedRoles.includes('Student') && allowedRoles.length === 1 ? 'Student' : 'User'}
+              </th>
+              {allowedRoles.includes('Student') && allowedRoles.length === 1 ? (
+                <>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Program</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Gender</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Phone</th>
+                </>
+              ) : (
+                <>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Role</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Contact</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                </>
+              )}
               <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
             </tr>
           </thead>
@@ -311,32 +447,58 @@ const UserList = ({
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {user.firstName} {user.lastName}
+                          {user.role === 'Student' ? user.firstName : `${user.firstName} ${user.lastName}`}
                         </p>
                         <p className="text-sm text-gray-600">{user.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="py-4 px-4">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Phone className="h-3 w-3" />
-                        {user.phoneNumber || 'N/A'}
-                      </div>
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Mail className="h-3 w-3" />
-                        {user.email}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    {getStatusBadge(user.status)}
-                  </td>
+                  
+                  {allowedRoles.includes('Student') && allowedRoles.length === 1 ? (
+                    // Student-specific columns
+                    <>
+                      <td className="py-4 px-4">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {user.program || 'Not Set'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-sm text-gray-600">
+                          {user.gender || 'Not Set'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Phone className="h-3 w-3" />
+                          {user.phoneNumber || 'N/A'}
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    // Non-student columns
+                    <>
+                      <td className="py-4 px-4">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                            <Phone className="h-3 w-3" />
+                            {user.phoneNumber || 'N/A'}
+                          </div>
+                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                            <Mail className="h-3 w-3" />
+                            {user.email}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        {getStatusBadge(user.status)}
+                      </td>
+                    </>
+                  )}
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2">
                       <button
@@ -412,11 +574,9 @@ const UserList = ({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedUser && (
         <DeleteConfirmModal
-          isOpen={showDeleteModal}
+          user={selectedUser}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
-          title="Delete User"
-          message={`Are you sure you want to delete ${selectedUser.firstName} ${selectedUser.lastName}? This action cannot be undone.`}
         />
       )}
     </div>

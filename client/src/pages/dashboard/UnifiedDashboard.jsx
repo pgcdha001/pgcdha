@@ -78,8 +78,8 @@ const UnifiedDashboard = () => {
     );
   }
 
-  // Determine if user should see additional sections
-  const shouldShowAdditionalSections = userRole === 'InstituteAdmin' || userRole === 'IT';
+  // Determine if user should see additional sections (only InstituteAdmin)
+  const shouldShowAdditionalSections = userRole === 'InstituteAdmin';
 
   return (
     <div className="space-y-8">
