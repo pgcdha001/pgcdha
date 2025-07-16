@@ -38,11 +38,11 @@ const CorrespondenceManagement = () => {
       const response = await api.get('/students');
       const data = response.data?.data || response.data || [];
       const studentsArray = Array.isArray(data) ? data : [data];
-      // Filter only enrolled students (level 4 and above) for student correspondence
-      const enrolledStudents = studentsArray.filter(student => 
-        (student.prospectusStage || student.level || 1) >= 4
+      // Filter only officially admitted students (level 5+ and approved) for student correspondence
+      const admittedStudents = studentsArray.filter(student => 
+        (student.prospectusStage || student.level || 1) >= 5 && student.isApproved === true
       );
-      setStudents(enrolledStudents);
+      setStudents(admittedStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
       setStudents([]);
@@ -103,13 +103,13 @@ const CorrespondenceManagement = () => {
 
   const handleViewCorrespondence = async (record) => {
     try {
-      const response = await api.get(`/remarks/student/${record._id || record.id}`);
-      const remarks = response.data?.data || response.data || [];
+      const response = await api.get(`/remarks/remarks/${record._id || record.id}`);
+      const remarksData = response.data?.data?.remarks || [];
       
       // Show correspondence in a simple alert for now (can be enhanced later)
-      if (remarks.length > 0) {
-        const correspondenceText = remarks.map((remark, index) => 
-          `${index + 1}. ${new Date(remark.createdAt).toLocaleDateString()} - ${remark.remark}`
+      if (remarksData.length > 0) {
+        const correspondenceText = remarksData.map((remark, index) => 
+          `${index + 1}. ${new Date(remark.createdAt || remark.timestamp).toLocaleDateString()} - ${remark.remark}`
         ).join('\n\n');
         alert(`Correspondence History:\n\n${correspondenceText}`);
       } else {
@@ -140,7 +140,8 @@ const CorrespondenceManagement = () => {
       1: 'Not Purchased',
       2: 'Purchased', 
       3: 'Admission',
-      4: 'Enrolled'
+      4: 'Enrolled',
+      5: 'Officially Admitted'
     };
     return levelNames[level] || `Level ${level}`;
   };
@@ -151,7 +152,8 @@ const CorrespondenceManagement = () => {
       1: 'bg-blue-100 text-blue-800',
       2: 'bg-yellow-100 text-yellow-800',
       3: 'bg-green-100 text-green-800',
-      4: 'bg-purple-100 text-purple-800'
+      4: 'bg-purple-100 text-purple-800',
+      5: 'bg-emerald-100 text-emerald-800'
     };
     return colors[level] || 'bg-gray-100 text-gray-800';
   };
@@ -235,9 +237,10 @@ const CorrespondenceManagement = () => {
                     <option value="2">Purchased</option>
                     <option value="3">Admission</option>
                     <option value="4">Enrolled</option>
+                    <option value="5">Officially Admitted</option>
                   </>
                 ) : (
-                  <option value="4">Enrolled Students</option>
+                  <option value="5">Officially Admitted Students</option>
                 )}
               </select>
             </div>

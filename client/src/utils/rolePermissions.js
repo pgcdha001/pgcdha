@@ -61,6 +61,7 @@ export const PERMISSIONS = {
     VIEW_INSTITUTE_DASHBOARD: 'dashboard.view_institute_dashboard',
     VIEW_IT_DASHBOARD: 'dashboard.view_it_dashboard',
     VIEW_RECEPTIONIST_DASHBOARD: 'dashboard.view_receptionist_dashboard',
+    VIEW_STUDENT_DASHBOARD: 'dashboard.view_student_dashboard',
   }
 };
 
@@ -186,6 +187,12 @@ export const ROLE_PERMISSIONS = {
     // Dashboard
     PERMISSIONS.DASHBOARD.VIEW_RECEPTIONIST_DASHBOARD,
   ],
+
+  // Student - Very limited access (only own dashboard when approved)
+  'Student': [
+    // Dashboard - Only student dashboard
+    PERMISSIONS.DASHBOARD.VIEW_STUDENT_DASHBOARD,
+  ],
 };
 
 // Helper function to check if a role has a specific permission
@@ -233,4 +240,5 @@ export const ROLES = {
   INSTITUTE_ADMIN: 'InstituteAdmin',
   IT: 'IT',
   RECEPTIONIST: 'Receptionist',
+  STUDENT: 'Student',
 };

@@ -6,6 +6,7 @@ import { DashboardProvider } from './contexts/DashboardContext';
 import ToastContainer from './components/ui/ToastContainer';
 import AuthenticatedRoute from './components/AuthenticatedRoute';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import StudentApprovalGuard from './components/StudentApprovalGuard';
 import Layout from './components/layout/Layout';
 import { PERMISSIONS } from './utils/rolePermissions';
 
@@ -49,7 +50,9 @@ const App = () => {
           <Route path="/dashboard" element={
             <AuthenticatedRoute>
               <Layout>
-                <DashboardPage />
+                <StudentApprovalGuard>
+                  <DashboardPage />
+                </StudentApprovalGuard>
               </Layout>
             </AuthenticatedRoute>
           } />

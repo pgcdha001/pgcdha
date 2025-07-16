@@ -197,7 +197,7 @@ router.put('/:id/level', authenticate, async (req, res) => {
           student.afSubmittedOn = currentDate;
         }
         break;
-      case 5: // 1st Installment Submitted (Full Admission)
+      case 5: // 1st Installment Submitted (Full Admission - OFFICIAL ADMISSION)
         if (!student.installmentSubmittedOn) {
           student.installmentSubmittedOn = currentDate;
         }
@@ -205,12 +205,25 @@ router.put('/:id/level', authenticate, async (req, res) => {
           student.isProcessed = true;
           student.processedYear = new Date().getFullYear().toString();
         }
+        // Mark as officially admitted when reaching level 5
+        // This enables access to student dashboard and student correspondence
+        if (!student.isApproved) {
+          student.isApproved = true;
+          console.log(`Student ${student.fullName?.firstName} ${student.fullName?.lastName} has been officially admitted (level 5)`);
+        }
         break;
     }
 
     // Add correspondence record for the level change
+    let remarkText = `Level changed from ${currentLevel} to ${level}. Notes: ${notes.trim()}`;
+    
+    // Add special note for official admission
+    if (level === 5) {
+      remarkText += ' - OFFICIALLY ADMITTED: Student now has access to dashboard and student correspondence.';
+    }
+    
     const correspondenceData = {
-      remark: `Level changed from ${currentLevel} to ${level}. Notes: ${notes.trim()}`,
+      remark: remarkText,
       receptionistId: req.user.id,
       receptionistName: `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || req.user.userName,
       timestamp: new Date()
