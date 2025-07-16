@@ -193,7 +193,7 @@ export const ROLE_COMPONENT_CONFIG = {
     reports: {
       title: 'Reports & Analytics',
       description: 'Comprehensive reporting and data analytics dashboard',
-      allowedReports: ['enquiry', 'correspondence', 'attendance', 'examination', 'appointment'],
+      allowedReports: ['enquiries', 'correspondence', 'student-attendance', 'lecture-attendance', 'examinations', 'appointments'],
       canExport: true
     }
   },
@@ -217,7 +217,7 @@ export const ROLE_COMPONENT_CONFIG = {
     reports: {
       title: 'Technical Reports',
       description: 'System and technical performance reports',
-      allowedReports: ['enquiry', 'correspondence'],
+      allowedReports: ['enquiries', 'correspondence'],
       canExport: true
     }
   },
@@ -241,7 +241,7 @@ export const ROLE_COMPONENT_CONFIG = {
     reports: {
       title: 'Basic Reports',
       description: 'Essential reports for front desk operations',
-      allowedReports: ['enquiry'],
+      allowedReports: ['enquiries'],
       canExport: false
     }
   }

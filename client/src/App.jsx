@@ -132,32 +132,6 @@ const App = () => {
             </AuthenticatedRoute>
           } />
 
-          <Route path="/institute-admin/staff" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute 
-                  requiredPermission={PERMISSIONS.MANAGEMENT.STAFF_MANAGEMENT}
-                  allowedRoles={['InstituteAdmin']}
-                >
-                  <UserManagementContainer userType="staff" />
-                </ProtectedRoute>
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
-          <Route path="/institute-admin/students" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute 
-                  requiredPermission={PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT}
-                  allowedRoles={['InstituteAdmin']}
-                >
-                  <UserManagementContainer userType="student" />
-                </ProtectedRoute>
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
           {/* Reports with proper permission checking */}
           <Route path="/reports" element={
             <AuthenticatedRoute>
@@ -168,7 +142,8 @@ const App = () => {
                     PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS,
                     PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS,
                     PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS,
-                    PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
+                    PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS,
+                    PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
                   ]}
                   requireAll={false}
                   allowedRoles={['InstituteAdmin', 'IT']}

@@ -10,17 +10,17 @@ import {
 
 const ReportsNavigation = ({ config, activeSection, onSectionChange }) => {
   const allReportSections = [
-    { id: 'enquiry', name: 'Enquiry Reports', icon: MessageSquare, color: 'from-blue-500 to-blue-600' },
+    { id: 'enquiries', name: 'Enquiry Reports', icon: MessageSquare, color: 'from-blue-500 to-blue-600' },
     { id: 'correspondence', name: 'Correspondence Reports', icon: Mail, color: 'from-indigo-500 to-indigo-600' },
-    { id: 'attendance', name: 'Student Attendance Reports', icon: UserX, color: 'from-red-500 to-red-600' },
+    { id: 'student-attendance', name: 'Student Attendance Reports', icon: UserX, color: 'from-red-500 to-red-600' },
     { id: 'lecture-attendance', name: 'Lecture Attendance Reports', icon: BookOpen, color: 'from-orange-500 to-orange-600' },
-    { id: 'examination', name: 'Examination Reports', icon: ClipboardList, color: 'from-purple-500 to-purple-600' },
-    { id: 'appointment', name: 'Appointment Reports', icon: Calendar, color: 'from-amber-500 to-amber-600' }
+    { id: 'examinations', name: 'Examination Reports', icon: ClipboardList, color: 'from-purple-500 to-purple-600' },
+    { id: 'appointments', name: 'Appointment Reports', icon: Calendar, color: 'from-amber-500 to-amber-600' }
   ];
 
   // Filter sections based on user permissions
   const allowedSections = allReportSections.filter(section => 
-    config.allowedReports.includes(section.id)
+    config?.allowedReports?.includes(section.id)
   );
 
   if (allowedSections.length === 0) {

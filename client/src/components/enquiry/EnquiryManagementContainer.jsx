@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
 import PermissionGuard from '../PermissionGuard';
 import EnquiryList from './EnquiryList';
-import EnquiryStatistics from './EnquiryStatistics';
 import { ROLE_COMPONENT_CONFIG } from '../../docs/ComponentArchitecturePlan';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 
@@ -66,11 +65,6 @@ const EnquiryManagementContainer = () => {
             </div>
           </div>
         </div>
-
-        {/* Statistics Section */}
-        <PermissionGuard permission={PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES}>
-          <EnquiryStatistics config={config} />
-        </PermissionGuard>
 
         {/* Enquiry List Section */}
         <PermissionGuard permission={PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES}>

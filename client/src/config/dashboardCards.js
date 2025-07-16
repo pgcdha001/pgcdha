@@ -57,24 +57,6 @@ export const DASHBOARD_CARDS = {
       todayCount: null // Will be set dynamically
     },
     {
-      id: 'staff-management',
-      title: 'Staff Management', 
-      href: '/institute-admin/staff', 
-      icon: 'Users', 
-      bgGradient: 'from-teal-500 to-teal-600',
-      type: 'normal',
-      permission: PERMISSIONS.MANAGEMENT.STAFF_MANAGEMENT
-    },
-    {
-      id: 'student-management',
-      title: 'Student Management', 
-      href: '/institute-admin/students', 
-      icon: 'GraduationCap', 
-      bgGradient: 'from-pink-500 to-pink-600',
-      type: 'normal',
-      permission: PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT
-    },
-    {
       id: 'appointments',
       title: 'Principal Appointments', 
       href: '/reports?section=appointments', 
@@ -170,20 +152,6 @@ export const DASHBOARD_CARDS = {
 export const QUICK_MANAGEMENT_ACCESS = {
   'InstituteAdmin': [
     {
-      title: 'Staff Management',
-      href: '/institute-admin/staff',
-      icon: 'Users',
-      description: 'Manage faculty and staff',
-      permission: PERMISSIONS.MANAGEMENT.STAFF_MANAGEMENT
-    },
-    {
-      title: 'Student Management',
-      href: '/institute-admin/students',
-      icon: 'GraduationCap', 
-      description: 'Manage student records',
-      permission: PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT
-    },
-    {
       title: 'Enquiry Management',
       href: '/institute-admin/enquiries',
       icon: 'MessageSquare',
@@ -205,11 +173,11 @@ export const QUICK_MANAGEMENT_ACCESS = {
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
     },
     {
-      title: 'Student Reports',
-      href: '/admin/student-report',
-      icon: 'FileText',
-      description: 'Student analytics and reports',
-      permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
+      title: 'Advanced Statistics',
+      href: '/admin/advanced-statistics',
+      icon: 'TrendingUp',
+      description: 'Advanced analytics and insights',
+      permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
     }
   ],
   

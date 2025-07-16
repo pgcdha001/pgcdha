@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { PERMISSIONS } from '../../utils/rolePermissions';
 
 const CorrespondenceReports = ({ config }) => {
   const [activeCorrespondenceType, setActiveCorrespondenceType] = useState('enquiry');
@@ -286,8 +287,8 @@ const EnquiryCorrespondenceReport = ({ config }) => {
           <p className="text-sm text-gray-600">
             Showing {filteredData.length} of {correspondenceData.length} records
           </p>
-          <PermissionGuard permissions={['export_reports']}>
-            {config.canExport && (
+          <PermissionGuard permission={PERMISSIONS.REPORTS.EXPORT_REPORTS}>
+            {config?.canExport && (
               <div className="flex gap-2">
                 <Button onClick={exportExcel} variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />

@@ -80,4 +80,18 @@ router.patch('/:id/progress', authenticate, requireIT, async (req, res) => {
   }
 });
 
-module.exports = router; 
+// Get students with their remarks/correspondence (authenticated users)
+router.get('/remarks', authenticate, async (req, res) => {
+  try {
+    const students = await User.find({ 
+      role: 'Student',
+      receptionistRemarks: { $exists: true }
+    }).select('-password');
+    
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;

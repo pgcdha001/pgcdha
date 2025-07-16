@@ -10,6 +10,7 @@ import StudentAttendanceReports from './StudentAttendanceReports';
 import LectureAttendanceReports from './LectureAttendanceReports';
 import ExaminationReports from './ExaminationReports';
 import AppointmentReports from './AppointmentReports';
+import { PERMISSIONS } from '../../utils/rolePermissions';
 import { ROLE_COMPONENT_CONFIG } from '../../docs/ComponentArchitecturePlan';
 
 const ReportsContainer = () => {
@@ -48,33 +49,44 @@ const ReportsContainer = () => {
     }
 
     switch (activeSection) {
+      case 'enquiries':
       case 'enquiry':
         return (
-          <PermissionGuard permissions={['view_reports']} fallback={<AccessDenied />}>
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS}>
             <EnquiryReports config={config} />
           </PermissionGuard>
         );
       case 'correspondence':
         return (
-          <PermissionGuard permissions={['view_reports']} fallback={<AccessDenied />}>
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS}>
             <CorrespondenceReports config={config} />
           </PermissionGuard>
         );
+      case 'student-attendance':
+      case 'lecture-attendance':
       case 'attendance':
         return (
-          <PermissionGuard permissions={['view_reports']} fallback={<AccessDenied />}>
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}>
             <StudentAttendanceReports config={config} />
           </PermissionGuard>
         );
+      case 'examinations':
       case 'examination':
         return (
-          <PermissionGuard permissions={['view_reports']} fallback={<AccessDenied />}>
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS}>
             <ExaminationReports config={config} />
+          </PermissionGuard>
+        );
+      case 'appointments':
+      case 'appointment':
+        return (
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS}>
+            <AppointmentReports config={config} />
           </PermissionGuard>
         );
       default:
         return (
-          <PermissionGuard permissions={['view_reports']} fallback={<AccessDenied />}>
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS}>
             <EnquiryReports config={config} />
           </PermissionGuard>
         );
