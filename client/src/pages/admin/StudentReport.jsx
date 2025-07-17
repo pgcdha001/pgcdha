@@ -355,61 +355,61 @@ const StudentReport = () => {
       </div>
 
       {/* Analytics Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {/* Total Students */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-white/20 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 min-w-0">
+          <div className="flex items-center justify-between mb-3 lg:mb-4">
+            <div className="p-2 lg:p-3 bg-white/20 rounded-xl flex-shrink-0">
+              <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
               </svg>
             </div>
-            <span className="text-2xl font-bold">{students.length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.length}</span>
           </div>
-          <h3 className="text-lg font-semibold">Total Students</h3>
-          <p className="text-blue-100 text-sm">All registered students</p>
+          <h3 className="text-base lg:text-lg font-semibold truncate">Total Students</h3>
+          <p className="text-blue-100 text-xs lg:text-sm truncate">All registered students</p>
         </div>
 
         {/* Male Students */}
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-white/20 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 min-w-0">
+          <div className="flex items-center justify-between mb-3 lg:mb-4">
+            <div className="p-2 lg:p-3 bg-white/20 rounded-xl flex-shrink-0">
+              <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-2xl font-bold">{students.filter(s => (s.gender || '').toLowerCase() === 'male').length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.filter(s => (s.gender || '').toLowerCase() === 'male').length}</span>
           </div>
-          <h3 className="text-lg font-semibold">Male Students</h3>
-          <p className="text-indigo-100 text-sm">{((students.filter(s => (s.gender || '').toLowerCase() === 'male').length / students.length) * 100 || 0).toFixed(1)}% of total</p>
+          <h3 className="text-base lg:text-lg font-semibold truncate">Male Students</h3>
+          <p className="text-indigo-100 text-xs lg:text-sm truncate">{((students.filter(s => (s.gender || '').toLowerCase() === 'male').length / students.length) * 100 || 0).toFixed(1)}% of total</p>
         </div>
 
         {/* Female Students */}
-        <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-white/20 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 min-w-0">
+          <div className="flex items-center justify-between mb-3 lg:mb-4">
+            <div className="p-2 lg:p-3 bg-white/20 rounded-xl flex-shrink-0">
+              <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-2xl font-bold">{students.filter(s => (s.gender || '').toLowerCase() === 'female').length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.filter(s => (s.gender || '').toLowerCase() === 'female').length}</span>
           </div>
-          <h3 className="text-lg font-semibold">Female Students</h3>
-          <p className="text-pink-100 text-sm">{((students.filter(s => (s.gender || '').toLowerCase() === 'female').length / students.length) * 100 || 0).toFixed(1)}% of total</p>
+          <h3 className="text-base lg:text-lg font-semibold truncate">Female Students</h3>
+          <p className="text-pink-100 text-xs lg:text-sm truncate">{((students.filter(s => (s.gender || '').toLowerCase() === 'female').length / students.length) * 100 || 0).toFixed(1)}% of total</p>
         </div>
 
         {/* Unspecified Gender */}
-        <div className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-white/20 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 min-w-0">
+          <div className="flex items-center justify-between mb-3 lg:mb-4">
+            <div className="p-2 lg:p-3 bg-white/20 rounded-xl flex-shrink-0">
+              <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <span className="text-2xl font-bold">{students.filter(s => !s.gender || s.gender === 'Not specified').length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.filter(s => !s.gender || s.gender === 'Not specified').length}</span>
           </div>
-          <h3 className="text-lg font-semibold">Unspecified</h3>
-          <p className="text-gray-100 text-sm">Gender not specified</p>
+          <h3 className="text-base lg:text-lg font-semibold truncate">Unspecified</h3>
+          <p className="text-gray-100 text-xs lg:text-sm truncate">Gender not specified</p>
         </div>
       </div>
 

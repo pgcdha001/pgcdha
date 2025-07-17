@@ -77,41 +77,68 @@ const Layout = ({ children }) => {
 
       {/* Sidebar - Only visible when not collapsed */}
       {!sidebarCollapsed && (
-        <aside className="fixed top-0 left-0 z-20 flex flex-col w-56 h-screen bg-white/60 backdrop-blur-xl shadow-2xl border-r border-border rounded-tl-3xl rounded-bl-3xl transition-all duration-300">
+        <aside className="fixed top-0 left-0 z-20 flex flex-col w-64 h-screen bg-white/80 backdrop-blur-2xl shadow-2xl border-r border-border/50 transition-all duration-300">
+          {/* Animated gradient bar */}
+          <span className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+          
           {/* Sidebar Header */}
-          <div className="flex flex-col items-center px-3 pt-6 pb-4">
-            <div className="mb-6 flex flex-col items-center w-full">
-              <div className="rounded-2xl bg-white/80 shadow-lg border-2 border-primary p-2 mb-2 transition-transform duration-300 hover:scale-105 hover:shadow-2xl flex-shrink-0">
-                <img src={logo} alt="PGC Logo" className="w-10 h-10 md:w-12 md:h-12 rounded-xl object-contain" />
+          <div className="flex flex-col items-center px-4 pt-8 pb-6">
+            <div className="mb-8 flex flex-col items-center w-full">
+              <div className="relative mb-4">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+                <div className="relative rounded-3xl bg-white/90 shadow-2xl border-2 border-primary/20 p-4 transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] flex-shrink-0">
+                  <img src={logo} alt="PGC Logo" className="w-12 h-12 rounded-2xl object-contain animate-float" />
+                </div>
               </div>
-              <span className="text-sm font-bold text-primary tracking-tight font-[Sora,Inter,sans-serif] whitespace-nowrap">PGC</span>
+              <span className="text-lg font-extrabold text-primary tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">PGC</span>
+              <span className="text-xs text-primary/70 font-[Inter,sans-serif]">Portal</span>
             </div>
             
             {/* Toggle Button - Close */}
-            <button
-              onClick={toggleSidebar}
-              className="mb-4 p-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-200 hover:scale-105"
-              title="Close Menu"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="relative mb-6">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 blur-lg opacity-70" />
+              <button
+                onClick={toggleSidebar}
+                className="relative p-3 rounded-xl bg-white/60 backdrop-blur-xl border border-border/50 hover:bg-white/80 text-primary transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                title="Close Menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
             
             {/* Navigation */}
-            <nav className="flex flex-col gap-2 w-full">
+            <nav className="flex flex-col gap-3 w-full">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
                 const IconComponent = Icons[item.icon] || Icons.Circle;
                 
                 return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 group shadow-none hover:shadow-md hover:bg-primary/10 hover:text-primary focus:bg-primary/20 focus:text-primary ${isActive ? 'bg-primary/90 text-white shadow-lg' : 'text-foreground'}`}
-                    style={{fontFamily: 'Inter, sans-serif'}}
-                  >
-                    <IconComponent className="h-5 w-5 transition-transform duration-200 group-hover:scale-110 group-active:scale-95 flex-shrink-0" />
-                    <span className="text-sm font-medium truncate">{item.name}</span>
-                  </Link>
+                  <div key={item.name} className="relative group">
+                    {isActive && (
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary via-accent to-primary blur-lg opacity-20 animate-gradient-x" />
+                    )}
+                    <Link
+                      to={item.href}
+                      className={`relative flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300 group shadow-none hover:shadow-xl border border-transparent ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-primary to-accent text-white shadow-2xl border-primary/20 animate-float' 
+                          : 'text-foreground hover:bg-white/60 hover:text-primary hover:border-primary/20 backdrop-blur-sm'
+                      }`}
+                      style={{fontFamily: 'Inter, sans-serif'}}
+                    >
+                      <div className={`p-2 rounded-xl transition-all duration-300 ${
+                        isActive 
+                          ? 'bg-white/20 shadow-lg' 
+                          : 'bg-primary/10 group-hover:bg-primary/20'
+                      }`}>
+                        <IconComponent className="h-5 w-5 transition-all duration-300 group-hover:scale-110 group-active:scale-95 flex-shrink-0" />
+                      </div>
+                      <span className="text-sm font-medium truncate">{item.name}</span>
+                      {isActive && (
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/60 rounded-l-full" />
+                      )}
+                    </Link>
+                  </div>
                 );
               })}
             </nav>

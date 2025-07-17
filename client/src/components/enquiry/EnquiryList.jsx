@@ -116,43 +116,58 @@ const EnquiryList = ({ config }) => {
     setShowLevelModal(true);
   };
 
-  const onLevelUpdated = (updatedEnquiry) => {
-    setEnquiries(prev => 
-      prev.map(enquiry => 
-        (enquiry._id || enquiry.id) === (updatedEnquiry._id || updatedEnquiry.id) ? updatedEnquiry : enquiry
-      )
-    );
-    setShowLevelModal(false);
-    setSelectedEnquiry(null);
-    
-    // Refresh the enquiries list to ensure consistency with server
-    fetchEnquiries();
+  const onLevelUpdated = async (updatedEnquiry) => {
+    try {
+      // First, ensure the server update was successful
+      await api.put(`/students/${updatedEnquiry._id || updatedEnquiry.id}/level`, {
+        level: updatedEnquiry.prospectusStage || updatedEnquiry.level,
+        notes: updatedEnquiry.notes || 'Level updated'
+      });
+
+      // Update local state
+      setEnquiries(prev => 
+        prev.map(enquiry => 
+          (enquiry._id || enquiry.id) === (updatedEnquiry._id || updatedEnquiry.id) ? updatedEnquiry : enquiry
+        )
+      );
+      
+      // Close modals and reset selection
+      setShowLevelModal(false);
+      setSelectedEnquiry(null);
+      
+      // Refresh the list to ensure consistency
+      await fetchEnquiries();
+    } catch (error) {
+      console.error('Error updating enquiry level:', error);
+      // You might want to show an error toast here
+    }
   };
 
   return (
     <>
       {/* Filters and Search */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
+      <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-6 mb-6 transition-all duration-300 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] group">
+        <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200 group-focus-within:text-primary" />
               <input
                 type="text"
                 placeholder="Search by name, email, session, or CNIC..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 bg-white/80 shadow-inner focus:shadow-lg focus:bg-white rounded-xl font-[Inter,sans-serif] focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all duration-200"
               />
             </div>
           </div>
           <div className="lg:w-48">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <div className="relative group">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200 group-focus-within:text-primary" />
               <select
                 value={filterLevel}
                 onChange={(e) => setFilterLevel(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                className="w-full pl-10 pr-4 py-3 bg-white/80 shadow-inner focus:shadow-lg focus:bg-white rounded-xl font-[Inter,sans-serif] focus:ring-2 focus:ring-primary/40 focus:outline-none appearance-none transition-all duration-200"
               >
                 <option value="">All Levels</option>
                 {getAvailableLevels().map((level) => (
@@ -164,12 +179,12 @@ const EnquiryList = ({ config }) => {
             </div>
           </div>
           <div className="lg:w-48">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <div className="relative group">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200 group-focus-within:text-primary" />
               <select
                 value={filterGender}
                 onChange={(e) => setFilterGender(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                className="w-full pl-10 pr-4 py-3 bg-white/80 shadow-inner focus:shadow-lg focus:bg-white rounded-xl font-[Inter,sans-serif] focus:ring-2 focus:ring-primary/40 focus:outline-none appearance-none transition-all duration-200"
               >
                 <option value="">All Genders</option>
                 <option value="Male">Male</option>
@@ -178,24 +193,28 @@ const EnquiryList = ({ config }) => {
               </select>
             </div>
           </div>
-          <Button
-            onClick={fetchEnquiries}
-            disabled={loading}
-            variant="outline"
-            className="px-4 py-2 bg-white shadow-md hover:shadow-lg transition-all duration-200"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </Button>
+          <div className="relative">
+            <span className="absolute inset-0 rounded-xl p-[2px] bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x blur-sm opacity-70 pointer-events-none" />
+            <Button
+              onClick={fetchEnquiries}
+              disabled={loading}
+              className="relative z-10 px-5 py-3 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-bold shadow-lg hover:from-accent hover:to-primary hover:scale-[1.04] active:scale-100 transition-all duration-200 animate-float-btn disabled:opacity-50 flex items-center gap-2"
+              style={{boxShadow: '0 6px 32px 0 rgba(26,35,126,0.13)'}}
+            >
+              <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Enquiries List */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+      <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border transition-all duration-300 max-w-[calc(100vw-2rem)] overflow-hidden">
+        <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+        <div className="p-6 border-b border-border/20">
+          <h2 className="text-2xl font-extrabold text-primary tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
             Enquiries ({filteredEnquiries.length})
           </h2>
         </div>
@@ -210,20 +229,20 @@ const EnquiryList = ({ config }) => {
             <p className="text-gray-600">No enquiries found matching your criteria.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CNIC</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent hover:scrollbar-thumb-primary/20">
+            <div className="min-w-full inline-block align-middle">
+              <table className="min-w-full table-fixed divide-y divide-border/20">
+                <thead className="bg-primary/5">
+                  <tr>
+                    <th className="w-[300px] px-6 py-3 text-left text-xs font-semibold text-primary/70 uppercase tracking-wider font-[Inter,sans-serif]">Student</th>
+                    <th className="w-[150px] px-6 py-3 text-left text-xs font-semibold text-primary/70 uppercase tracking-wider font-[Inter,sans-serif]">Session</th>
+                    <th className="w-[180px] px-6 py-3 text-left text-xs font-semibold text-primary/70 uppercase tracking-wider font-[Inter,sans-serif]">Level</th>
+                    <th className="w-[120px] px-6 py-3 text-left text-xs font-semibold text-primary/70 uppercase tracking-wider font-[Inter,sans-serif]">Date Created</th>
+                    <th className="w-[120px] px-6 py-3 text-left text-xs font-semibold text-primary/70 uppercase tracking-wider font-[Inter,sans-serif]">Last Updated</th>
+                    <th className="w-[180px] px-6 py-3 text-left text-xs font-semibold text-primary/70 uppercase tracking-wider font-[Inter,sans-serif]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEnquiries.map((enquiry) => {
                   const levelInfo = getLevelInfo(enquiry.prospectusStage || enquiry.level || 1);
                   const fullName = `${enquiry.fullName?.firstName || ''} ${enquiry.fullName?.lastName || ''}`.trim();
@@ -235,21 +254,21 @@ const EnquiryList = ({ config }) => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                              <User className="h-5 w-5 text-white" />
+                            <div className="relative">
+                              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+                              <div className="relative h-10 w-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-110">
+                                <User className="h-5 w-5 text-white animate-float" />
+                              </div>
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{fullName || 'N/A'}</div>
-                            <div className="text-sm text-gray-500 flex items-center gap-1">
+                            <div className="text-sm font-semibold text-primary font-[Inter,sans-serif]">{fullName || 'N/A'}</div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
                               <Mail className="h-3 w-3" />
                               {enquiry.email}
                             </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {enquiry.cnic || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {enquiry.session || enquiry.course || 'N/A'}
@@ -271,7 +290,7 @@ const EnquiryList = ({ config }) => {
                           <PermissionGuard permission={PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES}>
                             <button
                               onClick={() => handleViewDetails(enquiry)}
-                              className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                              className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors duration-200"
                             >
                               <Eye className="h-4 w-4" />
                               View
@@ -280,7 +299,7 @@ const EnquiryList = ({ config }) => {
                           <PermissionGuard permission={PERMISSIONS.ENQUIRY_MANAGEMENT.EDIT_ENQUIRY}>
                             <button
                               onClick={() => handleUpdateLevel(enquiry)}
-                              className="text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
+                              className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors duration-200"
                             >
                               <Settings className="h-4 w-4" />
                               Update
@@ -292,30 +311,37 @@ const EnquiryList = ({ config }) => {
                   );
                 })}
               </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* Level Manager Modal */}
+        {/* Level Manager Modal */}
       {showLevelModal && selectedEnquiry && (
-        <EnquiryLevelManager
-          enquiry={selectedEnquiry}
-          availableLevels={getAvailableLevels()}
-          onClose={() => {
-            setShowLevelModal(false);
-            setSelectedEnquiry(null);
-          }}
-          onLevelUpdated={onLevelUpdated}
-        />
+        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-[9999]">
+          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 p-6 w-full max-w-xl mx-4 animate-fade-in transform transition-all duration-200">
+            <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+            <EnquiryLevelManager
+              enquiry={selectedEnquiry}
+              availableLevels={getAvailableLevels()}
+              onClose={() => {
+                setShowLevelModal(false);
+                setSelectedEnquiry(null);
+              }}
+              onLevelUpdated={onLevelUpdated}
+            />
+          </div>
+        </div>
       )}
 
-      {/* Details Modal */}
+        {/* Details Modal */}
       {showDetailsModal && selectedEnquiry && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[9999] pt-20">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto mt-4">
+        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-[9999]">
+          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto animate-fade-in transform transition-all duration-200">
+            <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
             <div className="flex justify-between items-start mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-2xl font-extrabold text-primary tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
                 Enquiry Details
               </h3>
               <button
@@ -323,13 +349,11 @@ const EnquiryList = ({ config }) => {
                   setShowDetailsModal(false);
                   setSelectedEnquiry(null);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-muted-foreground hover:text-primary transition-colors"
               >
                 <XCircle className="h-6 w-6" />
               </button>
-            </div>
-            
-            <div className="space-y-6">
+            </div>            <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Student Name</label>

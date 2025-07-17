@@ -31,44 +31,61 @@ const EnquiryManagementContainer = () => {
   return (
     <div className="space-y-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header Section with Glassmorphic Effect */}
         <div className="mb-8">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-4">
-              <Link 
-                to="/dashboard" 
-                className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
-              >
-                <ArrowLeft className="h-5 w-5 text-gray-600" />
-              </Link>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 font-[Sora,Inter,sans-serif]">
-                  {config.title}
-                </h1>
-                <p className="mt-1 text-sm text-gray-600">
-                  {config.description}
-                </p>
+          <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-6 transition-all duration-300 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] group">
+            {/* Animated gradient bar */}
+            <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+            
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                {/* Back button with glow effect */}
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+                  <Link 
+                    to="/dashboard" 
+                    className="relative inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-lg transition-transform duration-300 hover:scale-105 hover:shadow-2xl animate-float"
+                  >
+                    <ArrowLeft className="h-6 w-6" />
+                  </Link>
+                </div>
+                {/* Title and Description */}
+                <div>
+                  <h1 className="text-3xl font-extrabold text-primary mb-1 tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
+                    {config.title}
+                  </h1>
+                  <p className="text-primary/80 font-[Inter,sans-serif]">
+                    {config.description}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-3">
-              <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS}>
-                <Link
-                  to="/reports"
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-105 font-medium"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  View Analytics
-                </Link>
-              </PermissionGuard>
+              {/* Action Buttons */}
+              <div className="flex gap-4">
+                <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS}>
+                  <div className="relative">
+                    <span className="absolute inset-0 rounded-xl p-[2px] bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x blur-sm opacity-70 pointer-events-none" />
+                    <Link
+                      to="/reports"
+                      className="relative z-10 inline-flex items-center px-5 py-3 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-bold shadow-lg hover:from-accent hover:to-primary hover:scale-[1.04] active:scale-100 transition-all duration-200 animate-float-btn"
+                      style={{boxShadow: '0 6px 32px 0 rgba(26,35,126,0.13)'}}
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      View Analytics
+                    </Link>
+                  </div>
+                </PermissionGuard>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Enquiry List Section */}
+        {/* Enquiry List Section with Glassmorphic Effect */}
         <PermissionGuard permission={PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES}>
-          <EnquiryList config={config} />
+          <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-6 transition-all duration-300">
+            <EnquiryList config={config} />
+          </div>
         </PermissionGuard>
       </div>
     </div>

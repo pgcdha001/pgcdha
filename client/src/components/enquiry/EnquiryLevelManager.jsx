@@ -92,8 +92,8 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+    <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-[9999]">
+      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 p-6 w-full max-w-md mx-4 transform transition-all duration-200">
         <div className="flex justify-between items-start mb-6">
           <h3 className="text-lg font-semibold text-gray-900">
             Update Enquiry Level

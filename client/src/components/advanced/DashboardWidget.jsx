@@ -112,27 +112,30 @@ const DashboardWidget = ({
         return (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">{title}</h3>
+              <h3 className="text-sm font-medium text-primary/80 font-[Inter,sans-serif]">{title}</h3>
               {IconComponent && (
-                <div className={`h-8 w-8 bg-gradient-to-br ${colors.bg} rounded-lg flex items-center justify-center`}>
-                  <IconComponent className="h-4 w-4 text-white" />
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+                  <div className={`relative h-10 w-10 bg-gradient-to-br ${colors.bg} rounded-xl flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-110 hover:shadow-2xl`}>
+                    <IconComponent className="h-5 w-5 text-white animate-float" />
+                  </div>
                 </div>
               )}
             </div>
             
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-3xl font-extrabold text-primary tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
                   {typeof value === 'number' ? value.toLocaleString() : value}
                 </p>
                 {trend && (
-                  <div className={`flex items-center mt-1 text-sm ${
-                    trend.isPositive ? 'text-green-600' : 'text-red-600'
+                  <div className={`flex items-center mt-2 text-sm font-medium ${
+                    trend.isPositive ? 'text-green-500' : 'text-accent'
                   }`}>
                     {trend.direction === 'up' ? (
-                      <TrendingUp className="h-4 w-4 mr-1" />
+                      <TrendingUp className="h-4 w-4 mr-1 animate-float" />
                     ) : (
-                      <TrendingDown className="h-4 w-4 mr-1" />
+                      <TrendingDown className="h-4 w-4 mr-1 animate-float" />
                     )}
                     {trend.percentage}%
                   </div>
@@ -231,29 +234,36 @@ const DashboardWidget = ({
   return (
     <div 
       className={`
-        bg-white rounded-2xl shadow-lg border border-gray-200 
+        relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border
         ${sizeClasses[size]} 
-        ${onClick ? 'cursor-pointer hover:shadow-xl transition-shadow duration-200' : ''}
+        ${onClick ? 'cursor-pointer hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] transition-all duration-300' : ''}
+        group
         ${className}
       `}
       onClick={onClick}
     >
+      {/* Animated gradient bar */}
+      <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+      
       {refreshable && (
         <div className="flex justify-end mb-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRefresh();
-            }}
-            disabled={isRefreshing}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded"
-          >
-            <div className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}>
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </div>
-          </button>
+          <div className="relative">
+            <span className="absolute inset-0 rounded-xl p-[2px] bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x blur-sm opacity-70 pointer-events-none" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRefresh();
+              }}
+              disabled={isRefreshing}
+              className="relative z-10 p-2 text-primary hover:text-accent transition-colors duration-200 rounded-xl hover:bg-primary/5"
+            >
+              <div className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+            </button>
+          </div>
         </div>
       )}
       

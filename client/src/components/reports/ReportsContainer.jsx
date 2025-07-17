@@ -95,8 +95,13 @@ const ReportsContainer = () => {
 
   if (!config) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="min-h-[16rem] flex items-center justify-center">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+          <div className="relative p-3 rounded-xl">
+            <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -104,22 +109,34 @@ const ReportsContainer = () => {
   return (
     <div className="space-y-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header Section with Glassmorphic Effect */}
         <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link 
-              to="/dashboard" 
-              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 font-[Sora,Inter,sans-serif]">
-                Reports & Analytics
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
-                {config.description || 'Comprehensive reporting and data analytics dashboard'}
-              </p>
+          <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-6 transition-all duration-300 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] group">
+            {/* Animated gradient bar */}
+            <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+            
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                {/* Back button with glow effect */}
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+                  <Link 
+                    to="/dashboard" 
+                    className="relative inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-lg transition-transform duration-300 hover:scale-105 hover:shadow-2xl animate-float"
+                  >
+                    <ArrowLeft className="h-6 w-6" />
+                  </Link>
+                </div>
+                {/* Title and Description */}
+                <div>
+                  <h1 className="text-3xl font-extrabold text-primary mb-1 tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
+                    Reports & Analytics
+                  </h1>
+                  <p className="text-primary/80 font-[Inter,sans-serif]">
+                    {config.description || 'Comprehensive reporting and data analytics dashboard'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -140,14 +157,18 @@ const ReportsContainer = () => {
 
 // Access Denied Component
 const AccessDenied = () => (
-  <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
-    <div className="text-red-500 mb-4">
-      <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
-      </svg>
+  <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-8 text-center transition-all duration-300 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] group">
+    <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+    <div className="relative">
+      <div className="absolute inset-0 rounded-full bg-accent/20 blur-2xl opacity-70 w-24 h-24 mx-auto" />
+      <div className="relative text-accent mb-4">
+        <svg className="w-16 h-16 mx-auto animate-float" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+      </div>
     </div>
-    <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
-    <p className="text-gray-600">You don't have permission to view this section.</p>
+    <h3 className="text-2xl font-extrabold text-primary mb-2 tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">Access Denied</h3>
+    <p className="text-primary/80 font-[Inter,sans-serif]">You don't have permission to view this section.</p>
   </div>
 );
 

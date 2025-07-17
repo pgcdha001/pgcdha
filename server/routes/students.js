@@ -138,9 +138,7 @@ router.put('/:id/level', authenticate, async (req, res) => {
       });
     }
 
-    console.log(`Updating level for student ID: ${req.params.id} from level ${currentLevel} to level ${level}`);
-
-    // Find the student/enquiry
+    // Find the student/enquiry first
     const student = await User.findById(req.params.id);
     if (!student) {
       return res.status(404).json({
@@ -151,6 +149,7 @@ router.put('/:id/level', authenticate, async (req, res) => {
 
     // Store the current level before updating
     const currentLevel = student.prospectusStage || 1;
+    console.log(`Updating level for student ID: ${req.params.id} from level ${currentLevel} to level ${level}`);
     console.log(`Found student: ${student.fullName?.firstName} ${student.fullName?.lastName}, current level: ${currentLevel}, new level: ${level}`);
     
     // If student doesn't have prospectusStage set, initialize it

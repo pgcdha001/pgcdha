@@ -39,19 +39,25 @@ const UserManagementContainer = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70">
+      <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-8 transition-all duration-300 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] group">
+        {/* Animated gradient bar */}
+        <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+        
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
+          <div className="flex items-center gap-6">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+              <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-lg transition-transform duration-300 hover:scale-105 hover:shadow-2xl">
+                <svg className="w-8 h-8 animate-float" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
+              </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-primary mb-2 font-[Sora,Inter,sans-serif] tracking-tight">
+              <h2 className="text-3xl font-extrabold text-primary mb-1 tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
                 {userRole === 'Receptionist' ? 'Student Management' : 'User Management'}
-              </h1>
-              <p className="text-muted-foreground font-medium">
+              </h2>
+              <p className="text-primary/80 font-[Inter,sans-serif]">
                 {userRole === 'Receptionist' 
                   ? 'Manage student registrations and information' 
                   : 'Manage system users and their roles'
@@ -76,14 +82,6 @@ const UserManagementContainer = () => {
         allowedActions={userMgmtConfig.allowedActions}
         restrictedFields={userMgmtConfig.restrictedFields}
       />
-
-      {/* Debug Info (development only) */}
-      {import.meta.env.DEV && (
-        <div className="bg-gray-100 p-4 rounded-lg text-xs text-gray-600">
-          <strong>Debug - Role Config:</strong>
-          <pre className="mt-2">{JSON.stringify(userMgmtConfig, null, 2)}</pre>
-        </div>
-      )}
     </div>
   );
 };

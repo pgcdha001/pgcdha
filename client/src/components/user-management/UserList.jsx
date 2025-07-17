@@ -442,8 +442,11 @@ const UserList = ({
                 <tr key={user._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-primary" />
+                      <div className="relative">
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+                        <div className="relative h-10 w-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-110">
+                          <User className="h-5 w-5 text-white animate-float" />
+                        </div>
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
