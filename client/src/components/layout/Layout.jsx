@@ -66,24 +66,43 @@ const Layout = ({ children }) => {
 
       {/* Hamburger Menu Button - Only visible when sidebar is collapsed */}
       {sidebarCollapsed && (
-        <button
-          onClick={toggleSidebar}
-          className="fixed top-4 left-4 z-30 p-3 rounded-xl bg-white/80 backdrop-blur-xl shadow-lg border border-border hover:bg-white/90 hover:shadow-xl text-primary transition-all duration-200 hover:scale-105"
-          title="Open Menu"
-        >
-          <Menu className="h-6 w-6" />
-        </button>
+        <div className="fixed top-4 left-4 z-30">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
+            <button
+              onClick={toggleSidebar}
+              className="relative p-4 rounded-2xl bg-white/80 backdrop-blur-2xl shadow-2xl border border-border/50 hover:bg-white/90 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] text-primary transition-all duration-300 hover:scale-105 animate-float"
+              title="Open Menu"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Sidebar - Only visible when not collapsed */}
       {!sidebarCollapsed && (
-        <aside className="fixed top-0 left-0 z-20 flex flex-col w-64 h-screen bg-white/80 backdrop-blur-2xl shadow-2xl border-r border-border/50 transition-all duration-300">
+        <aside className="fixed top-0 left-0 z-20 flex flex-col w-64 h-screen bg-white/80 backdrop-blur-2xl shadow-2xl border-r border-border/50 transition-all duration-300 overflow-hidden">
           {/* Animated gradient bar */}
           <span className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
           
+          {/* Close Button - Absolute positioned at top right */}
+          <div className="absolute top-4 right-4 z-30">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 blur-lg opacity-70" />
+              <button
+                onClick={toggleSidebar}
+                className="relative p-2.5 rounded-xl bg-white/60 backdrop-blur-xl border border-border/50 hover:bg-white/80 text-primary transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                title="Close Menu"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          
           {/* Sidebar Header */}
-          <div className="flex flex-col items-center px-4 pt-8 pb-6">
-            <div className="mb-8 flex flex-col items-center w-full">
+          <div className="flex-shrink-0 flex flex-col items-center px-4 pt-6 pb-4">
+            <div className="mb-6 flex flex-col items-center w-full">
               <div className="relative mb-4">
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-70" />
                 <div className="relative rounded-3xl bg-white/90 shadow-2xl border-2 border-primary/20 p-4 transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] flex-shrink-0">
@@ -93,20 +112,10 @@ const Layout = ({ children }) => {
               <span className="text-lg font-extrabold text-primary tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">PGC</span>
               <span className="text-xs text-primary/70 font-[Inter,sans-serif]">Portal</span>
             </div>
-            
-            {/* Toggle Button - Close */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 blur-lg opacity-70" />
-              <button
-                onClick={toggleSidebar}
-                className="relative p-3 rounded-xl bg-white/60 backdrop-blur-xl border border-border/50 hover:bg-white/80 text-primary transition-all duration-200 hover:scale-105 hover:shadow-lg"
-                title="Close Menu"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            {/* Navigation */}
+          </div>
+          
+          {/* Navigation - Scrollable */}
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
             <nav className="flex flex-col gap-3 w-full">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
@@ -144,32 +153,19 @@ const Layout = ({ children }) => {
             </nav>
           </div>
           
-          {/* Sidebar Footer - User Info and Logout */}
-          <div className="mt-auto p-3 border-t border-border/20">
-            {/* Notifications */}
-            <button 
-              className="w-full mb-3 p-2 rounded-xl hover:bg-primary/10 transition-colors flex items-center gap-3"
-            >
-              <Bell className="h-5 w-5 text-primary" />
-              <span className="text-sm text-primary font-medium">Notifications</span>
-            </button>
-            
-            {/* User Info */}
-            <div className="mb-3 p-2 bg-white/80 rounded-xl shadow border border-border">
-              <div className="text-xs text-gray-600 font-medium">Logged in as:</div>
-              <div className="text-sm font-semibold text-primary truncate">{user?.firstName} {user?.lastName}</div>
-              <div className="text-xs text-gray-500 truncate">{user?.role}</div>
-            </div>
-            
+          {/* Sidebar Footer - Logout Only */}
+          <div className="flex-shrink-0 p-4 border-t border-border/30 bg-white/20 backdrop-blur-sm">
             {/* Logout Button */}
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors font-medium text-sm px-3"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="ml-2">Logout</span>
-            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500/10 to-red-600/10 blur-lg opacity-70" />
+              <Button
+                onClick={handleLogout}
+                className="relative w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 rounded-2xl py-3.5 px-4 transition-all duration-300 hover:scale-105 hover:shadow-xl font-semibold shadow-lg"
+              >
+                <LogOut className="h-5 w-5 mr-3" />
+                <span>Logout</span>
+              </Button>
+            </div>
           </div>
         </aside>
       )}
