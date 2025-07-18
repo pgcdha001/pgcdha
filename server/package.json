@@ -10,7 +10,9 @@
     "seed": "node scripts/seedDatabase.js",
     "seed:dev": "NODE_ENV=development node scripts/seedDatabase.js",
     "reset": "node scripts/resetDatabase.js",
-    "reset:seed": "npm run reset && npm run seed"
+    "reset:seed": "npm run reset && npm run seed",
+    "fix:deleted-emails": "node scripts/updateDeletedUsersEmails.js",
+    "remove:all-students": "node scripts/removeAllStudents.js"
   },
   "keywords": [
     "nodejs",

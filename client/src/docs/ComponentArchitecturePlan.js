@@ -201,7 +201,7 @@ export const ROLE_COMPONENT_CONFIG = {
   'IT': {
     userManagement: {
       allowedRoles: ['Student', 'Teacher', 'Staff', 'IT'], // Cannot create Institute Admin
-      allowedActions: ['create', 'edit', 'view'],
+      allowedActions: ['create', 'edit', 'view', 'delete'],
       showStatistics: true,
       showAllFields: true
     },
@@ -225,7 +225,7 @@ export const ROLE_COMPONENT_CONFIG = {
   'Receptionist': {
     userManagement: {
       allowedRoles: ['Student'], // Can only manage students
-      allowedActions: ['create', 'view'],
+      allowedActions: ['create', 'view', 'edit'],
       showStatistics: false, // Only student count, not total users
       restrictedFields: ['role', 'permissions'] // Hide system fields
     },

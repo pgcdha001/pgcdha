@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ROLE_COMPONENT_CONFIG } from '../../docs/ComponentArchitecturePlan';
 import UserList from './UserList';
@@ -12,10 +13,39 @@ import { PERMISSIONS } from '../../utils/rolePermissions';
  */
 const UserManagementContainer = () => {
   const { userRole, can } = usePermissions();
+  const location = useLocation();
+  
+  // Get URL parameters
+  const urlParams = new URLSearchParams(location.search);
+  const filterParam = urlParams.get('filter');
 
   // Get role-specific configuration
   const roleConfig = ROLE_COMPONENT_CONFIG[userRole] || {};
   const userMgmtConfig = roleConfig.userManagement || {};
+
+  // Determine page title and description based on filter
+  const getPageInfo = () => {
+    if (filterParam === 'Student') {
+      return {
+        title: 'Student Information',
+        description: 'Manage student information and details'
+      };
+    }
+    
+    if (userRole === 'Receptionist') {
+      return {
+        title: 'Student Management',
+        description: 'Manage student registrations and information'
+      };
+    }
+    
+    return {
+      title: 'User Management',
+      description: 'Manage system users and their roles'
+    };
+  };
+
+  const { title, description } = getPageInfo();
 
   // Check if user has basic access
   if (!can(PERMISSIONS.USER_MANAGEMENT.VIEW_USERS)) {
@@ -55,13 +85,10 @@ const UserManagementContainer = () => {
             </div>
             <div>
               <h2 className="text-3xl font-extrabold text-primary mb-1 tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
-                {userRole === 'Receptionist' ? 'Student Management' : 'User Management'}
+                {title}
               </h2>
               <p className="text-primary/80 font-[Inter,sans-serif]">
-                {userRole === 'Receptionist' 
-                  ? 'Manage student registrations and information' 
-                  : 'Manage system users and their roles'
-                }
+                {description}
               </p>
             </div>
           </div>
@@ -81,6 +108,7 @@ const UserManagementContainer = () => {
         allowedRoles={userMgmtConfig.allowedRoles}
         allowedActions={userMgmtConfig.allowedActions}
         restrictedFields={userMgmtConfig.restrictedFields}
+        defaultFilter={filterParam}
       />
     </div>
   );

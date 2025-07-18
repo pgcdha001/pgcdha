@@ -33,7 +33,8 @@ import { PERMISSIONS } from '../../utils/rolePermissions';
 const UserList = ({ 
   allowedRoles = ['all'], 
   allowedActions = ['view'], 
-  restrictedFields = []
+  restrictedFields = [],
+  defaultFilter = ''
 }) => {
   const { toast } = useToast();
   const { userRole, can } = usePermissions();
@@ -41,7 +42,7 @@ const UserList = ({
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('');
+  const [filterRole, setFilterRole] = useState(defaultFilter);
   const [filterStatus, setFilterStatus] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -113,9 +114,11 @@ const UserList = ({
       console.log('Loading users with params:', params);
       const response = await userAPI.getUsers(params);
       console.log('Users API response:', response);
+      console.log('Raw users data:', response.data?.users);
       
       if (response.success) {
         let userData = response.data.users || [];
+        console.log('Users before client filtering:', userData.length, userData.map(u => ({id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status})));
         
         // Client-side filtering as backup
         if (!allowedRoles.includes('all')) {
@@ -123,7 +126,7 @@ const UserList = ({
         }
         
         setUsers(userData);
-        console.log('Users loaded successfully:', userData.length);
+        console.log('Users after client filtering:', userData.length, userData.map(u => ({id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status})));
       } else {
         setError(response.message || 'Failed to load users');
         console.error('Failed to load users:', response.message);
@@ -139,6 +142,20 @@ const UserList = ({
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  // Update filter when defaultFilter changes
+  useEffect(() => {
+    if (defaultFilter !== filterRole) {
+      setFilterRole(defaultFilter);
+    }
+  }, [defaultFilter, filterRole]);
+
+  // Update filter when defaultFilter changes
+  useEffect(() => {
+    if (defaultFilter) {
+      setFilterRole(defaultFilter);
+    }
+  }, [defaultFilter]);
 
   // Handle user actions based on permissions
   const handleAddUser = () => {
@@ -186,13 +203,30 @@ const UserList = ({
       const response = await userAPI.deleteUser(selectedUser._id);
       if (response.success) {
         toast.success('User deleted successfully');
-        loadUsers();
+        loadUsers(); // Refresh the list after successful deletion
       } else {
         toast.error(response.message || 'Failed to delete user');
+        loadUsers(); // Refresh the list even on API failure to ensure consistency
       }
     } catch (error) {
-      toast.error('Failed to delete user');
       console.error('Delete error:', error);
+      
+      // Handle different error types
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        // Optionally redirect to login
+        // window.location.href = '/login';
+      } else if (error.response?.status === 404) {
+        toast.error('User not found. They may have already been deleted.');
+        loadUsers(); // Refresh the list
+      } else if (error.response?.status === 400) {
+        toast.error(error.response?.data?.message || 'Cannot delete user');
+      } else {
+        toast.error(error.message || 'Failed to delete user');
+      }
+      
+      // Always refresh the list after any deletion attempt to ensure UI consistency
+      loadUsers();
     } finally {
       setShowDeleteModal(false);
       setSelectedUser(null);
@@ -450,9 +484,14 @@ const UserList = ({
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {user.role === 'Student' ? user.firstName : `${user.firstName} ${user.lastName}`}
+                          {user.role === 'Student' ? 
+                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim() : 
+                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim()
+                          }
                         </p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
+                        <p className="text-sm text-gray-600">
+                          {user.role === 'Student' && user.fatherName ? `Father: ${user.fatherName}` : user.email}
+                        </p>
                       </div>
                     </div>
                   </td>

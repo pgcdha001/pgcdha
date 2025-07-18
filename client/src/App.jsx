@@ -132,7 +132,7 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   requiredPermission={PERMISSIONS.USER_MANAGEMENT.VIEW_USERS}
-                  allowedRoles={['InstituteAdmin', 'IT']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
                 >
                   <UserManagementContainer />
                 </ProtectedRoute>
@@ -145,7 +145,7 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   requiredPermission={PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT}
-                  allowedRoles={['InstituteAdmin', 'IT']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
                 >
                   <UserManagementContainer />
                 </ProtectedRoute>

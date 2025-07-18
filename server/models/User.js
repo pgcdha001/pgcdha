@@ -69,6 +69,10 @@ const UserSchema = new mongoose.Schema({
   oldSchoolName: String,   // Alternative field name for previous school
   program: String,         // Added for student program (ICS, ICOM, Pre Engineering, Pre Medical)
   
+  // Matriculation Details
+  matriculationObtainedMarks: Number,  // Marks obtained in matriculation
+  matriculationTotalMarks: Number,     // Total marks in matriculation
+  
   // Personal Information
   gender: String,
   dob: Date,
@@ -79,6 +83,7 @@ const UserSchema = new mongoose.Schema({
   // System Fields
   createdOn: { type: Date, default: Date.now },
   updatedOn: { type: Date, default: Date.now },
+  deletedAt: { type: Date }, // Added for soft delete
   lastPasswordChangedOn: Date,
   cookieId: String,
   newLoginOTP: String,
@@ -89,7 +94,6 @@ const UserSchema = new mongoose.Schema({
   previousClassId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
   society: String,
   academicRecords: AcademicRecordSchema,
-  session: String,
   sessionActiveYear: String,
   inquiryLevel: String,
   prospectusStage: { type: Number, default: 1 }, // 1-6 for inquiry/prospectus stages

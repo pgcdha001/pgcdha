@@ -29,7 +29,10 @@ router.get('/',
     } = req.query;
 
     // Build filter object
-    const filter = {};
+    const filter = {
+      // By default, exclude deleted users
+      status: { $ne: 3 }
+    };
 
     // Search filter
     if (search) {
@@ -136,7 +139,9 @@ router.post('/',
       address,
       reference,
       emergencyContact,
-      status = 'active'
+      status = 'active',
+      matriculationObtainedMarks,
+      matriculationTotalMarks
     } = req.body;
 
     // Validate required fields
@@ -213,7 +218,9 @@ router.post('/',
       isActive: status === 'active',
       isApproved: true,
       createdOn: new Date(),
-      updatedOn: new Date()
+      updatedOn: new Date(),
+      matriculationObtainedMarks: matriculationObtainedMarks !== undefined && matriculationObtainedMarks !== '' && !isNaN(matriculationObtainedMarks) ? Number(matriculationObtainedMarks) : undefined,
+      matriculationTotalMarks: matriculationTotalMarks !== undefined && matriculationTotalMarks !== '' && !isNaN(matriculationTotalMarks) ? Number(matriculationTotalMarks) : undefined
     };
 
     // Handle emergency contact if provided
@@ -273,7 +280,9 @@ router.put('/:id',
       address,
       reference,
       emergencyContact,
-      status
+      status,
+      matriculationObtainedMarks,
+      matriculationTotalMarks
     } = req.body;
 
     // Get current user to check if email is changing
@@ -319,6 +328,8 @@ router.put('/:id',
     if (dateOfBirth) updateData.dob = new Date(dateOfBirth);
     if (address) updateData.address = address;
     if (reference) updateData.reference = reference;
+    if (matriculationObtainedMarks !== undefined && matriculationObtainedMarks !== '' && !isNaN(matriculationObtainedMarks)) updateData.matriculationObtainedMarks = Number(matriculationObtainedMarks);
+    if (matriculationTotalMarks !== undefined && matriculationTotalMarks !== '' && !isNaN(matriculationTotalMarks)) updateData.matriculationTotalMarks = Number(matriculationTotalMarks);
 
     // Normalize role if provided
     if (role) {
@@ -377,6 +388,22 @@ router.delete('/:id',
       comparison: userId === req.user?._id?.toString()
     });
 
+    // First check if user exists
+    const existingUser = await User.findById(userId);
+    if (!existingUser) {
+      console.log('User not found for deletion:', userId);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log('User found for deletion:', {
+      id: existingUser._id,
+      email: existingUser.email,
+      role: existingUser.role
+    });
+
     // Prevent deleting own account (only if we have user context)
     if (req.user && userId === req.user._id.toString()) {
       return res.status(400).json({
@@ -385,20 +412,29 @@ router.delete('/:id',
       });
     }
 
+    // Use hard delete instead of soft delete
     const user = await User.findByIdAndDelete(userId);
 
     if (!user) {
+      console.log('User disappeared between check and update:', userId);
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
 
+    console.log('User hard deleted successfully:', {
+      id: user._id,
+      email: user.email,
+      role: user.role
+    });
+
     sendSuccessResponse(res, { 
       deletedUser: {
         id: user._id,
         email: user.email,
-        fullName: user.fullName
+        fullName: user.fullName,
+        role: user.role
       }
     }, 'User deleted successfully');
   })

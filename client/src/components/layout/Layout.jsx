@@ -118,7 +118,35 @@ const Layout = ({ children }) => {
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <nav className="flex flex-col gap-3 w-full">
               {navigation.map((item) => {
-                const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                const currentPath = location.pathname;
+                const currentSearch = location.search;
+                
+                // Parse current URL parameters
+                const currentParams = new URLSearchParams(currentSearch);
+                
+                let isActive = false;
+                
+                if (item.href.includes('?')) {
+                  // Item has query parameters
+                  const [itemPath, itemQuery] = item.href.split('?');
+                  const itemParams = new URLSearchParams(itemQuery);
+                  
+                  // Check if path matches and all required query params match
+                  if (currentPath === itemPath) {
+                    isActive = true;
+                    for (const [key, value] of itemParams) {
+                      if (currentParams.get(key) !== value) {
+                        isActive = false;
+                        break;
+                      }
+                    }
+                  }
+                } else {
+                  // Item has no query parameters
+                  // Only match if current path matches AND there are no query params
+                  isActive = (currentPath === item.href || currentPath.startsWith(item.href + '/')) && !currentSearch;
+                }
+                
                 const IconComponent = Icons[item.icon] || Icons.Circle;
                 
                 return (

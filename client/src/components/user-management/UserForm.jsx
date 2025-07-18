@@ -37,6 +37,8 @@ const UserForm = ({
     address: '',
     reference: '',
     emergencyContact: '',
+    matriculationObtainedMarks: '',
+    matriculationTotalMarks: '',
     status: 'active'
   });
 
@@ -46,25 +48,27 @@ const UserForm = ({
   useEffect(() => {
     if (user && mode !== 'create') {
       setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
+        firstName: user.fullName?.firstName || user.firstName || '',
+        lastName: user.fullName?.lastName || user.lastName || '',
         fatherName: user.fatherName || '',
         cnic: user.cnic || '',
         gender: user.gender || '',
         email: user.email || '',
-        phoneNumber: user.phoneNumber || '',
-        mobileNumber: user.mobileNumber || '',
+        phoneNumber: user.phoneNumber || user.phoneNumbers?.primary || '',
+        mobileNumber: user.mobileNumber || user.phoneNumbers?.secondary || '',
         role: user.role || '',
         program: user.program || '',
-        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+        dateOfBirth: user.dateOfBirth || user.dob ? new Date(user.dateOfBirth || user.dob).toISOString().split('T')[0] : '',
         address: user.address || '',
         reference: user.reference || '',
-        emergencyContact: user.emergencyContact || '',
-        status: user.status || 'active'
+        emergencyContact: user.emergencyContact?.phone || user.emergencyContact || '',
+        matriculationObtainedMarks: user.matriculationObtainedMarks || '',
+        matriculationTotalMarks: user.matriculationTotalMarks || '',
+        status: user.status === 1 ? 'active' : user.status === 2 ? 'inactive' : 'pending'
       });
     } else {
       // For create mode, set default role based on permissions
-      const defaultRole = userRole === 'Receptionist' ? 'Student' : '';
+      const defaultRole = (userRole === 'Receptionist' || userRole === 'IT') ? 'Student' : '';
       setFormData(prev => ({ ...prev, role: defaultRole }));
     }
   }, [user, mode, userRole]);
@@ -137,6 +141,11 @@ const UserForm = ({
       return false;
     }
     
+    // For IT users, hide role field when creating students (auto-set to Student)
+    if (fieldName === 'role' && userRole === 'IT' && mode === 'create' && formData.role === 'Student') {
+      return false;
+    }
+    
     return true;
   };
 
@@ -169,7 +178,7 @@ const UserForm = ({
       newErrors.firstName = isStudentRole() ? 'Student name is required' : 'First name is required';
     }
     
-    // For non-students, last name is required
+    // For all roles, ensure we have a last name (for students, we'll use father name as fallback)
     if (!isStudentRole() && !formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required';
     }
@@ -235,10 +244,54 @@ const UserForm = ({
         submitData.lastName = submitData.fatherName;
       }
       
-      // Set default role for receptionist if not shown
-      if (!shouldShowField('role') && userRole === 'Receptionist') {
+      // Set default role for receptionist or IT if not shown
+      if (!shouldShowField('role') && (userRole === 'Receptionist' || userRole === 'IT')) {
         submitData.role = 'Student';
       }
+
+      // For edit mode, structure the data properly for the server
+      if (mode === 'edit') {
+        // For students, use father name as last name if lastName is empty
+        if (isStudentRole() && !submitData.lastName && submitData.fatherName) {
+          submitData.lastName = submitData.fatherName;
+        }
+        
+        // Ensure both firstName and lastName are present
+        if (!submitData.firstName || !submitData.lastName) {
+          if (isStudentRole()) {
+            submitData.firstName = submitData.firstName || 'Student';
+            submitData.lastName = submitData.lastName || submitData.fatherName || 'Name';
+          }
+        }
+      }
+
+      // For create mode, ensure required fields are present
+      if (mode === 'create') {
+        // For students, use father name as last name if lastName is empty
+        if (isStudentRole() && !submitData.lastName && submitData.fatherName) {
+          submitData.lastName = submitData.fatherName;
+        }
+        
+        // Ensure firstName and lastName are not empty
+        if (!submitData.firstName || !submitData.lastName) {
+          if (isStudentRole()) {
+            submitData.firstName = submitData.firstName || 'Student';
+            submitData.lastName = submitData.lastName || submitData.fatherName || 'Name';
+          } else {
+            // For non-student roles, ensure we have proper names
+            if (!submitData.firstName) {
+              toast.error('First name is required');
+              return;
+            }
+            if (!submitData.lastName) {
+              toast.error('Last name is required');
+              return;
+            }
+          }
+        }
+      }
+
+      console.log('Submitting data:', submitData);
 
       if (mode === 'create') {
         response = await userAPI.createUser(submitData);
@@ -281,10 +334,10 @@ const UserForm = ({
   const isReadOnly = mode === 'view';
 
   return (
-    <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-200">
+    <div className="fixed inset-0 backdrop-blur-md flex items-start justify-center z-50 p-4 pt-8">
+      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-200 mt-[-400px]">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 ">
           <div className="flex items-center gap-3">
             <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${
               mode === 'create' ? 'bg-green-100 text-green-600' :
@@ -295,12 +348,12 @@ const UserForm = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                {mode === 'create' && (userRole === 'Receptionist' ? 'Add New Student' : 'Add New User')}
+                {mode === 'create' && ((userRole === 'Receptionist' || (userRole === 'IT' && formData.role === 'Student')) ? 'Add New Student' : 'Add New User')}
                 {mode === 'edit' && 'Edit User'}
                 {mode === 'view' && 'User Details'}
               </h2>
               <p className="text-sm text-gray-600">
-                {mode === 'create' && 'Fill in the details to create a new user'}
+                {mode === 'create' && ((userRole === 'Receptionist' || (userRole === 'IT' && formData.role === 'Student')) ? 'Fill in the student details' : 'Fill in the details to create a new user')}
                 {mode === 'edit' && 'Update user information'}
                 {mode === 'view' && 'View user information'}
               </p>
@@ -516,6 +569,46 @@ const UserForm = ({
                   ))}
                 </select>
                 {errors.program && <p className="text-red-500 text-xs mt-1">{errors.program}</p>}
+              </div>
+            )}
+
+            {/* Matriculation Marks - Only for students */}
+            {isStudentRole() && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Matriculation Obtained Marks
+                  </label>
+                  <input
+                    type="number"
+                    name="matriculationObtainedMarks"
+                    value={formData.matriculationObtainedMarks}
+                    onChange={handleInputChange}
+                    placeholder="Enter obtained marks"
+                    disabled={isReadOnly}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      errors.matriculationObtainedMarks ? 'border-red-300' : 'border-gray-300'
+                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.matriculationObtainedMarks && <p className="text-red-500 text-xs mt-1">{errors.matriculationObtainedMarks}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Matriculation Total Marks
+                  </label>
+                  <input
+                    type="number"
+                    name="matriculationTotalMarks"
+                    value={formData.matriculationTotalMarks}
+                    onChange={handleInputChange}
+                    placeholder="Enter total marks"
+                    disabled={isReadOnly}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      errors.matriculationTotalMarks ? 'border-red-300' : 'border-gray-300'
+                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                  />
+                  {errors.matriculationTotalMarks && <p className="text-red-500 text-xs mt-1">{errors.matriculationTotalMarks}</p>}
+                </div>
               </div>
             )}
 

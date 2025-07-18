@@ -88,6 +88,15 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
+      id: 'student-info-edit',
+      title: 'Student Information', 
+      href: '/admin/users?filter=Student', 
+      icon: 'UserCheck', 
+      bgGradient: 'from-teal-500 to-teal-600',
+      type: 'normal',
+      permission: PERMISSIONS.USER_MANAGEMENT.EDIT_USERS
+    },
+    {
       id: 'enquiry-management',
       title: 'Enquiry Management', 
       href: '/institute-admin/enquiries', 
@@ -128,13 +137,13 @@ export const DASHBOARD_CARDS = {
   // Receptionist - Very limited access
   'Receptionist': [
     {
-      id: 'add-student',
-      title: 'Add Student', 
-      href: '/admin/add-student', 
-      icon: 'UserPlus', 
-      bgGradient: 'from-green-500 to-green-600',
+      id: 'student-management',
+      title: 'Student Management', 
+      href: '/admin/users?filter=Student', 
+      icon: 'Users', 
+      bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
-      permission: PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT
+      permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
       id: 'enquiry-management',
@@ -217,6 +226,13 @@ export const QUICK_MANAGEMENT_ACCESS = {
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
+      title: 'Student Information',
+      href: '/admin/users?filter=Student',
+      icon: 'UserCheck',
+      description: 'Edit student information and details',
+      permission: PERMISSIONS.USER_MANAGEMENT.EDIT_USERS
+    },
+    {
       title: 'Enquiry Management',
       href: '/institute-admin/enquiries',
       icon: 'MessageSquare',
@@ -241,11 +257,11 @@ export const QUICK_MANAGEMENT_ACCESS = {
   
   'Receptionist': [
     {
-      title: 'Add Student',
-      href: '/admin/add-student',
-      icon: 'UserPlus',
-      description: 'Register new students',
-      permission: PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT
+      title: 'Student Management',
+      href: '/admin/users?filter=Student',
+      icon: 'Users',
+      description: 'View and edit student information',
+      permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
       title: 'Enquiry Management',
