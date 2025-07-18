@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Calendar, Shield, Save, Eye } from 'lucide-react';
+import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, CreditCard } from 'lucide-react';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -30,6 +30,7 @@ const UserForm = ({
     cnic: '',
     gender: '',
     email: '',
+    password: '',
     phoneNumber: '',
     secondaryPhone: '',  // Updated from mobileNumber
     role: '',
@@ -73,6 +74,7 @@ const UserForm = ({
         cnic: user.cnic || '',
         gender: user.gender || '',
         email: user.email || '',
+        password: '', // Don't prefill password for security
         phoneNumber: user.phoneNumber || user.phoneNumbers?.primary || '',
         secondaryPhone: user.secondaryPhone || user.mobileNumber || user.phoneNumbers?.secondary || '',
         role: user.role || '',
@@ -104,6 +106,7 @@ const UserForm = ({
         { value: '', label: 'Select Role' },
         { value: 'Student', label: 'Student' },
         { value: 'Teacher', label: 'Teacher' },
+        { value: 'Coordinator', label: 'Coordinator' },
         { value: 'IT', label: 'IT' },
         { value: 'Receptionist', label: 'Receptionist' },
         { value: 'Staff', label: 'Staff' },
@@ -115,6 +118,7 @@ const UserForm = ({
     const roleMap = {
       'Student': { value: 'Student', label: 'Student' },
       'Teacher': { value: 'Teacher', label: 'Teacher' },
+      'Coordinator': { value: 'Coordinator', label: 'Coordinator' },
       'IT': { value: 'IT', label: 'IT' },
       'Receptionist': { value: 'Receptionist', label: 'Receptionist' },
       'Staff': { value: 'Staff', label: 'Staff' }
@@ -210,10 +214,22 @@ const UserForm = ({
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.role && shouldShowField('role')) newErrors.role = 'Role is required';
     
+    // CNIC is required for all users
+    if (!formData.cnic.trim()) newErrors.cnic = 'CNIC is required';
+    
+    // Password validation for non-student roles
+    if (!isStudentRole()) {
+      if (mode === 'create' && !formData.password.trim()) {
+        newErrors.password = 'Password is required';
+      }
+      if (formData.password && formData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters';
+      }
+    }
+    
     // Additional validation for students
     if (isStudentRole()) {
       if (!formData.fatherName.trim()) newErrors.fatherName = 'Father name is required';
-      if (!formData.cnic.trim()) newErrors.cnic = 'CNIC is required';
       if (!formData.gender) newErrors.gender = 'Gender is required';
       if (!formData.program) newErrors.program = 'Program is required';
       if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
@@ -230,8 +246,8 @@ const UserForm = ({
       newErrors.email = 'Please enter a valid email address';
     }
 
-    // CNIC validation for students
-    if (isStudentRole() && formData.cnic) {
+    // CNIC validation for all users
+    if (formData.cnic) {
       const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
       if (!cnicRegex.test(formData.cnic)) {
         newErrors.cnic = 'CNIC must be in format: 12345-1234567-1';
@@ -320,6 +336,15 @@ const UserForm = ({
             }
           }
         }
+      }
+
+      // Filter out student-specific fields for non-student roles
+      if (!isStudentRole()) {
+        delete submitData.program;
+        delete submitData.matricMarks;
+        delete submitData.matricTotal;
+        delete submitData.previousSchool;
+        // Keep general fields that might be useful for all roles
       }
 
       console.log('Submitting data:', submitData);
@@ -484,27 +509,6 @@ const UserForm = ({
               </div>
             )}
 
-            {/* CNIC - Only for students */}
-            {isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  CNIC *
-                </label>
-                <input
-                  type="text"
-                  name="cnic"
-                  value={formData.cnic}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.cnic ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  placeholder="12345-1234567-1"
-                />
-                {errors.cnic && <p className="text-red-500 text-xs mt-1">{errors.cnic}</p>}
-              </div>
-            )}
-
             {/* Gender - Only for students */}
             {isStudentRole() && (
               <div>
@@ -548,6 +552,55 @@ const UserForm = ({
                 />
               </div>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            </div>
+
+            {/* Password - Required for non-student roles */}
+            {!isStudentRole() && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password {mode === 'create' ? '*' : ''}
+                </label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    readOnly={isReadOnly}
+                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      errors.password ? 'border-red-300' : 'border-gray-300'
+                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                    placeholder={mode === 'edit' ? 'Leave blank to keep current password' : 'Enter password'}
+                  />
+                </div>
+                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                {mode === 'edit' && (
+                  <p className="text-gray-500 text-xs mt-1">Leave blank to keep current password</p>
+                )}
+              </div>
+            )}
+
+            {/* CNIC - Required for all users */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                CNIC *
+              </label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  name="cnic"
+                  value={formData.cnic}
+                  onChange={handleInputChange}
+                  readOnly={isReadOnly}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    errors.cnic ? 'border-red-300' : 'border-gray-300'
+                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                  placeholder="12345-1234567-1"
+                />
+              </div>
+              {errors.cnic && <p className="text-red-500 text-xs mt-1">{errors.cnic}</p>}
             </div>
 
             {/* Phone Number */}

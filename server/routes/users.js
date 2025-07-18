@@ -128,6 +128,7 @@ router.post('/',
       firstName,
       lastName,
       email,
+      password, // Add password field from request
       fatherName,
       cnic,
       gender,
@@ -167,6 +168,14 @@ router.post('/',
           message: `The following fields are required for students: ${missingFields.join(', ')}`
         });
       }
+    } else {
+      // For non-student roles, password is required
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password is required for non-student users'
+        });
+      }
     }
 
     // Check if user already exists
@@ -190,8 +199,14 @@ router.post('/',
       counter++;
     }
 
-    // Generate default password (first name + last 4 digits of CNIC or "1234")
-    const defaultPassword = `${firstName.toLowerCase()}${cnic ? cnic.slice(-4) : '1234'}`;
+    // Generate default password for students (first name + last 4 digits of CNIC or "1234")
+    // For non-students, use the provided password
+    let userPassword;
+    if (role === 'Student') {
+      userPassword = `${firstName.toLowerCase()}${cnic ? cnic.slice(-4) : '1234'}`;
+    } else {
+      userPassword = password; // Use provided password for non-student users
+    }
 
     // Normalize role before creating user
     const normalizedRole = normalizeRole(role);
@@ -200,7 +215,7 @@ router.post('/',
     const userData = {
       email,
       userName,
-      password: defaultPassword,
+      password: userPassword,
       fullName: {
         firstName,
         lastName
@@ -252,7 +267,7 @@ router.post('/',
       user: userResponse,
       generatedCredentials: {
         userName,
-        password: defaultPassword
+        password: userPassword
       }
     }, 'User created successfully');
   })
@@ -269,6 +284,7 @@ router.put('/:id',
       firstName,
       lastName,
       email,
+      password, // Add password field
       fatherName,
       cnic,
       gender,
@@ -331,6 +347,11 @@ router.put('/:id',
     if (matricMarks !== undefined && matricMarks !== '' && !isNaN(matricMarks)) updateData.matricMarks = Number(matricMarks);
     if (matricTotal !== undefined && matricTotal !== '' && !isNaN(matricTotal)) updateData.matricTotal = Number(matricTotal);
 
+    // Handle password update if provided
+    if (password && password.trim() !== '') {
+      updateData.password = password; // This will be hashed by the pre-save hook
+    }
+
     // Normalize role if provided
     if (role) {
       updateData.role = normalizeRole(role);
@@ -352,16 +373,43 @@ router.put('/:id',
       };
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { 
-        new: true, 
-        runValidators: true 
+    // Handle password update separately if provided (requires save() to trigger pre-save hook)
+    if (password && password.trim() !== '') {
+      // Update the user with the new password using save() to trigger hashing
+      const userToUpdate = await User.findById(userId);
+      if (!userToUpdate) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
       }
-    ).select('-password -passwordResetToken -passwordResetExpires');
+      
+      // Apply all updates to the user object
+      Object.assign(userToUpdate, updateData);
+      userToUpdate.password = password; // This will trigger the pre-save hook for hashing
+      
+      const user = await userToUpdate.save();
+      
+      // Remove sensitive data from response
+      const userResponse = user.toJSON();
+      delete userResponse.password;
+      delete userResponse.passwordResetToken;
+      delete userResponse.passwordResetExpires;
+      
+      sendSuccessResponse(res, { user: userResponse }, 'User updated successfully');
+    } else {
+      // Update without password change
+      const user = await User.findByIdAndUpdate(
+        userId,
+        updateData,
+        { 
+          new: true, 
+          runValidators: true 
+        }
+      ).select('-password -passwordResetToken -passwordResetExpires');
 
-    sendSuccessResponse(res, { user }, 'User updated successfully');
+      sendSuccessResponse(res, { user }, 'User updated successfully');
+    }
   })
 );
 
@@ -612,13 +660,13 @@ router.post('/migration/migrate', asyncHandler(async (req, res) => {
 /**
  * @route   POST /api/users/bulk-assign-class
  * @desc    Bulk assign students to a class
- * @access  Private (InstituteAdmin, Principal)
+ * @access  Private (InstituteAdmin, Principal, Teacher, Coordinator, IT)
  */
 router.post('/bulk-assign-class', asyncHandler(async (req, res) => {
   // Check if user has permission
-  if (!['InstituteAdmin', 'Principal'].includes(req.user.role)) {
+  if (!['InstituteAdmin', 'Principal', 'Teacher', 'Coordinator', 'IT'].includes(req.user.role)) {
     return res.status(403).json({ 
-      message: 'Access denied. Only Institute Admin and Principal can bulk assign students to classes.' 
+      message: 'Access denied. Only Institute Admin, Principal, Teachers, Coordinators, and IT can bulk assign students to classes.' 
     });
   }
 

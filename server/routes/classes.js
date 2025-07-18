@@ -76,9 +76,9 @@ router.get('/floor/:floorNumber', authenticate, async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
   try {
     // Check if user has permission to create classes
-    if (!['InstituteAdmin', 'Principal'].includes(req.user.role)) {
+    if (!['InstituteAdmin', 'Principal', 'Teacher', 'Coordinator', 'IT'].includes(req.user.role)) {
       return res.status(403).json({ 
-        message: 'Access denied. Only Institute Admin and Principal can create classes.' 
+        message: 'Access denied. Only Institute Admin, Principal, Teachers, Coordinators, and IT can create classes.' 
       });
     }
 
@@ -139,9 +139,9 @@ router.post('/', authenticate, async (req, res) => {
 router.put('/:classId', authenticate, async (req, res) => {
   try {
     // Check if user has permission to update classes
-    if (!['InstituteAdmin', 'Principal'].includes(req.user.role)) {
+    if (!['InstituteAdmin', 'Principal', 'Teacher', 'Coordinator', 'IT'].includes(req.user.role)) {
       return res.status(403).json({ 
-        message: 'Access denied. Only Institute Admin and Principal can update classes.' 
+        message: 'Access denied. Only Institute Admin, Principal, Teachers, Coordinators, and IT can update classes.' 
       });
     }
 

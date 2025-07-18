@@ -67,6 +67,17 @@ const ROLE_MAPPING = {
   'TECH_SUPPORT': 'IT',
   'tech_support': 'IT',
   
+  // Coordinator variations (Floor Head/General Coordinator)
+  'Coordinator': 'Coordinator',
+  'COORDINATOR': 'Coordinator',
+  'coordinator': 'Coordinator',
+  'Floor Head': 'Coordinator',
+  'floor head': 'Coordinator',
+  'FLOOR_HEAD': 'Coordinator',
+  'floor_head': 'Coordinator',
+  'floorhead': 'Coordinator',
+  'FloorHead': 'Coordinator',
+  
   // Staff variations
   'Staff': 'Staff',
   'STAFF': 'Staff',
@@ -93,6 +104,7 @@ const VALID_ROLES = [
   'Student',
   'Receptionist',
   'IT',
+  'Coordinator',
   'Staff',
   'Parent'
 ];
@@ -106,6 +118,7 @@ const ROLE_DISPLAY_NAMES = {
   'Student': 'Student',
   'Receptionist': 'Receptionist',
   'IT': 'IT',
+  'Coordinator': 'Coordinator',
   'Staff': 'Staff',
   'Parent': 'Parent'
 };
@@ -119,6 +132,7 @@ const ROLE_COLORS = {
   'Student': 'bg-indigo-600',
   'Receptionist': 'bg-orange-600',
   'IT': 'bg-cyan-600',
+  'Coordinator': 'bg-teal-600',
   'Staff': 'bg-gray-600',
   'Parent': 'bg-teal-600'
 };
@@ -132,6 +146,7 @@ const ROLE_ICONS = {
   'Student': 'User',
   'Receptionist': 'Phone',
   'IT': 'Monitor',
+  'Coordinator': 'Users2',
   'Staff': 'Users',
   'Parent': 'Heart'
 };

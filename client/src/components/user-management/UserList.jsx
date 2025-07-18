@@ -62,6 +62,7 @@ const UserList = ({
         { value: 'Student', label: 'Student' },
         { value: 'IT', label: 'IT' },
         { value: 'Receptionist', label: 'Receptionist' },
+        { value: 'Coordinator', label: 'Coordinator' },
         { value: 'Staff', label: 'Staff' }
       ];
     }
@@ -72,6 +73,7 @@ const UserList = ({
       'Teacher': { value: 'Teacher', label: 'Teacher' },
       'IT': { value: 'IT', label: 'IT' },
       'Receptionist': { value: 'Receptionist', label: 'Receptionist' },
+      'Coordinator': { value: 'Coordinator', label: 'Coordinator' },
       'Staff': { value: 'Staff', label: 'Staff' }
     };
     

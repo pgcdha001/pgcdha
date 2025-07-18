@@ -34,10 +34,24 @@ const UserSchema = new mongoose.Schema({
   
   // Academic Background - simplified
   previousSchool: String,  // Previous school/college name
-  program: {              // Student program
+  program: {              // Student program (only for students)
     type: String,
-    enum: ['ICS', 'ICOM', 'Pre Engineering', 'Pre Medical'],
-    required: false
+    required: false,
+    validate: {
+      validator: function(value) {
+        // If user is a teacher or admin, program field can be empty or any value
+        if (this.role === 'Teacher' || this.role === 'SystemAdmin' || this.role === 'ITAdmin' || this.role === 'FinanceAdmin' || this.role === 'Receptionist' || this.role === 'Principal' || this.role === 'Coordinator') {
+          return true; // Allow any value for non-student roles
+        }
+        // For students, validate against enum values only if value is provided
+        if (!value || value.trim() === '') {
+          return true; // Allow empty for students too
+        }
+        const validPrograms = ['ICS', 'ICOM', 'Pre Engineering', 'Pre Medical'];
+        return validPrograms.includes(value);
+      },
+      message: 'Invalid program. Valid programs are: ICS, ICOM, Pre Engineering, Pre Medical'
+    }
   },
   
   // Matriculation Details - simplified
@@ -47,7 +61,20 @@ const UserSchema = new mongoose.Schema({
   // Personal Information
   gender: String,
   dob: Date,
-  cnic: String,
+  cnic: { 
+    type: String, 
+    required: true,
+    unique: true,
+    validate: {
+      validator: function(value) {
+        // CNIC can be in format 12345-1234567-1 or 1234512345671 (13 digits)
+        const withDashes = /^\d{5}-\d{7}-\d{1}$/;
+        const withoutDashes = /^\d{13}$/;
+        return withDashes.test(value) || withoutDashes.test(value);
+      },
+      message: 'CNIC must be in format 12345-1234567-1 or 13 digits'
+    }
+  },
   fatherName: String,      // Added for student father name
   imageUrl: String,
 
