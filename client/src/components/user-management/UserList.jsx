@@ -271,7 +271,7 @@ const UserList = ({
         'CNIC': user.cnic || '',
         'Gender': user.gender || '',
         'Phone Number': user.phoneNumber || '',
-        'Mobile Number': user.mobileNumber || '',
+        'Secondary Phone': user.secondaryPhone || user.mobileNumber || '',
         'Email': user.email || '',
         'Date of Birth': user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : '',
         'Address': user.address || '',

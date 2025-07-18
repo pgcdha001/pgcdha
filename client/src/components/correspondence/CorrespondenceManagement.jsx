@@ -38,11 +38,26 @@ const CorrespondenceManagement = () => {
       const response = await api.get('/students');
       const data = response.data?.data || response.data || [];
       const studentsArray = Array.isArray(data) ? data : [data];
-      // Filter only officially admitted students (level 5+ and approved) for student correspondence
-      const admittedStudents = studentsArray.filter(student => 
-        (student.prospectusStage || student.level || 1) >= 5 && student.isApproved === true
+      
+      // For debugging - log the data to see what we have
+      console.log('All students data:', studentsArray.slice(0, 3).map(s => ({
+        name: s.fullName,
+        enquiryLevel: s.enquiryLevel,
+        level: s.level,
+        prospectusStage: s.prospectusStage,
+        isApproved: s.isApproved
+      })));
+      
+      // For student correspondence, include all students with any record
+      // We can filter by level in the UI dropdown instead
+      const validStudents = studentsArray.filter(student => 
+        student.fullName && 
+        (student.fullName.firstName || student.fullName.lastName) &&
+        student.isApproved !== false
       );
-      setStudents(admittedStudents);
+      
+      console.log('Filtered students for correspondence:', validStudents.length);
+      setStudents(validStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
       setStudents([]);
@@ -129,25 +144,25 @@ const CorrespondenceManagement = () => {
     const phoneMatch = (record.phoneNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
     const searchMatch = nameMatch || emailMatch || phoneMatch;
     
-    const levelMatch = filterLevel === '' || (record.prospectusStage || record.level || 1).toString() === filterLevel;
+    const levelMatch = filterLevel === '' || (record.enquiryLevel || record.prospectusStage || record.level || 1).toString() === filterLevel;
     
     return searchMatch && levelMatch;
   });
 
   const getLevel = (record) => {
-    const level = record.prospectusStage || record.level || 1;
+    const level = record.enquiryLevel || record.prospectusStage || record.level || 1;
     const levelNames = {
-      1: 'Not Purchased',
-      2: 'Purchased', 
-      3: 'Admission',
-      4: 'Enrolled',
-      5: 'Officially Admitted'
+      1: 'Level 1 - Initial Enquiry',
+      2: 'Level 2 - Follow-up', 
+      3: 'Level 3 - Serious Interest',
+      4: 'Level 4 - Documents Submitted',
+      5: 'Level 5 - Admitted Student'
     };
     return levelNames[level] || `Level ${level}`;
   };
 
   const getLevelColor = (record) => {
-    const level = record.prospectusStage || record.level || 1;
+    const level = record.enquiryLevel || record.prospectusStage || record.level || 1;
     const colors = {
       1: 'bg-blue-100 text-blue-800',
       2: 'bg-yellow-100 text-yellow-800',
@@ -233,14 +248,14 @@ const CorrespondenceManagement = () => {
                 <option value="">All Levels</option>
                 {activeTab === 'enquiry' ? (
                   <>
-                    <option value="1">Not Purchased</option>
-                    <option value="2">Purchased</option>
-                    <option value="3">Admission</option>
-                    <option value="4">Enrolled</option>
-                    <option value="5">Officially Admitted</option>
+                    <option value="1">Level 1 - Initial Enquiry</option>
+                    <option value="2">Level 2 - Follow-up</option>
+                    <option value="3">Level 3 - Serious Interest</option>
+                    <option value="4">Level 4 - Documents Submitted</option>
+                    <option value="5">Level 5 - Admitted Student</option>
                   </>
                 ) : (
-                  <option value="5">Officially Admitted Students</option>
+                  <option value="5">Level 5 - Admitted Students Only</option>
                 )}
               </select>
             </div>
@@ -287,7 +302,7 @@ const CorrespondenceManagement = () => {
                               {record.fullName?.firstName} {record.fullName?.lastName}
                             </div>
                             <div className="text-sm text-gray-500">
-                              Father: {record.fullName?.fatherName || 'N/A'}
+                              Father: {record.fatherName || record.fullName?.fatherName || 'N/A'}
                             </div>
                           </div>
                         </div>

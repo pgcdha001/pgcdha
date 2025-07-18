@@ -18,6 +18,15 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
     },
     {
+      id: 'attendance-management',
+      title: 'Attendance Management', 
+      href: '/attendance', 
+      icon: 'UserCheck', 
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: null // Available to Institute Admin, IT, and Teachers
+    },
+    {
       id: 'student-attendance',
       title: 'Student Attendance Reports', 
       href: '/reports?section=student-attendance', 
@@ -131,6 +140,37 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
+    }
+  ],
+
+  // Teacher Role - Access based on their responsibilities
+  'Teacher': [
+    {
+      id: 'attendance-management',
+      title: 'Attendance Management', 
+      href: '/attendance', 
+      icon: 'UserCheck', 
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: null // Teachers access based on class/floor assignments
+    },
+    {
+      id: 'my-classes',
+      title: 'My Classes', 
+      href: '/teacher/classes', 
+      icon: 'BookOpen', 
+      bgGradient: 'from-blue-500 to-blue-600',
+      type: 'normal',
+      permission: null
+    },
+    {
+      id: 'my-timetable',
+      title: 'My Schedule', 
+      href: '/teacher/schedule', 
+      icon: 'Calendar', 
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: null
     }
   ],
 

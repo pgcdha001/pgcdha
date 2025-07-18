@@ -4,6 +4,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
+// Environment validation
+const { validateEnvironment } = require('./config/validateEnv');
+validateEnvironment();
+
 const app = express();
 
 // Security Middleware
@@ -38,16 +42,43 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Database Connection
+// Database Connection with improved error handling
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      maxPoolSize: 10, // Maintain up to 10 socket connections
+      serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      family: 4 // Use IPv4, skip trying IPv6
     });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    
+    // Connection event listeners
+    mongoose.connection.on('connected', () => {
+      console.log('📦 Mongoose connected to MongoDB');
+    });
+    
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ Mongoose connection error:', err);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('📦 Mongoose disconnected from MongoDB');
+    });
+    
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      await mongoose.connection.close();
+      console.log('📦 MongoDB connection closed through app termination');
+      process.exit(0);
+    });
+    
   } catch (error) {
-    console.error('Database connection error:', error);
+    console.error('❌ Database connection error:', error);
+    console.error('💡 Please check your MONGO_URI environment variable');
     process.exit(1);
   }
 };
@@ -61,6 +92,10 @@ const userRoutes = require('./routes/users');
 const dashboardRoutes = require('./routes/dashboard');
 const studentRoutes = require('./routes/students');
 const remarksRoutes = require('./routes/remarks');
+const attendanceRoutes = require('./routes/attendance');
+const classRoutes = require('./routes/classes');
+const timetableRoutes = require('./routes/timetable');
+const teacherAttendanceRoutes = require('./routes/teacherAttendance');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -68,6 +103,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/remarks', remarksRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/classes', classRoutes);
+app.use('/api/timetable', timetableRoutes);
+app.use('/api/teacher-attendance', teacherAttendanceRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

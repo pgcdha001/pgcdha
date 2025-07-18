@@ -132,7 +132,7 @@ router.post('/',
       cnic,
       gender,
       phoneNumber,
-      mobileNumber,
+      secondaryPhone, // Updated from mobileNumber
       role = 'Student',
       program,
       dateOfBirth,
@@ -140,8 +140,8 @@ router.post('/',
       reference,
       emergencyContact,
       status = 'active',
-      matriculationObtainedMarks,
-      matriculationTotalMarks
+      matricMarks,      // Updated from matriculationObtainedMarks
+      matricTotal       // Updated from matriculationTotalMarks
     } = req.body;
 
     // Validate required fields
@@ -196,7 +196,7 @@ router.post('/',
     // Normalize role before creating user
     const normalizedRole = normalizeRole(role);
     
-    // Create new user
+    // Create new user with simplified schema
     const userData = {
       email,
       userName,
@@ -210,7 +210,7 @@ router.post('/',
       gender,
       dob: dateOfBirth ? new Date(dateOfBirth) : undefined,
       phoneNumber,
-      mobileNumber,
+      secondaryPhone,
       program,
       address,
       reference,
@@ -219,8 +219,8 @@ router.post('/',
       isApproved: true,
       createdOn: new Date(),
       updatedOn: new Date(),
-      matriculationObtainedMarks: matriculationObtainedMarks !== undefined && matriculationObtainedMarks !== '' && !isNaN(matriculationObtainedMarks) ? Number(matriculationObtainedMarks) : undefined,
-      matriculationTotalMarks: matriculationTotalMarks !== undefined && matriculationTotalMarks !== '' && !isNaN(matriculationTotalMarks) ? Number(matriculationTotalMarks) : undefined
+      matricMarks: matricMarks !== undefined && matricMarks !== '' && !isNaN(matricMarks) ? Number(matricMarks) : undefined,
+      matricTotal: matricTotal !== undefined && matricTotal !== '' && !isNaN(matricTotal) ? Number(matricTotal) : undefined
     };
 
     // Handle emergency contact if provided
@@ -273,7 +273,7 @@ router.put('/:id',
       cnic,
       gender,
       phoneNumber,
-      mobileNumber,
+      secondaryPhone,
       role,
       program,
       dateOfBirth,
@@ -281,8 +281,8 @@ router.put('/:id',
       reference,
       emergencyContact,
       status,
-      matriculationObtainedMarks,
-      matriculationTotalMarks
+      matricMarks,
+      matricTotal
     } = req.body;
 
     // Get current user to check if email is changing
@@ -323,13 +323,13 @@ router.put('/:id',
     if (cnic) updateData.cnic = cnic;
     if (gender) updateData.gender = gender;
     if (phoneNumber) updateData.phoneNumber = phoneNumber;
-    if (mobileNumber) updateData.mobileNumber = mobileNumber;
+    if (secondaryPhone) updateData.secondaryPhone = secondaryPhone;
     if (program) updateData.program = program;
     if (dateOfBirth) updateData.dob = new Date(dateOfBirth);
     if (address) updateData.address = address;
     if (reference) updateData.reference = reference;
-    if (matriculationObtainedMarks !== undefined && matriculationObtainedMarks !== '' && !isNaN(matriculationObtainedMarks)) updateData.matriculationObtainedMarks = Number(matriculationObtainedMarks);
-    if (matriculationTotalMarks !== undefined && matriculationTotalMarks !== '' && !isNaN(matriculationTotalMarks)) updateData.matriculationTotalMarks = Number(matriculationTotalMarks);
+    if (matricMarks !== undefined && matricMarks !== '' && !isNaN(matricMarks)) updateData.matricMarks = Number(matricMarks);
+    if (matricTotal !== undefined && matricTotal !== '' && !isNaN(matricTotal)) updateData.matricTotal = Number(matricTotal);
 
     // Normalize role if provided
     if (role) {
@@ -607,6 +607,171 @@ router.post('/migration/migrate', asyncHandler(async (req, res) => {
     migration: migrationResults,
     message: 'User role migration completed'
   });
+}));
+
+/**
+ * @route   POST /api/users/bulk-assign-class
+ * @desc    Bulk assign students to a class
+ * @access  Private (InstituteAdmin, Principal)
+ */
+router.post('/bulk-assign-class', asyncHandler(async (req, res) => {
+  // Check if user has permission
+  if (!['InstituteAdmin', 'Principal'].includes(req.user.role)) {
+    return res.status(403).json({ 
+      message: 'Access denied. Only Institute Admin and Principal can bulk assign students to classes.' 
+    });
+  }
+
+  const { studentIds, classId } = req.body;
+
+  // Validate required fields
+  if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+    return res.status(400).json({
+      message: 'Student IDs array is required and must not be empty'
+    });
+  }
+
+  if (!classId) {
+    return res.status(400).json({
+      message: 'Class ID is required'
+    });
+  }
+
+  // Verify all provided IDs are valid ObjectIds
+  const invalidIds = studentIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
+  if (invalidIds.length > 0) {
+    return res.status(400).json({
+      message: `Invalid student IDs: ${invalidIds.join(', ')}`
+    });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(classId)) {
+    return res.status(400).json({
+      message: 'Invalid class ID'
+    });
+  }
+
+  // Check if class exists
+  const Class = require('../models/Class');
+  const classDoc = await Class.findById(classId);
+  if (!classDoc) {
+    return res.status(404).json({
+      message: 'Class not found'
+    });
+  }
+
+  // Find students and verify they exist and are students
+  const students = await User.find({
+    _id: { $in: studentIds },
+    role: 'Student',
+    enquiryLevel: 5, // Only Level 5 (admitted) students can be assigned to classes
+    status: { $ne: 3 } // Not deleted
+  });
+
+  if (students.length !== studentIds.length) {
+    const foundIds = students.map(s => s._id.toString());
+    const notFoundIds = studentIds.filter(id => !foundIds.includes(id));
+    return res.status(400).json({
+      message: `Some students were not found or are not Level 5 admitted students: ${notFoundIds.join(', ')}`
+    });
+  }
+
+  // Check class capacity
+  const currentStudentCount = await User.countDocuments({
+    classId: classId,
+    role: 'Student',
+    status: { $ne: 3 }
+  });
+
+  if (currentStudentCount + students.length > classDoc.maxStudents) {
+    return res.status(400).json({
+      message: `Cannot assign ${students.length} students. Class capacity would be exceeded. Current: ${currentStudentCount}, Max: ${classDoc.maxStudents}`
+    });
+  }
+
+  // Perform bulk assignment
+  const bulkUpdate = await User.updateMany(
+    { _id: { $in: studentIds } },
+    { 
+      classId: classId,
+      updatedOn: new Date()
+    }
+  );
+
+  // Get updated students for response
+  const updatedStudents = await User.find(
+    { _id: { $in: studentIds } },
+    { password: 0 }
+  ).populate('classId', 'name campus grade floor');
+
+  sendSuccessResponse(res, {
+    assignedCount: bulkUpdate.modifiedCount,
+    students: updatedStudents,
+    class: classDoc
+  }, `Successfully assigned ${bulkUpdate.modifiedCount} students to ${classDoc.name}`);
+}));
+
+/**
+ * @route   PUT /api/users/:id/enquiry-level
+ * @desc    Update user's enquiry level
+ * @access  Private (InstituteAdmin, Principal)
+ */
+router.put('/:id/enquiry-level', asyncHandler(async (req, res) => {
+  // Check if user has permission
+  if (!['InstituteAdmin', 'Principal'].includes(req.user.role)) {
+    return res.status(403).json({ 
+      message: 'Access denied. Only Institute Admin and Principal can update enquiry levels.' 
+    });
+  }
+
+  const { id } = req.params;
+  const { enquiryLevel, admissionInfo } = req.body;
+
+  // Validate enquiry level
+  if (!enquiryLevel || enquiryLevel < 1 || enquiryLevel > 5) {
+    return res.status(400).json({
+      message: 'Enquiry level must be between 1 and 5'
+    });
+  }
+
+  // Find the user
+  const user = await User.findById(id);
+  if (!user) {
+    return res.status(404).json({
+      message: 'User not found'
+    });
+  }
+
+  // Update enquiry level
+  user.enquiryLevel = enquiryLevel;
+  user.updatedOn = new Date();
+
+  // If upgrading to Level 5 (admitted), handle admission info
+  if (enquiryLevel === 5) {
+    if (!admissionInfo || !admissionInfo.grade) {
+      return res.status(400).json({
+        message: 'Grade is required for Level 5 students'
+      });
+    }
+
+    user.admissionInfo = {
+      grade: admissionInfo.grade,
+      className: admissionInfo.className || ''
+    };
+
+    // Auto-assign campus based on gender if not already set
+    if (!user.campus && user.gender) {
+      user.campus = user.gender.toLowerCase() === 'male' ? 'Boys' : 'Girls';
+    }
+  }
+
+  await user.save();
+
+  // Remove sensitive data from response
+  const userResponse = user.toJSON();
+  delete userResponse.password;
+
+  sendSuccessResponse(res, { user: userResponse }, 'Enquiry level updated successfully');
 }));
 
 module.exports = router;

@@ -1,40 +1,15 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const QualificationSchema = new mongoose.Schema({
-  degree: String,
-  institution: String,
-  year: String,
-  grade: String
-}, { _id: false });
-
-const ExperienceSchema = new mongoose.Schema({
-  title: String,
-  organization: String,
-  from: String,
-  to: String,
-  description: String
-}, { _id: false });
-
+// Simplified Family Info Schema - keeping only essential family details
 const FamilyInfoSchema = new mongoose.Schema({
   fatherName: String,
   fatherOccupation: String,
-  fatherOccupationLocation: String,
-  kinship: String,
   emergencyContact: {
     name: String,
     relationship: String,
     phone: String
   }
-}, { _id: false });
-
-const AcademicRecordSchema = new mongoose.Schema({
-  matricMarks: String,
-  matricRollNo: String,
-  matricYear: String,
-  matricBoard: String,
-  firstYearMarks: String,
-  secondYearMarks: String
 }, { _id: false });
 
 const UserSchema = new mongoose.Schema({
@@ -51,27 +26,23 @@ const UserSchema = new mongoose.Schema({
   instituteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Institute' },
   status: { type: Number, default: 1 }, // 1=Active, 2=Paused, 3=Deleted
 
-  // Contact Information
-  phoneNumber: String,
-  phoneNumber2: String,
-  phoneNumber3: String,
-  secondaryPhone: String,  // Added for new form structure
-  mobileNumber: String,    // Added for student mobile number
-  phoneNumbers: {          // Added for structured phone numbers
-    primary: String,
-    secondary: String
-  },
+  // Contact Information - simplified to essential fields only
+  phoneNumber: String,    // Primary phone number
+  secondaryPhone: String, // Secondary phone number (optional)
   address: String,
-  reference: String,       // Added for reference person
+  reference: String,      // Reference person name
   
-  // Academic Background
-  previousSchool: String,  // Added for previous school/college
-  oldSchoolName: String,   // Alternative field name for previous school
-  program: String,         // Added for student program (ICS, ICOM, Pre Engineering, Pre Medical)
+  // Academic Background - simplified
+  previousSchool: String,  // Previous school/college name
+  program: {              // Student program
+    type: String,
+    enum: ['ICS', 'ICOM', 'Pre Engineering', 'Pre Medical'],
+    required: false
+  },
   
-  // Matriculation Details
-  matriculationObtainedMarks: Number,  // Marks obtained in matriculation
-  matriculationTotalMarks: Number,     // Total marks in matriculation
+  // Matriculation Details - simplified
+  matricMarks: Number,     // Marks obtained in matriculation
+  matricTotal: Number,     // Total marks in matriculation
   
   // Personal Information
   gender: String,
@@ -79,6 +50,13 @@ const UserSchema = new mongoose.Schema({
   cnic: String,
   fatherName: String,      // Added for student father name
   imageUrl: String,
+
+  // Campus Assignment (for attendance tracking)
+  campus: {
+    type: String,
+    enum: ['Boys', 'Girls'],
+    required: false // Will be auto-assigned based on gender for active students
+  },
 
   // System Fields
   createdOn: { type: Date, default: Date.now },
@@ -88,39 +66,40 @@ const UserSchema = new mongoose.Schema({
   cookieId: String,
   newLoginOTP: String,
 
-  // Academic/Professional/Role-Specific Fields
-  // For Students
+  // Class Assignment for Students
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
-  previousClassId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
-  society: String,
-  academicRecords: AcademicRecordSchema,
-  sessionActiveYear: String,
-  inquiryLevel: String,
-  prospectusStage: { type: Number, default: 1 }, // 1-6 for inquiry/prospectus stages
-  boardRegistration: String,
-  isEnrolledPreClasses: Boolean,
-  isPassedOut: Boolean,
-  struckOffCount: Number,
-  redNoticeCount: Number,
-  biometricId: String,
   
-  // Enquiry Progression Tracking Fields
+  // Enquiry Level System (1-5)
+  enquiryLevel: { 
+    type: Number, 
+    default: 1,
+    min: 1,
+    max: 5,
+    required: true
+  }, // 1: Initial Enquiry, 2: Follow-up, 3: Serious Interest, 4: Documents Submitted, 5: Admitted
+  
+  // Additional Information for Level 5 (Admitted) Students
+  admissionInfo: {
+    grade: {
+      type: String,
+      enum: ['11th', '12th'],
+      required: function() { return this.enquiryLevel === 5; }
+    },
+    className: {
+      type: String,
+      required: false
+    }
+  },
+  
+  // Essential Student Fields Only
+  prospectusStage: { type: Number, default: 1 }, // Keep for backward compatibility
+  isEnrolledPreClasses: { type: Boolean, default: false },
+  
+  // Enquiry Progression Tracking
   prospectusPurchasedOn: Date,
-  prospectusReturnedOn: Date,
   afSubmittedOn: Date,
   installmentSubmittedOn: Date,
   isProcessed: { type: Boolean, default: false },
-  processedYear: String,
-
-  // For Staff/Teachers
-  specializedIn: String,
-  duties: String,
-  isClassIncharge: Boolean,
-  qualifications: [QualificationSchema],
-  experiences: [ExperienceSchema],
-  applicantInfo: String,
-  allowances: [String],
-  roleResponsibilities: [String],
 
   // Family Info (for all roles)
   familyInfo: FamilyInfoSchema,

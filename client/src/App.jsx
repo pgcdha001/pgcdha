@@ -28,7 +28,10 @@ import UserManagementContainer from './components/user-management/UserManagement
 // Institute Admin pages
 import EnquiryManagementContainer from './components/enquiry/EnquiryManagementContainer';
 import CorrespondenceManagement from './components/correspondence/CorrespondenceManagement';
+import ClassManagement from './pages/institute-admin/ClassManagement';
 
+// Attendance Management
+import AttendanceManagement from './components/attendance/AttendanceManagement';
 
 // Reports
 import ReportsContainer from './components/reports/ReportsContainer';
@@ -74,6 +77,39 @@ const App = () => {
                   allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
                 >
                   <EnquiryManagementContainer />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Class Management - Institute Admin and Principal only */}
+          <Route path="/institute-admin/classes" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  allowedRoles={['InstituteAdmin', 'Principal']}
+                >
+                  <ClassManagement />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Attendance Management */}
+          <Route path="/attendance" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  allowedRoles={['InstituteAdmin', 'IT', 'Teacher']}
+                  customCheck={(user) => {
+                    // Allow Institute Admin and IT full access
+                    if (['InstituteAdmin', 'IT'].includes(user?.role)) return true;
+                    // For Teachers, they need to be either class incharge or floor incharge
+                    // This will be validated in the component level
+                    return user?.role === 'Teacher';
+                  }}
+                >
+                  <AttendanceManagement />
                 </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
