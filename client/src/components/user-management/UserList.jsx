@@ -480,9 +480,14 @@ const UserList = ({
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {user.role === 'Student' ? user.firstName : `${user.firstName} ${user.lastName}`}
+                          {user.role === 'Student' ? 
+                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim() : 
+                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim()
+                          }
                         </p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
+                        <p className="text-sm text-gray-600">
+                          {user.role === 'Student' && user.fatherName ? `Father: ${user.fatherName}` : user.email}
+                        </p>
                       </div>
                     </div>
                   </td>
