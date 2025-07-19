@@ -203,10 +203,9 @@ const UserList = ({
       const response = await userAPI.deleteUser(selectedUser._id);
       if (response.success) {
         toast.success('User deleted successfully');
-        loadUsers(); // Refresh the list after successful deletion
+        loadUsers();
       } else {
         toast.error(response.message || 'Failed to delete user');
-        loadUsers(); // Refresh the list even on API failure to ensure consistency
       }
     } catch (error) {
       console.error('Delete error:', error);
@@ -224,9 +223,6 @@ const UserList = ({
       } else {
         toast.error(error.message || 'Failed to delete user');
       }
-      
-      // Always refresh the list after any deletion attempt to ensure UI consistency
-      loadUsers();
     } finally {
       setShowDeleteModal(false);
       setSelectedUser(null);
@@ -484,14 +480,9 @@ const UserList = ({
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {user.role === 'Student' ? 
-                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim() : 
-                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim()
-                          }
+                          {user.role === 'Student' ? user.firstName : `${user.firstName} ${user.lastName}`}
                         </p>
-                        <p className="text-sm text-gray-600">
-                          {user.role === 'Student' && user.fatherName ? `Father: ${user.fatherName}` : user.email}
-                        </p>
+                        <p className="text-sm text-gray-600">{user.email}</p>
                       </div>
                     </div>
                   </td>
