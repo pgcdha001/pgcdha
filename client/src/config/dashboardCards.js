@@ -18,6 +18,15 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
     },
     {
+      id: 'attendance-management',
+      title: 'Attendance Management', 
+      href: '/attendance', 
+      icon: 'UserCheck', 
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: null // Available to Institute Admin, IT, and Teachers
+    },
+    {
       id: 'student-attendance',
       title: 'Student Attendance Reports', 
       href: '/reports?section=student-attendance', 
@@ -131,6 +140,73 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
+    },
+    {
+      id: 'class-management',
+      title: 'Class Management', 
+      href: '/classes', 
+      icon: 'School', 
+      bgGradient: 'from-cyan-500 to-cyan-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
+    },
+    {
+      id: 'student-assignment',
+      title: 'Bulk Student Assignment', 
+      href: '/classes/assign-students', 
+      icon: 'UserPlus', 
+      bgGradient: 'from-emerald-500 to-emerald-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
+    }
+  ],
+
+  // Teacher Role - Access based on their responsibilities
+  'Teacher': [
+    {
+      id: 'attendance-management',
+      title: 'Attendance Management', 
+      href: '/attendance', 
+      icon: 'UserCheck', 
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: null // Teachers access based on class/floor assignments
+    },
+    {
+      id: 'class-management',
+      title: 'Class Management', 
+      href: '/classes', 
+      icon: 'School', 
+      bgGradient: 'from-teal-500 to-teal-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
+    },
+    {
+      id: 'student-assignment',
+      title: 'Student Assignment', 
+      href: '/classes/assign-students', 
+      icon: 'UserPlus', 
+      bgGradient: 'from-orange-500 to-orange-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
+    },
+    {
+      id: 'my-classes',
+      title: 'My Classes', 
+      href: '/teacher/classes', 
+      icon: 'BookOpen', 
+      bgGradient: 'from-blue-500 to-blue-600',
+      type: 'normal',
+      permission: null
+    },
+    {
+      id: 'my-timetable',
+      title: 'My Schedule', 
+      href: '/teacher/schedule', 
+      icon: 'Calendar', 
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: null
     }
   ],
 
@@ -180,6 +256,73 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
+    }
+  ],
+
+  // Coordinator/Floor Head - Student supervision + Limited enquiry management
+  'Coordinator': [
+    {
+      id: 'student-management',
+      title: 'Student Management', 
+      href: '/admin/users?filter=Student', 
+      icon: 'Users', 
+      bgGradient: 'from-teal-500 to-teal-600',
+      type: 'normal',
+      permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
+    },
+    {
+      id: 'student-attendance',
+      title: 'Student Attendance Reports', 
+      href: '/reports?section=student-attendance', 
+      icon: 'UserCheck',
+      bgGradient: 'from-blue-500 to-blue-600',
+      type: 'sliding',
+      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
+    },
+    {
+      id: 'student-reports',
+      title: 'Student Reports', 
+      href: '/reports?section=students', 
+      icon: 'FileText', 
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
+    },
+    {
+      id: 'correspondence-management',
+      title: 'Student Correspondence', 
+      href: '/correspondence/manage', 
+      icon: 'MessageSquare', 
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
+    },
+    {
+      id: 'enquiry-management',
+      title: 'Enquiry Management', 
+      href: '/institute-admin/enquiries', 
+      icon: 'MessageCircle', 
+      bgGradient: 'from-orange-500 to-orange-600',
+      type: 'normal',
+      permission: PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES
+    },
+    {
+      id: 'class-management',
+      title: 'Class Management', 
+      href: '/classes', 
+      icon: 'School', 
+      bgGradient: 'from-indigo-500 to-indigo-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
+    },
+    {
+      id: 'student-assignment',
+      title: 'Student Assignment', 
+      href: '/classes/assign-students', 
+      icon: 'UserPlus', 
+      bgGradient: 'from-rose-500 to-rose-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     }
   ]
 };
@@ -276,6 +419,37 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'Mail',
       description: 'Add student communication records',
       permission: PERMISSIONS.CORRESPONDENCE.ADD_ENQUIRY_CORRESPONDENCE
+    }
+  ],
+
+  'Coordinator': [
+    {
+      title: 'Student Management',
+      href: '/admin/users?filter=Student',
+      icon: 'Users',
+      description: 'Supervise and manage student information',
+      permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
+    },
+    {
+      title: 'Student Attendance',
+      href: '/reports?section=student-attendance',
+      icon: 'UserCheck',
+      description: 'Monitor student attendance and punctuality',
+      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
+    },
+    {
+      title: 'Student Correspondence',
+      href: '/correspondence/manage',
+      icon: 'MessageSquare',
+      description: 'Manage student communication records',
+      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
+    },
+    {
+      title: 'Enquiry Support',
+      href: '/institute-admin/enquiries',
+      icon: 'MessageCircle',
+      description: 'Support enquiry management processes',
+      permission: PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES
     }
   ]
 };

@@ -63,11 +63,16 @@ const ReportsContainer = () => {
           </PermissionGuard>
         );
       case 'student-attendance':
-      case 'lecture-attendance':
       case 'attendance':
         return (
           <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}>
             <StudentAttendanceReports config={config} />
+          </PermissionGuard>
+        );
+      case 'lecture-attendance':
+        return (
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}>
+            <LectureAttendanceReports config={config} />
           </PermissionGuard>
         );
       case 'examinations':

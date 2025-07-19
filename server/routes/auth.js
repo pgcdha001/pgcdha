@@ -51,14 +51,13 @@ router.post('/register', asyncHandler(async (req, res) => {
   // Normalize role before creating user
   const normalizedRole = normalizeRole(role);
 
-  // Create user data
+  // Create user data with simplified schema
   const userData = {
     email: email.toLowerCase(),
     userName: userName?.toLowerCase(),
     password,
     phoneNumber: phoneNumbers?.primary || phoneNumbers,
-    phoneNumber2: phoneNumbers?.secondary,
-    phoneNumber3: phoneNumbers?.tertiary,
+    secondaryPhone: phoneNumbers?.secondary,
     fullName: {
       firstName: fullName?.firstName || fullName?.split(' ')[0] || '',
       lastName: fullName?.lastName || fullName?.split(' ').slice(1).join(' ') || ''
@@ -68,10 +67,7 @@ router.post('/register', asyncHandler(async (req, res) => {
     cnic,
     role: normalizedRole,
     familyInfo,
-    academicRecords: academicHistory,
     classId: currentClass,
-    session: academicSession,
-    sessionActiveYear: academicYear,
     isActive: true,
     isApproved: false, // Requires approval
     status: 1 // Active status

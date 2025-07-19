@@ -109,6 +109,16 @@ const ROLE_MAPPING = {
   'campus_coordinator': 'CampusCoordinator',
   'campuscoordinator': 'CampusCoordinator',
 
+  // Coordinator variations (Floor Head/General Coordinator)
+  'Coordinator': 'Coordinator',
+  'COORDINATOR': 'Coordinator',
+  'coordinator': 'Coordinator',
+  'Floor Head': 'Coordinator',
+  'floor head': 'Coordinator',
+  'FLOOR_HEAD': 'Coordinator',
+  'floor_head': 'Coordinator',
+  'floorhead': 'Coordinator',
+
   // EMS variations
   'EMS': 'EMS',
   'ems': 'EMS',
@@ -143,6 +153,7 @@ const VALID_ROLES = [
   'HOD',
   'SRO',
   'CampusCoordinator',
+  'Coordinator',
   'EMS',
   'Accounts',
   'IT',

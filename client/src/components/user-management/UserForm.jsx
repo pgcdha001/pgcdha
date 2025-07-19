@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Calendar, Shield, Save, Eye } from 'lucide-react';
+import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, CreditCard } from 'lucide-react';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -22,6 +22,7 @@ const UserForm = ({
   const { toast } = useToast();
   const { userRole, can } = usePermissions();
   const [loading, setLoading] = useState(false);
+  const [classes, setClasses] = useState([]);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -29,23 +30,42 @@ const UserForm = ({
     cnic: '',
     gender: '',
     email: '',
+    password: '',
     phoneNumber: '',
-    mobileNumber: '',
+    secondaryPhone: '',  // Updated from mobileNumber
     role: '',
     program: '',
     dateOfBirth: '',
     address: '',
     reference: '',
     emergencyContact: '',
-    matriculationObtainedMarks: '',
-    matriculationTotalMarks: '',
-    status: 'active'
+    matricMarks: '',     // Updated from matriculationObtainedMarks
+    matricTotal: '',     // Updated from matriculationTotalMarks
+    status: 'active',
+    enquiryLevel: 1,     // New field for enquiry levels
+    admissionInfo: {     // Additional info for Level 5 students
+      grade: '',
+      className: ''
+    }
   });
 
   const [errors, setErrors] = useState({});
 
+  // Load classes for Level 5 students
+  const loadClasses = async () => {
+    try {
+      const response = await userAPI.get('/classes');
+      setClasses(response.data.classes || []);
+    } catch (error) {
+      console.error('Error loading classes:', error);
+    }
+  };
+
   // Initialize form data
   useEffect(() => {
+    // Load classes when component mounts
+    loadClasses();
+    
     if (user && mode !== 'create') {
       setFormData({
         firstName: user.fullName?.firstName || user.firstName || '',
@@ -54,17 +74,23 @@ const UserForm = ({
         cnic: user.cnic || '',
         gender: user.gender || '',
         email: user.email || '',
+        password: '', // Don't prefill password for security
         phoneNumber: user.phoneNumber || user.phoneNumbers?.primary || '',
-        mobileNumber: user.mobileNumber || user.phoneNumbers?.secondary || '',
+        secondaryPhone: user.secondaryPhone || user.mobileNumber || user.phoneNumbers?.secondary || '',
         role: user.role || '',
         program: user.program || '',
         dateOfBirth: user.dateOfBirth || user.dob ? new Date(user.dateOfBirth || user.dob).toISOString().split('T')[0] : '',
         address: user.address || '',
         reference: user.reference || '',
         emergencyContact: user.emergencyContact?.phone || user.emergencyContact || '',
-        matriculationObtainedMarks: user.matriculationObtainedMarks || '',
-        matriculationTotalMarks: user.matriculationTotalMarks || '',
-        status: user.status === 1 ? 'active' : user.status === 2 ? 'inactive' : 'pending'
+        matricMarks: user.matricMarks || user.matriculationObtainedMarks || '',
+        matricTotal: user.matricTotal || user.matriculationTotalMarks || '',
+        status: user.status === 1 ? 'active' : user.status === 2 ? 'inactive' : 'pending',
+        enquiryLevel: user.enquiryLevel || 1,
+        admissionInfo: {
+          grade: user.admissionInfo?.grade || '',
+          className: user.admissionInfo?.className || ''
+        }
       });
     } else {
       // For create mode, set default role based on permissions
@@ -80,6 +106,7 @@ const UserForm = ({
         { value: '', label: 'Select Role' },
         { value: 'Student', label: 'Student' },
         { value: 'Teacher', label: 'Teacher' },
+        { value: 'Coordinator', label: 'Coordinator' },
         { value: 'IT', label: 'IT' },
         { value: 'Receptionist', label: 'Receptionist' },
         { value: 'Staff', label: 'Staff' },
@@ -91,6 +118,7 @@ const UserForm = ({
     const roleMap = {
       'Student': { value: 'Student', label: 'Student' },
       'Teacher': { value: 'Teacher', label: 'Teacher' },
+      'Coordinator': { value: 'Coordinator', label: 'Coordinator' },
       'IT': { value: 'IT', label: 'IT' },
       'Receptionist': { value: 'Receptionist', label: 'Receptionist' },
       'Staff': { value: 'Staff', label: 'Staff' }
@@ -186,13 +214,30 @@ const UserForm = ({
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.role && shouldShowField('role')) newErrors.role = 'Role is required';
     
+    // CNIC is required for all users
+    if (!formData.cnic.trim()) newErrors.cnic = 'CNIC is required';
+    
+    // Password validation for non-student roles
+    if (!isStudentRole()) {
+      if (mode === 'create' && !formData.password.trim()) {
+        newErrors.password = 'Password is required';
+      }
+      if (formData.password && formData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters';
+      }
+    }
+    
     // Additional validation for students
     if (isStudentRole()) {
       if (!formData.fatherName.trim()) newErrors.fatherName = 'Father name is required';
-      if (!formData.cnic.trim()) newErrors.cnic = 'CNIC is required';
       if (!formData.gender) newErrors.gender = 'Gender is required';
       if (!formData.program) newErrors.program = 'Program is required';
       if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
+      
+      // Level 5 student validation
+      if (formData.enquiryLevel == 5) {
+        if (!formData.admissionInfo.grade) newErrors['admissionInfo.grade'] = 'Grade is required for admitted students';
+      }
     }
     
     // Email validation
@@ -201,8 +246,8 @@ const UserForm = ({
       newErrors.email = 'Please enter a valid email address';
     }
 
-    // CNIC validation for students
-    if (isStudentRole() && formData.cnic) {
+    // CNIC validation for all users
+    if (formData.cnic) {
       const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
       if (!cnicRegex.test(formData.cnic)) {
         newErrors.cnic = 'CNIC must be in format: 12345-1234567-1';
@@ -223,7 +268,9 @@ const UserForm = ({
         cnic: 'CNIC',
         gender: 'Gender',
         program: 'Program',
-        phoneNumber: 'Phone Number'
+        phoneNumber: 'Phone Number',
+        enquiryLevel: 'Enquiry Level',
+        'admissionInfo.grade': 'Grade'
       };
       
       const missingFieldNames = missingFields.map(field => fieldLabels[field] || field);
@@ -291,6 +338,15 @@ const UserForm = ({
         }
       }
 
+      // Filter out student-specific fields for non-student roles
+      if (!isStudentRole()) {
+        delete submitData.program;
+        delete submitData.matricMarks;
+        delete submitData.matricTotal;
+        delete submitData.previousSchool;
+        // Keep general fields that might be useful for all roles
+      }
+
       console.log('Submitting data:', submitData);
 
       if (mode === 'create') {
@@ -323,7 +379,20 @@ const UserForm = ({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Handle nested admissionInfo fields
+    if (name.startsWith('admissionInfo.')) {
+      const field = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        admissionInfo: {
+          ...prev.admissionInfo,
+          [field]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -440,27 +509,6 @@ const UserForm = ({
               </div>
             )}
 
-            {/* CNIC - Only for students */}
-            {isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  CNIC *
-                </label>
-                <input
-                  type="text"
-                  name="cnic"
-                  value={formData.cnic}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.cnic ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  placeholder="12345-1234567-1"
-                />
-                {errors.cnic && <p className="text-red-500 text-xs mt-1">{errors.cnic}</p>}
-              </div>
-            )}
-
             {/* Gender - Only for students */}
             {isStudentRole() && (
               <div>
@@ -506,6 +554,55 @@ const UserForm = ({
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
 
+            {/* Password - Required for non-student roles */}
+            {!isStudentRole() && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password {mode === 'create' ? '*' : ''}
+                </label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    readOnly={isReadOnly}
+                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      errors.password ? 'border-red-300' : 'border-gray-300'
+                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                    placeholder={mode === 'edit' ? 'Leave blank to keep current password' : 'Enter password'}
+                  />
+                </div>
+                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                {mode === 'edit' && (
+                  <p className="text-gray-500 text-xs mt-1">Leave blank to keep current password</p>
+                )}
+              </div>
+            )}
+
+            {/* CNIC - Required for all users */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                CNIC *
+              </label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  name="cnic"
+                  value={formData.cnic}
+                  onChange={handleInputChange}
+                  readOnly={isReadOnly}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    errors.cnic ? 'border-red-300' : 'border-gray-300'
+                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                  placeholder="12345-1234567-1"
+                />
+              </div>
+              {errors.cnic && <p className="text-red-500 text-xs mt-1">{errors.cnic}</p>}
+            </div>
+
             {/* Phone Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -528,22 +625,22 @@ const UserForm = ({
               {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
             </div>
 
-            {/* Mobile Number - Only for students */}
+            {/* Secondary Phone - Only for students */}
             {isStudentRole() && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mobile Number
+                  Secondary Phone
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <input
                     type="tel"
-                    name="mobileNumber"
-                    value={formData.mobileNumber}
+                    name="secondaryPhone"
+                    value={formData.secondaryPhone}
                     onChange={handleInputChange}
                     readOnly={isReadOnly}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Enter mobile number"
+                    placeholder="Enter secondary phone number"
                   />
                 </div>
               </div>
@@ -572,6 +669,80 @@ const UserForm = ({
               </div>
             )}
 
+            {/* Enquiry Level - Only for students */}
+            {isStudentRole() && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enquiry Level *
+                </label>
+                <select
+                  name="enquiryLevel"
+                  value={formData.enquiryLevel}
+                  onChange={handleInputChange}
+                  disabled={isReadOnly}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    errors.enquiryLevel ? 'border-red-300' : 'border-gray-300'
+                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                >
+                  <option value={1}>Level 1 - Initial Enquiry</option>
+                  <option value={2}>Level 2 - Follow-up</option>
+                  <option value={3}>Level 3 - Serious Interest</option>
+                  <option value={4}>Level 4 - Documents Submitted</option>
+                  <option value={5}>Level 5 - Admitted Student</option>
+                </select>
+                {errors.enquiryLevel && <p className="text-red-500 text-xs mt-1">{errors.enquiryLevel}</p>}
+              </div>
+            )}
+
+            {/* Grade - Only for Level 5 students */}
+            {isStudentRole() && formData.enquiryLevel == 5 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Grade *
+                </label>
+                <select
+                  name="admissionInfo.grade"
+                  value={formData.admissionInfo.grade}
+                  onChange={handleInputChange}
+                  disabled={isReadOnly}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    errors['admissionInfo.grade'] ? 'border-red-300' : 'border-gray-300'
+                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                >
+                  <option value="">Select Grade</option>
+                  <option value="11th">11th Grade</option>
+                  <option value="12th">12th Grade</option>
+                </select>
+                {errors['admissionInfo.grade'] && <p className="text-red-500 text-xs mt-1">{errors['admissionInfo.grade']}</p>}
+              </div>
+            )}
+
+            {/* Class Name - Only for Level 5 students */}
+            {isStudentRole() && formData.enquiryLevel == 5 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Class Name
+                </label>
+                <select
+                  name="admissionInfo.className"
+                  value={formData.admissionInfo.className}
+                  onChange={handleInputChange}
+                  disabled={isReadOnly}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="">Select Class</option>
+                  {classes
+                    .filter(cls => !formData.admissionInfo.grade || cls.grade === formData.admissionInfo.grade)
+                    .map(cls => (
+                      <option key={cls._id} value={cls.name}>
+                        {cls.name} ({cls.campus} - {cls.program})
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+            )}
+
             {/* Matriculation Marks - Only for students */}
             {isStudentRole() && (
               <div className="grid grid-cols-2 gap-4">
@@ -581,16 +752,16 @@ const UserForm = ({
                   </label>
                   <input
                     type="number"
-                    name="matriculationObtainedMarks"
-                    value={formData.matriculationObtainedMarks}
+                    name="matricMarks"
+                    value={formData.matricMarks}
                     onChange={handleInputChange}
                     placeholder="Enter obtained marks"
                     disabled={isReadOnly}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.matriculationObtainedMarks ? 'border-red-300' : 'border-gray-300'
+                      errors.matricMarks ? 'border-red-300' : 'border-gray-300'
                     } ${isReadOnly ? 'bg-gray-50' : ''}`}
                   />
-                  {errors.matriculationObtainedMarks && <p className="text-red-500 text-xs mt-1">{errors.matriculationObtainedMarks}</p>}
+                  {errors.matricMarks && <p className="text-red-500 text-xs mt-1">{errors.matricMarks}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -598,16 +769,16 @@ const UserForm = ({
                   </label>
                   <input
                     type="number"
-                    name="matriculationTotalMarks"
-                    value={formData.matriculationTotalMarks}
+                    name="matricTotal"
+                    value={formData.matricTotal}
                     onChange={handleInputChange}
                     placeholder="Enter total marks"
                     disabled={isReadOnly}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.matriculationTotalMarks ? 'border-red-300' : 'border-gray-300'
+                      errors.matricTotal ? 'border-red-300' : 'border-gray-300'
                     } ${isReadOnly ? 'bg-gray-50' : ''}`}
                   />
-                  {errors.matriculationTotalMarks && <p className="text-red-500 text-xs mt-1">{errors.matriculationTotalMarks}</p>}
+                  {errors.matricTotal && <p className="text-red-500 text-xs mt-1">{errors.matricTotal}</p>}
                 </div>
               </div>
             )}

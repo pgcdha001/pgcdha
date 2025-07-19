@@ -494,28 +494,482 @@ const EnquiryCorrespondenceReport = ({ config }) => {
   );
 };
 
-// Student Correspondence Report Component (Placeholder)
-const StudentCorrespondenceReport = () => (
-  <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-      <GraduationCap className="h-5 w-5 text-green-500" />
-      Student Correspondence Report
-    </h3>
-    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-      <p className="text-green-800 font-medium mb-2">📋 What this includes:</p>
-      <ul className="text-green-700 text-sm space-y-1 ml-4">
-        <li>• Communication with enrolled students</li>
-        <li>• Attendance-related notices</li>
-        <li>• Exam performance discussions</li>
-        <li>• Behavioral concerns and improvements</li>
-        <li>• Academic progress updates</li>
-        <li>• Parent-teacher meeting records</li>
-      </ul>
+// Student Correspondence Report Component
+const StudentCorrespondenceReport = ({ config }) => {
+  const [correspondenceData, setCorrespondenceData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [filters, setFilters] = useState({
+    grade: 'all',
+    campus: 'all',
+    dateRange: 'all',
+    searchTerm: ''
+  });
+
+  // Helper function to extract notes from remark text
+  const extractNotesFromRemark = (remark) => {
+    if (!remark) return 'No notes';
+    
+    // Check if this is a level change remark
+    const notesMatch = remark.match(/Notes:\s*(.+)$/);
+    if (notesMatch && notesMatch[1]) {
+      return notesMatch[1].trim();
+    }
+    
+    // If it's not a level change remark, return the full remark
+    return remark;
+  };
+
+  useEffect(() => {
+    fetchStudentCorrespondence();
+  }, []);
+
+  const fetchStudentCorrespondence = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get('/students/remarks');
+      if (response && response.data) {
+        // Filter for admitted students (enquiry level 5) with correspondence
+        const admittedStudentsWithCorrespondence = response.data
+          .filter(student => 
+            (student.enquiryLevel || student.prospectusStage || student.level || 1) >= 5 &&
+            student.receptionistRemarks && 
+            student.receptionistRemarks.length > 0
+          )
+          .map(student => ({
+            ...student,
+            totalRemarks: student.receptionistRemarks.length,
+            latestRemark: student.receptionistRemarks[student.receptionistRemarks.length - 1],
+            firstContact: student.receptionistRemarks[0],
+            lastContact: student.receptionistRemarks[student.receptionistRemarks.length - 1]
+          }));
+        
+        setCorrespondenceData(admittedStudentsWithCorrespondence);
+      }
+    } catch (err) {
+      console.error('Failed to fetch student correspondence:', err);
+      setError('Failed to load correspondence data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewDetails = (student) => {
+    setSelectedStudent(student);
+    setShowDetailsModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedStudent(null);
+  };
+
+  // Filter correspondence data
+  const filteredData = correspondenceData.filter(student => {
+    const matchesGrade = filters.grade === 'all' || (student.admissionInfo?.grade === filters.grade);
+    const matchesCampus = filters.campus === 'all' || (student.campus === filters.campus);
+    const matchesSearch = !filters.searchTerm || 
+      `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      (student.email && student.email.toLowerCase().includes(filters.searchTerm.toLowerCase()));
+    
+    // Date range filtering
+    if (filters.dateRange !== 'all') {
+      const daysAgo = parseInt(filters.dateRange);
+      let cutoffDate = new Date();
+      
+      if (daysAgo === 1) {
+        cutoffDate.setHours(0, 0, 0, 0);
+      } else {
+        cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
+      }
+      
+      const hasRecentContact = student.receptionistRemarks.some(remark => 
+        new Date(remark.timestamp) >= cutoffDate
+      );
+      
+      if (!hasRecentContact) return false;
+    }
+    
+    return matchesGrade && matchesCampus && matchesSearch;
+  });
+
+  // Export functions
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Student Correspondence Report', 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Total Records: ${filteredData.length}`, 14, 36);
+
+    const tableData = filteredData.map(student => [
+      `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+      student.email || 'N/A',
+      student.admissionInfo?.grade || 'N/A',
+      student.campus || 'N/A',
+      student.totalRemarks.toString(),
+      student.firstContact ? new Date(student.firstContact.timestamp).toLocaleDateString() : 'N/A',
+      student.lastContact ? new Date(student.lastContact.timestamp).toLocaleDateString() : 'N/A',
+      student.lastContact ? extractNotesFromRemark(student.lastContact.remark).substring(0, 40) + '...' : 'N/A'
+    ]);
+
+    autoTable(doc, {
+      head: [['Student Name', 'Email', 'Grade', 'Campus', 'Total Contacts', 'First Contact', 'Last Contact', 'Latest Remark']],
+      body: tableData,
+      startY: 45,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [34, 197, 94] }
+    });
+
+    doc.save('student-correspondence-report.pdf');
+  };
+
+  const exportExcel = () => {
+    const excelData = filteredData.map(student => ({
+      'Student Name': `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+      'Email': student.email || 'N/A',
+      'Phone': student.phoneNumber || 'N/A',
+      'Grade': student.admissionInfo?.grade || 'N/A',
+      'Campus': student.campus || 'N/A',
+      'Class': student.admissionInfo?.className || 'N/A',
+      'Gender': student.gender || 'N/A',
+      'Total Contacts': student.totalRemarks,
+      'First Contact Date': student.firstContact ? new Date(student.firstContact.timestamp).toLocaleDateString() : 'N/A',
+      'Last Contact Date': student.lastContact ? new Date(student.lastContact.timestamp).toLocaleDateString() : 'N/A',
+      'Latest Remark': student.lastContact ? extractNotesFromRemark(student.lastContact.remark) : 'N/A',
+      'Receptionist': student.lastContact ? student.lastContact.receptionistName : 'N/A'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Student Correspondence');
+    XLSX.writeFile(workbook, 'student-correspondence-report.xlsx');
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
+        <p className="mt-2 text-gray-600">Loading student correspondence data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="text-red-500 mb-4">
+          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Data</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <Button onClick={fetchStudentCorrespondence} variant="outline">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200">
+      {/* Header */}
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <GraduationCap className="h-6 w-6 text-green-500" />
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Student Correspondence Report</h3>
+              <p className="text-sm text-gray-600">Communication records for enrolled students</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={exportPDF} variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+            <Button onClick={exportExcel} variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={filters.searchTerm}
+                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="lg:w-48">
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <select
+                value={filters.grade}
+                onChange={(e) => setFilters(prev => ({ ...prev, grade: e.target.value }))}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+              >
+                <option value="all">All Grades</option>
+                <option value="11th">11th Grade</option>
+                <option value="12th">12th Grade</option>
+              </select>
+            </div>
+          </div>
+          <div className="lg:w-48">
+            <select
+              value={filters.campus}
+              onChange={(e) => setFilters(prev => ({ ...prev, campus: e.target.value }))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+            >
+              <option value="all">All Campus</option>
+              <option value="Boys">Boys Campus</option>
+              <option value="Girls">Girls Campus</option>
+            </select>
+          </div>
+          <div className="lg:w-48">
+            <select
+              value={filters.dateRange}
+              onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+            >
+              <option value="all">All Time</option>
+              <option value="1">Today</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="p-6 border-b border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-green-500 rounded-lg flex items-center justify-center">
+                <GraduationCap className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-green-600 font-medium">Total Students</p>
+                <p className="text-2xl font-bold text-green-900">{filteredData.length}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <MessageSquare className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-blue-600 font-medium">Total Contacts</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {filteredData.reduce((acc, student) => acc + student.totalRemarks, 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Avg. Contacts</p>
+                <p className="text-2xl font-bold text-orange-900">
+                  {filteredData.length > 0 ? 
+                    Math.round(filteredData.reduce((acc, student) => acc + student.totalRemarks, 0) / filteredData.length) 
+                    : 0}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                <Eye className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-purple-600 font-medium">Recent Activity</p>
+                <p className="text-2xl font-bold text-purple-900">
+                  {filteredData.filter(student => {
+                    if (!student.lastContact) return false;
+                    const lastContactDate = new Date(student.lastContact.timestamp);
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    return lastContactDate >= sevenDaysAgo;
+                  }).length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-3 px-6 font-medium text-gray-900">Student</th>
+              <th className="text-left py-3 px-6 font-medium text-gray-900">Grade & Campus</th>
+              <th className="text-left py-3 px-6 font-medium text-gray-900">Contact Info</th>
+              <th className="text-left py-3 px-6 font-medium text-gray-900">Correspondence</th>
+              <th className="text-left py-3 px-6 font-medium text-gray-900">Latest Activity</th>
+              <th className="text-left py-3 px-6 font-medium text-gray-900">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredData.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="py-8 text-center text-gray-500">
+                  <GraduationCap className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No student correspondence found</p>
+                  <p className="text-sm">Students with correspondence records will appear here</p>
+                </td>
+              </tr>
+            ) : (
+              filteredData.map((student) => (
+                <tr key={student._id} className="hover:bg-gray-50">
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-medium text-sm">
+                          {(student.fullName?.firstName?.[0] || '') + (student.fullName?.lastName?.[0] || '')}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {`${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim()}
+                        </p>
+                        <p className="text-sm text-gray-500">ID: {student._id?.slice(-6) || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        {student.admissionInfo?.grade || 'N/A'}
+                      </span>
+                      <p className="text-sm text-gray-600 mt-1">{student.campus || 'N/A'}</p>
+                      {student.admissionInfo?.className && (
+                        <p className="text-xs text-gray-500">{student.admissionInfo.className}</p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="text-sm">
+                      <p className="text-gray-900">{student.email || 'No email'}</p>
+                      <p className="text-gray-500">{student.phoneNumber || 'No phone'}</p>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {student.totalRemarks} contact{student.totalRemarks !== 1 ? 's' : ''}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        First: {student.firstContact ? new Date(student.firstContact.timestamp).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div>
+                      <p className="text-sm text-gray-900">
+                        {student.lastContact ? new Date(student.lastContact.timestamp).toLocaleDateString() : 'N/A'}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate max-w-xs">
+                        {student.lastContact ? extractNotesFromRemark(student.lastContact.remark) : 'No recent activity'}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <Button
+                      onClick={() => handleViewDetails(student)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-medium">
+                      {(selectedStudent.fullName?.firstName?.[0] || '') + (selectedStudent.fullName?.lastName?.[0] || '')}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {`${selectedStudent.fullName?.firstName || ''} ${selectedStudent.fullName?.lastName || ''}`.trim()}
+                    </h3>
+                    <p className="text-sm text-gray-600">Student Correspondence History</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeDetailsModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {selectedStudent.receptionistRemarks.map((remark, index) => (
+                  <div key={index} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {remark.receptionistName || 'Unknown Staff'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          #{selectedStudent.receptionistRemarks.length - index}
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        {new Date(remark.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-gray-700">
+                      {extractNotesFromRemark(remark.remark)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-      <p className="text-gray-600 italic">📊 Student correspondence reporting functionality will be implemented here.</p>
-    </div>
-  </div>
-);
+  );
+};
 
 export default CorrespondenceReports;
