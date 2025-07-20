@@ -24,6 +24,9 @@ router.get('/',
       search = '',
       role = '',
       status = '',
+      enquiryLevel = '',
+      grade = '',
+      campus = '',
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -60,6 +63,24 @@ router.get('/',
       } else if (status === 'pending') {
         filter.isApproved = false;
       }
+    }
+
+    // Enquiry Level filter (for students)
+    if (enquiryLevel) {
+      filter.enquiryLevel = parseInt(enquiryLevel);
+    }
+
+    // Grade filter (for admitted students)
+    if (grade) {
+      filter['admissionInfo.grade'] = grade;
+    }
+
+    // Campus filter (for students)
+    if (campus) {
+      filter.$or = [
+        { 'admissionInfo.campus': campus }, // For admitted students
+        { 'campus': campus } // For general campus assignment
+      ];
     }
 
     // Build sort object
@@ -142,7 +163,9 @@ router.post('/',
       emergencyContact,
       status = 'active',
       matricMarks,      // Updated from matriculationObtainedMarks
-      matricTotal       // Updated from matriculationTotalMarks
+      matricTotal,      // Updated from matriculationTotalMarks
+      coordinatorGrade, // For coordinator role
+      coordinatorCampus // For coordinator role
     } = req.body;
 
     // Validate required fields
@@ -175,6 +198,34 @@ router.post('/',
           success: false,
           message: 'Password is required for non-student users'
         });
+      }
+      
+      // For coordinator role, grade and campus are required
+      if (role === 'Coordinator') {
+        if (!coordinatorGrade) {
+          return res.status(400).json({
+            success: false,
+            message: 'Grade (11th/12th) is required for Coordinator role'
+          });
+        }
+        if (!coordinatorCampus) {
+          return res.status(400).json({
+            success: false,
+            message: 'Campus (Boys/Girls) is required for Coordinator role'
+          });
+        }
+        if (!['11th', '12th'].includes(coordinatorGrade)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Grade must be either 11th or 12th'
+          });
+        }
+        if (!['Boys', 'Girls'].includes(coordinatorCampus)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Campus must be either Boys or Girls'
+          });
+        }
       }
     }
 
@@ -245,6 +296,14 @@ router.post('/',
         emergencyContact: typeof emergencyContact === 'string' ? 
           { name: emergencyContact, relationship: '', phone: '' } : 
           emergencyContact
+      };
+    }
+
+    // Handle coordinator assignment if provided
+    if (normalizedRole === 'Coordinator' && coordinatorGrade && coordinatorCampus) {
+      userData.coordinatorAssignment = {
+        grade: coordinatorGrade,
+        campus: coordinatorCampus
       };
     }
 

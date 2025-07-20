@@ -244,6 +244,30 @@ export const ROLE_COMPONENT_CONFIG = {
       allowedReports: ['enquiries'],
       canExport: false
     }
+  },
+
+  'Coordinator': {
+    userManagement: {
+      allowedRoles: ['Student'], // Can only view students
+      allowedActions: ['view'], // Read-only access, no edit/delete/create
+      showStatistics: true,
+      restrictedFields: ['role', 'permissions', 'password'] // Hide system fields
+    },
+    enquiryManagement: {
+      title: 'Student Supervision',
+      description: 'Monitor admitted students in your assigned grade and campus',
+      allowedLevels: [5], // Can only see Level 5 (admitted) students
+      levelRestrictions: [5], // Restricted to admitted students only
+      allowedActions: ['view'], // Read-only access
+      showStatistics: false,
+      showAttendanceTab: true
+    },
+    reports: {
+      title: 'Student Reports',
+      description: 'View reports for students under your supervision',
+      allowedReports: ['student-attendance', 'students'],
+      canExport: true
+    }
   }
 };
 

@@ -24,6 +24,21 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, required: true }, // e.g., 'SystemAdmin', 'Teacher', etc.
   roleId: { type: String }, // for legacy mapping if needed
   instituteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Institute' },
+  
+  // Coordinator Assignment (only for Coordinator role)
+  coordinatorAssignment: {
+    grade: {
+      type: String,
+      enum: ['11th', '12th'],
+      required: function() { return this.role === 'Coordinator'; }
+    },
+    campus: {
+      type: String,
+      enum: ['Boys', 'Girls'], 
+      required: function() { return this.role === 'Coordinator'; }
+    }
+  },
+  
   status: { type: Number, default: 1 }, // 1=Active, 2=Paused, 3=Deleted
 
   // Contact Information - simplified to essential fields only
