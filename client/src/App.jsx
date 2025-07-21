@@ -28,10 +28,13 @@ import UserManagementContainer from './components/user-management/UserManagement
 // Institute Admin pages
 import EnquiryManagementContainer from './components/enquiry/EnquiryManagementContainer';
 import CorrespondenceManagement from './components/correspondence/CorrespondenceManagement';
-import ClassManagement from './pages/institute-admin/ClassManagement';
+import ClassManagement from './components/class-management/ClassManagement';
+import StudentAssignment from './components/class-management/StudentAssignment';
 
 // Attendance Management
 import AttendanceManagement from './components/attendance/AttendanceManagement';
+import AttendanceDashboard from './components/attendance/AttendanceDashboard';
+import TeacherDashboard from './components/dashboard/TeacherDashboard';
 
 // Reports
 import ReportsContainer from './components/reports/ReportsContainer';
@@ -82,14 +85,29 @@ const App = () => {
             </AuthenticatedRoute>
           } />
 
-          {/* Class Management - Institute Admin and Principal only */}
+          {/* Class Management - Institute Admin and IT only */}
           <Route path="/institute-admin/classes" element={
             <AuthenticatedRoute>
               <Layout>
                 <ProtectedRoute 
-                  allowedRoles={['InstituteAdmin', 'Principal']}
+                  requiredPermission={PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES}
+                  allowedRoles={['InstituteAdmin', 'IT']}
                 >
                   <ClassManagement />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Student Assignment to Classes */}
+          <Route path="/classes/assign-students" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.CLASS_MANAGEMENT.ASSIGN_STUDENTS}
+                  allowedRoles={['InstituteAdmin', 'IT']}
+                >
+                  <StudentAssignment />
                 </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
@@ -109,14 +127,46 @@ const App = () => {
             </AuthenticatedRoute>
           } />
 
-          <Route path="/classes/assign-students" element={
+          {/* Teacher Dashboard */}
+          <Route path="/teacher/dashboard" element={
             <AuthenticatedRoute>
               <Layout>
                 <ProtectedRoute 
-                  requiredPermission={PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS}
+                  allowedRoles={['Teacher']}
+                >
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* Coordinator Attendance Dashboard */}
+          <Route path="/coordinator/attendance" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.ATTENDANCE.MARK_STUDENT_ATTENDANCE}
+                  allowedRoles={['Coordinator']}
+                >
+                  <AttendanceDashboard />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* General Attendance Dashboard */}
+          <Route path="/attendance/dashboard" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermissions={[
+                    PERMISSIONS.ATTENDANCE.MARK_STUDENT_ATTENDANCE,
+                    PERMISSIONS.ATTENDANCE.VIEW_STUDENT_ATTENDANCE
+                  ]}
+                  requireAll={false}
                   allowedRoles={['InstituteAdmin', 'IT', 'Teacher', 'Coordinator']}
                 >
-                  <ClassManagement />
+                  <AttendanceDashboard />
                 </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
@@ -242,10 +292,7 @@ const App = () => {
                   requireAll={false}
                   allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold">Correspondence Management</h1>
-                    <p className="text-gray-600">Coming soon...</p>
-                  </div>
+                  <CorrespondenceManagement />
                 </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
@@ -262,10 +309,7 @@ const App = () => {
                   requireAll={false}
                   allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold">Add Correspondence</h1>
-                    <p className="text-gray-600">Coming soon...</p>
-                  </div>
+                  <CorrespondenceManagement />
                 </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>

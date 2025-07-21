@@ -82,6 +82,24 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-amber-500 to-amber-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
+    },
+    {
+      id: 'class-management',
+      title: 'Class Management', 
+      href: '/classes', 
+      icon: 'School', 
+      bgGradient: 'from-cyan-500 to-cyan-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
+    },
+    {
+      id: 'student-assignment',
+      title: 'Student Assignment', 
+      href: '/classes/assign-students', 
+      icon: 'UserPlus', 
+      bgGradient: 'from-emerald-500 to-emerald-600',
+      type: 'normal',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     }
   ],
 
@@ -357,6 +375,20 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'TrendingUp',
       description: 'Advanced analytics and insights',
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
+    },
+    {
+      title: 'Class Management',
+      href: '/classes',
+      icon: 'School',
+      description: 'Manage classes and student assignments',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
+    },
+    {
+      title: 'Student Assignment',
+      href: '/classes/assign-students',
+      icon: 'UserPlus',
+      description: 'Assign students to classes',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     }
   ],
   
@@ -395,6 +427,20 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'BarChart3',
       description: 'Enquiry analytics and reports',
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
+    },
+    {
+      title: 'Class Management',
+      href: '/classes',
+      icon: 'School',
+      description: 'Manage classes and student assignments',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
+    },
+    {
+      title: 'Student Assignment',
+      href: '/classes/assign-students',
+      icon: 'UserPlus',
+      description: 'Assign students to classes',
+      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     }
   ],
   

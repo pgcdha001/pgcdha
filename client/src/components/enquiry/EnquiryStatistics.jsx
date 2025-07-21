@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Users, TrendingUp, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
+import { ENQUIRY_LEVELS } from '../../constants/enquiryLevels';
 
-const ENQUIRY_LEVELS = [
-  { id: 1, name: 'Not Purchased', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-800', icon: AlertCircle },
-  { id: 2, name: 'Purchased', color: 'yellow', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', icon: Clock },
-  { id: 3, name: 'Returned', color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-800', icon: Clock },
-  { id: 4, name: 'Admission Fee Submitted', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', icon: Clock },
-  { id: 5, name: '1st Installment Submitted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-800', icon: CheckCircle },
-  { id: 6, name: 'Rejected', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-800', icon: XCircle },
-];
+const getIconComponent = (iconName) => {
+  const iconMap = {
+    AlertCircle,
+    Clock,
+    CheckCircle,
+    XCircle
+  };
+  return iconMap[iconName] || Clock;
+};
 
 const EnquiryStatistics = ({ config }) => {
   const [statistics, setStatistics] = useState({
@@ -31,7 +33,7 @@ const EnquiryStatistics = ({ config }) => {
         let filteredEnquiries = enquiries;
         if (config.levelRestrictions && config.levelRestrictions.length > 0) {
           filteredEnquiries = enquiries.filter(enquiry => 
-            config.levelRestrictions.includes(enquiry.prospectusStage || enquiry.level)
+            config.levelRestrictions.includes(enquiry.prospectusStage || enquiry.enquiryLevel)
           );
         }
         
@@ -42,7 +44,7 @@ const EnquiryStatistics = ({ config }) => {
         ENQUIRY_LEVELS.forEach(level => {
           if (!config.levelRestrictions || config.levelRestrictions.includes(level.id)) {
             byLevel[level.id] = filteredEnquiries.filter(enquiry => 
-              (enquiry.prospectusStage || enquiry.level) === level.id
+              (enquiry.prospectusStage || enquiry.enquiryLevel) === level.id
             ).length;
           }
         });
@@ -135,7 +137,7 @@ const EnquiryStatistics = ({ config }) => {
 
         {/* Level Statistics */}
         {getVisibleLevels().slice(0, 3).map((level) => {
-          const IconComponent = level.icon;
+          const IconComponent = getIconComponent(level.iconName);
           const count = statistics.byLevel[level.id] || 0;
           
           return (

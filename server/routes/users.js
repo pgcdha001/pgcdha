@@ -379,7 +379,9 @@ router.put('/:id',
       emergencyContact,
       status,
       matricMarks,
-      matricTotal
+      matricTotal,
+      enquiryLevel,
+      admissionInfo
     } = req.body;
 
     // Get current user to check if email is changing
@@ -427,6 +429,15 @@ router.put('/:id',
     if (reference) updateData.reference = reference;
     if (matricMarks !== undefined && matricMarks !== '' && !isNaN(matricMarks)) updateData.matricMarks = Number(matricMarks);
     if (matricTotal !== undefined && matricTotal !== '' && !isNaN(matricTotal)) updateData.matricTotal = Number(matricTotal);
+
+    // Handle enquiry level and admission info
+    if (enquiryLevel !== undefined) {
+      updateData.enquiryLevel = parseInt(enquiryLevel);
+      updateData.prospectusStage = parseInt(enquiryLevel); // Keep both in sync
+    }
+    if (admissionInfo) {
+      updateData.admissionInfo = admissionInfo;
+    }
 
     // Handle password update if provided
     if (password && password.trim() !== '') {

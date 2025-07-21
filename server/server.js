@@ -61,6 +61,8 @@ const userRoutes = require('./routes/users');
 const dashboardRoutes = require('./routes/dashboard');
 const studentRoutes = require('./routes/students');
 const remarksRoutes = require('./routes/remarks');
+const classRoutes = require('./routes/classes');
+const attendanceRoutes = require('./routes/attendance');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -68,6 +70,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/remarks', remarksRoutes);
+app.use('/api/classes', classRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

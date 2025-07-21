@@ -238,13 +238,18 @@ ClassSchema.methods.canMarkAttendance = function(userId) {
 // Method to update student count
 ClassSchema.methods.updateStudentCount = async function() {
   const User = mongoose.model('User');
+  
+  // Simplified count query - just check for students assigned to this class
   const count = await User.countDocuments({ 
     classId: this._id,
     role: 'Student',
-    isActive: true,
-    prospectusStage: { $gte: 5 },
-    isApproved: true
+    $or: [
+      { prospectusStage: 5 },
+      { enquiryLevel: 5 }
+    ]
   });
+  
+  console.log(`Updating student count for class ${this._id}: found ${count} students`);
   
   this.currentStudents = count;
   return this.save();

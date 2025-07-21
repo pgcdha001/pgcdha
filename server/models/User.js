@@ -15,7 +15,7 @@ const FamilyInfoSchema = new mongoose.Schema({
 const UserSchema = new mongoose.Schema({
   // Core Identity Fields
   userName: { type: String, required: true, unique: true },
-  email: { type: String, required: false, unique: true, sparse: true }, // Made optional with sparse index
+  email: { type: String, required: false }, // Removed unique constraint
   password: { type: String, required: true },
   fullName: {
     firstName: { type: String, required: true },
@@ -168,6 +168,11 @@ const UserSchema = new mongoose.Schema({
 
 // Password hashing pre-save hook
 UserSchema.pre('save', async function(next) {
+  // Auto-assign campus based on gender if not set
+  if (!this.campus && this.gender) {
+    this.campus = this.gender === 'Female' ? 'Girls' : 'Boys';
+  }
+  
   if (!this.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(12);

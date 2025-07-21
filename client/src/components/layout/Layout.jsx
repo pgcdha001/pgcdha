@@ -143,8 +143,8 @@ const Layout = ({ children }) => {
                   }
                 } else {
                   // Item has no query parameters
-                  // Only match if current path matches AND there are no query params
-                  isActive = (currentPath === item.href || currentPath.startsWith(item.href + '/')) && !currentSearch;
+                  // Exact match only - don't use startsWith to avoid conflicts
+                  isActive = currentPath === item.href && !currentSearch;
                 }
                 
                 const IconComponent = Icons[item.icon] || Icons.Circle;

@@ -3,24 +3,17 @@ import { XCircle, Clock, CheckCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useApiWithToast } from '../../hooks/useApiWithToast';
+import { getLevelInfo, getStatusIcon } from '../../constants/enquiryLevels';
 
 const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated }) => {
-  const [selectedLevel, setSelectedLevel] = useState(enquiry?.prospectusStage || enquiry?.level || 1);
+  const [selectedLevel, setSelectedLevel] = useState(enquiry?.prospectusStage || enquiry?.enquiryLevel || 1);
   const [notes, setNotes] = useState('');
   const [updating, setUpdating] = useState(false);
 
   const { handleApiResponse } = useApiWithToast();
 
-  const getLevelInfo = (levelId) => {
-    return availableLevels.find(level => level.id === levelId) || availableLevels[0];
-  };
-
-  const getStatusIcon = (levelId) => {
+  const getStatusIconComponent = (levelId) => {
     switch (levelId) {
-      case 1: return <Clock className="h-4 w-4" />;
-      case 2: return <Clock className="h-4 w-4" />;
-      case 3: return <Clock className="h-4 w-4" />;
-      case 4: return <Clock className="h-4 w-4" />;
       case 5: return <CheckCircle className="h-4 w-4" />;
       case 6: return <XCircle className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
@@ -28,7 +21,7 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
   };
 
   const handleUpdateLevel = async () => {
-    const currentLevel = enquiry.prospectusStage || enquiry.level || 1;
+    const currentLevel = enquiry.prospectusStage || enquiry.enquiryLevel || 1;
     
     // Check if level has changed or if it's the same level but user wants to add notes
     const levelChanged = selectedLevel !== currentLevel;
@@ -93,7 +86,7 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
 
   return (
     <div className="fixed inset-0 backdrop-blur-md flex items-start justify-center z-[9999] p-4 pt-8">
-      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 p-6 w-full max-w-md mx-4 mt-4 transform transition-all duration-200">
+      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 p-6 w-full max-w-md mx-4 mt-[-360px] transform transition-all duration-200">
         <div className="flex justify-between items-start mb-6">
           <h3 className="text-lg font-semibold text-gray-900">
             Update Enquiry Level
@@ -119,9 +112,9 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Current Level
             </label>
-            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getLevelInfo(enquiry.prospectusStage || enquiry.level || 1).bgColor} ${getLevelInfo(enquiry.prospectusStage || enquiry.level || 1).textColor}`}>
-              {getStatusIcon(enquiry.prospectusStage || enquiry.level || 1)}
-              {getLevelInfo(enquiry.prospectusStage || enquiry.level || 1).name}
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getLevelInfo(enquiry.prospectusStage || enquiry.enquiryLevel || 1).bgColor} ${getLevelInfo(enquiry.prospectusStage || enquiry.enquiryLevel || 1).textColor}`}>
+              {getStatusIconComponent(enquiry.prospectusStage || enquiry.enquiryLevel || 1)}
+              {getLevelInfo(enquiry.prospectusStage || enquiry.enquiryLevel || 1).name}
             </div>
           </div>
           
@@ -131,7 +124,7 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
             </label>
             <div className="space-y-2">
               {availableLevels.map((level) => {
-                const currentLevel = enquiry.prospectusStage || enquiry.level || 1;
+                const currentLevel = enquiry.prospectusStage || enquiry.enquiryLevel || 1;
                 const isDowngrade = level.id < currentLevel;
                 const isCurrent = level.id === currentLevel;
                 
@@ -147,7 +140,7 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
                       disabled={updating || isDowngrade || isCurrent}
                     />
                     <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${level.bgColor} ${level.textColor}`}>
-                      {getStatusIcon(level.id)}
+                      {getStatusIconComponent(level.id)}
                       {level.name}
                       {isCurrent && <span className="text-xs">(Current)</span>}
                       {isDowngrade && <span className="text-xs">(Cannot downgrade)</span>}
@@ -160,22 +153,22 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes {selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) ? '(Required)' : '(Optional)'}
+              Notes {selectedLevel !== (enquiry.prospectusStage || enquiry.enquiryLevel || 1) ? '(Required)' : '(Optional)'}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder={selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) ? "Notes are required when changing level..." : "Add notes about this level change..."}
+              placeholder={selectedLevel !== (enquiry.prospectusStage || enquiry.enquiryLevel || 1) ? "Notes are required when changing level..." : "Add notes about this level change..."}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) && !notes.trim() 
+                selectedLevel !== (enquiry.prospectusStage || enquiry.enquiryLevel || 1) && !notes.trim() 
                   ? 'border-red-300 focus:ring-red-500' 
                   : 'border-gray-300'
               }`}
               rows="3"
               disabled={updating}
-              required={selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1)}
+              required={selectedLevel !== (enquiry.prospectusStage || enquiry.enquiryLevel || 1)}
             />
-            {selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) && !notes.trim() && (
+            {selectedLevel !== (enquiry.prospectusStage || enquiry.enquiryLevel || 1) && !notes.trim() && (
               <p className="text-red-500 text-sm mt-1">Notes are required when changing enquiry level</p>
             )}
           </div>
@@ -191,7 +184,7 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
           </Button>
           <Button
             onClick={handleUpdateLevel}
-            disabled={updating || (selectedLevel !== (enquiry.prospectusStage || enquiry.level || 1) && !notes.trim())}
+            disabled={updating || (selectedLevel !== (enquiry.prospectusStage || enquiry.enquiryLevel || 1) && !notes.trim())}
           >
             {updating ? 'Updating...' : 'Update Level'}
           </Button>

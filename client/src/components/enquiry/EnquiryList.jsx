@@ -5,14 +5,7 @@ import PermissionGuard from '../PermissionGuard';
 import EnquiryLevelManager from './EnquiryLevelManager';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/rolePermissions';
-const ENQUIRY_LEVELS = [
-  { id: 1, name: 'Not Purchased', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-800' },
-  { id: 2, name: 'Purchased', color: 'yellow', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800' },
-  { id: 3, name: 'Returned', color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-800' },
-  { id: 4, name: 'Admission Fee Submitted', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800' },
-  { id: 5, name: '1st Installment Submitted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-800' },
-  { id: 6, name: 'Rejected', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-800' },
-];
+import { ENQUIRY_LEVELS, getLevelInfo, getStatusIcon } from '../../constants/enquiryLevels';
 
 const EnquiryList = ({ config }) => {
   const [enquiries, setEnquiries] = useState([]);
@@ -36,7 +29,7 @@ const EnquiryList = ({ config }) => {
       let filteredData = enquiriesData;
       if (config.levelRestrictions && config.levelRestrictions.length > 0) {
         filteredData = enquiriesData.filter(enquiry => 
-          config.levelRestrictions.includes(enquiry.prospectusStage || enquiry.level)
+          config.levelRestrictions.includes(enquiry.prospectusStage || enquiry.enquiryLevel)
         );
       }
       
@@ -71,7 +64,7 @@ const EnquiryList = ({ config }) => {
     // Level filter
     if (filterLevel) {
       filtered = filtered.filter(enquiry => 
-        (enquiry.prospectusStage || enquiry.level) === parseInt(filterLevel)
+        (enquiry.prospectusStage || enquiry.enquiryLevel) === parseInt(filterLevel)
       );
     }
 
@@ -83,16 +76,8 @@ const EnquiryList = ({ config }) => {
     setFilteredEnquiries(filtered);
   }, [enquiries, searchTerm, filterLevel, filterGender]);
 
-  const getLevelInfo = (levelId) => {
-    return ENQUIRY_LEVELS.find(level => level.id === levelId) || ENQUIRY_LEVELS[0];
-  };
-
-  const getStatusIcon = (levelId) => {
+  const getStatusIconComponent = (levelId) => {
     switch (levelId) {
-      case 1: return <Clock className="h-4 w-4" />;
-      case 2: return <Clock className="h-4 w-4" />;
-      case 3: return <Clock className="h-4 w-4" />;
-      case 4: return <Clock className="h-4 w-4" />;
       case 5: return <CheckCircle className="h-4 w-4" />;
       case 6: return <XCircle className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
@@ -120,7 +105,7 @@ const EnquiryList = ({ config }) => {
     try {
       // First, ensure the server update was successful
       await api.put(`/students/${updatedEnquiry._id || updatedEnquiry.id}/level`, {
-        level: updatedEnquiry.prospectusStage || updatedEnquiry.level,
+        level: updatedEnquiry.prospectusStage || updatedEnquiry.enquiryLevel,
         notes: updatedEnquiry.notes || 'Level updated'
       });
 
@@ -244,7 +229,7 @@ const EnquiryList = ({ config }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEnquiries.map((enquiry) => {
-                  const levelInfo = getLevelInfo(enquiry.prospectusStage || enquiry.level || 1);
+                  const levelInfo = getLevelInfo(enquiry.prospectusStage || enquiry.enquiryLevel || 1);
                   const fullName = `${enquiry.fullName?.firstName || ''} ${enquiry.fullName?.lastName || ''}`.trim();
                   const dateCreated = enquiry.createdOn ? new Date(enquiry.createdOn).toLocaleDateString() : 'N/A';
                   const lastUpdated = enquiry.updatedOn ? new Date(enquiry.updatedOn).toLocaleDateString() : 'N/A';
@@ -275,7 +260,7 @@ const EnquiryList = ({ config }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${levelInfo.bgColor} ${levelInfo.textColor}`}>
-                          {getStatusIcon(enquiry.prospectusStage || enquiry.level || 1)}
+                          {getStatusIconComponent(enquiry.prospectusStage || enquiry.enquiryLevel || 1)}
                           {levelInfo.name}
                         </div>
                       </td>
@@ -389,9 +374,9 @@ const EnquiryList = ({ config }) => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Level</label>
-                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getLevelInfo(selectedEnquiry.prospectusStage || selectedEnquiry.level || 1).bgColor} ${getLevelInfo(selectedEnquiry.prospectusStage || selectedEnquiry.level || 1).textColor}`}>
-                  {getStatusIcon(selectedEnquiry.prospectusStage || selectedEnquiry.level || 1)}
-                  {getLevelInfo(selectedEnquiry.prospectusStage || selectedEnquiry.level || 1).name}
+                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getLevelInfo(selectedEnquiry.prospectusStage || selectedEnquiry.enquiryLevel || 1).bgColor} ${getLevelInfo(selectedEnquiry.prospectusStage || selectedEnquiry.enquiryLevel || 1).textColor}`}>
+                  {getStatusIconComponent(selectedEnquiry.prospectusStage || selectedEnquiry.enquiryLevel || 1)}
+                  {getLevelInfo(selectedEnquiry.prospectusStage || selectedEnquiry.enquiryLevel || 1).name}
                 </div>
               </div>
               

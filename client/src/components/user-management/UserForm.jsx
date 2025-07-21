@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, CreditCard } from 'lucide-react';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
+import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
+import { ENQUIRY_LEVELS } from '../../constants/enquiryLevels';
 
 /**
  * User Form Component
@@ -156,6 +158,15 @@ const UserForm = ({
     ];
   };
 
+  // Get available grades for Level 5 students
+  const getAvailableGrades = () => {
+    return [
+      { value: '', label: 'Select Grade' },
+      { value: '11th', label: '11th Grade' },
+      { value: '12th', label: '12th Grade' }
+    ];
+  };
+
   // Check if current role is student
   const isStudentRole = () => {
     return formData.role === 'Student' || (userRole === 'Receptionist' && allowedRoles.includes('Student'));
@@ -246,9 +257,11 @@ const UserForm = ({
       if (!formData.program) newErrors.program = 'Program is required';
       if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
       
-      // Level 5 student validation
-      if (formData.enquiryLevel == 5) {
-        if (!formData.admissionInfo.grade) newErrors['admissionInfo.grade'] = 'Grade is required for admitted students';
+      // Grade validation for Level 5 students (officially admitted)
+      if (formData.enquiryLevel >= 5) {
+        if (!formData.admissionInfo.grade) {
+          newErrors['admissionInfo.grade'] = 'Grade is required for admitted students';
+        }
       }
     }
 
@@ -374,6 +387,22 @@ const UserForm = ({
       }
 
       if (response.success) {
+        // For students, the enquiry level sync should already be handled by the main user update
+        // But let's also sync to the students endpoint for enquiry management consistency
+        if (isStudentRole() && submitData.enquiryLevel && (user?._id || response.data?.user?._id)) {
+          try {
+            const studentId = user?._id || response.data.user._id;
+            await api.put(`/students/${studentId}/level`, {
+              level: submitData.enquiryLevel,
+              notes: `Level updated from user ${mode === 'create' ? 'creation' : 'edit'} form`
+            });
+            console.log('Successfully synced enquiry level to students endpoint');
+          } catch (levelUpdateError) {
+            console.warn('Failed to sync enquiry level to students endpoint:', levelUpdateError);
+            // Don't fail the whole operation for this
+          }
+        }
+        
         toast.success(`User ${mode === 'create' ? 'created' : 'updated'} successfully`);
         onSave();
       } else {
@@ -418,6 +447,19 @@ const UserForm = ({
           coordinatorGrade: value === 'Coordinator' ? prev.coordinatorGrade : '',
           coordinatorCampus: value === 'Coordinator' ? prev.coordinatorCampus : ''
         }));
+      } else if (name === 'enquiryLevel') {
+        // If enquiry level is changing to below 5, clear admission info
+        const newLevel = parseInt(value);
+        setFormData(prev => ({
+          ...prev,
+          [name]: newLevel,
+          // Clear admission info if level drops below 5
+          admissionInfo: {
+            ...prev.admissionInfo,
+            grade: newLevel >= 5 ? prev.admissionInfo.grade : '',
+            className: newLevel >= 5 ? prev.admissionInfo.className : ''
+          }
+        }));
       } else {
         setFormData(prev => ({ ...prev, [name]: value }));
       }
@@ -426,6 +468,15 @@ const UserForm = ({
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+    
+    // Clear admission info errors when enquiry level changes
+    if (name === 'enquiryLevel' && parseInt(e.target.value) < 5) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors['admissionInfo.grade'];
+        return newErrors;
+      });
     }
   };
 
@@ -713,21 +764,26 @@ const UserForm = ({
                     errors.enquiryLevel ? 'border-red-300' : 'border-gray-300'
                   } ${isReadOnly ? 'bg-gray-50' : ''}`}
                 >
-                  <option value={1}>Level 1 - Initial Enquiry</option>
-                  <option value={2}>Level 2 - Follow-up</option>
-                  <option value={3}>Level 3 - Serious Interest</option>
-                  <option value={4}>Level 4 - Documents Submitted</option>
-                  <option value={5}>Level 5 - Admitted Student</option>
+                  {ENQUIRY_LEVELS.map(level => (
+                    <option key={level.id} value={level.id}>
+                      Level {level.id} - {level.shortName}
+                    </option>
+                  ))}
                 </select>
                 {errors.enquiryLevel && <p className="text-red-500 text-xs mt-1">{errors.enquiryLevel}</p>}
               </div>
             )}
 
-            {/* Grade - Only for Level 5 students */}
-            {isStudentRole() && formData.enquiryLevel == 5 && (
+            {/* Grade - Only for Level 5 students (officially admitted) */}
+            {isStudentRole() && formData.enquiryLevel >= 5 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Grade *
+                  <span className="flex items-center gap-2">
+                    Grade *
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      Admitted Student
+                    </span>
+                  </span>
                 </label>
                 <select
                   name="admissionInfo.grade"
@@ -738,37 +794,14 @@ const UserForm = ({
                     errors['admissionInfo.grade'] ? 'border-red-300' : 'border-gray-300'
                   } ${isReadOnly ? 'bg-gray-50' : ''}`}
                 >
-                  <option value="">Select Grade</option>
-                  <option value="11th">11th Grade</option>
-                  <option value="12th">12th Grade</option>
+                  {getAvailableGrades().map(grade => (
+                    <option key={grade.value} value={grade.value}>{grade.label}</option>
+                  ))}
                 </select>
                 {errors['admissionInfo.grade'] && <p className="text-red-500 text-xs mt-1">{errors['admissionInfo.grade']}</p>}
-              </div>
-            )}
-
-            {/* Class Name - Only for Level 5 students */}
-            {isStudentRole() && formData.enquiryLevel == 5 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Class Name
-                </label>
-                <select
-                  name="admissionInfo.className"
-                  value={formData.admissionInfo.className}
-                  onChange={handleInputChange}
-                  disabled={isReadOnly}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="">Select Class</option>
-                  {classes
-                    .filter(cls => !formData.admissionInfo.grade || cls.grade === formData.admissionInfo.grade)
-                    .map(cls => (
-                      <option key={cls._id} value={cls.name}>
-                        {cls.name} ({cls.campus} - {cls.program})
-                      </option>
-                    ))
-                  }
-                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  This field is required for students who have been officially admitted (Level 5)
+                </p>
               </div>
             )}
 

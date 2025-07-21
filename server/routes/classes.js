@@ -22,6 +22,11 @@ router.get('/', authenticate, async (req, res) => {
       .populate('teachers.teacherId', 'fullName userName email')
       .sort({ floor: 1, grade: 1, program: 1, name: 1 });
 
+    // Update student count for each class
+    for (const classDoc of classes) {
+      await classDoc.updateStudentCount();
+    }
+
     res.json({
       success: true,
       classes
