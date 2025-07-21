@@ -497,6 +497,16 @@ export const userAPI = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to migrate user roles' };
     }
+  },
+
+  // Generic GET method for other endpoints
+  get: async (endpoint, params = {}) => {
+    try {
+      const response = await api.get(endpoint, { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: `Failed to fetch ${endpoint}` };
+    }
   }
 };
 

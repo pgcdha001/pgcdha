@@ -39,6 +39,7 @@ const UserForm = ({
     address: '',
     reference: '',
     emergencyContact: '',
+    previousSchool: '',  // Previous school/college name
     matricMarks: '',     // Updated from matriculationObtainedMarks
     matricTotal: '',     // Updated from matriculationTotalMarks
     status: 'active',
@@ -46,7 +47,9 @@ const UserForm = ({
     admissionInfo: {     // Additional info for Level 5 students
       grade: '',
       className: ''
-    }
+    },
+    coordinatorGrade: '', // For coordinator role assignment
+    coordinatorCampus: '' // For coordinator role assignment
   });
 
   const [errors, setErrors] = useState({});
@@ -55,9 +58,14 @@ const UserForm = ({
   const loadClasses = async () => {
     try {
       const response = await userAPI.get('/classes');
-      setClasses(response.data.classes || []);
+      console.log('Classes API response:', response);
+      // Handle different possible response structures
+      const classesData = response.data?.classes || response.classes || response.data || [];
+      setClasses(classesData);
     } catch (error) {
       console.error('Error loading classes:', error);
+      // Don't show error to user, just set empty array
+      setClasses([]);
     }
   };
 
@@ -83,6 +91,7 @@ const UserForm = ({
         address: user.address || '',
         reference: user.reference || '',
         emergencyContact: user.emergencyContact?.phone || user.emergencyContact || '',
+        previousSchool: user.previousSchool || '',
         matricMarks: user.matricMarks || user.matriculationObtainedMarks || '',
         matricTotal: user.matricTotal || user.matriculationTotalMarks || '',
         status: user.status === 1 ? 'active' : user.status === 2 ? 'inactive' : 'pending',
@@ -90,7 +99,9 @@ const UserForm = ({
         admissionInfo: {
           grade: user.admissionInfo?.grade || '',
           className: user.admissionInfo?.className || ''
-        }
+        },
+        coordinatorGrade: user.coordinatorAssignment?.grade || '',
+        coordinatorCampus: user.coordinatorAssignment?.campus || ''
       });
     } else {
       // For create mode, set default role based on permissions
@@ -148,6 +159,11 @@ const UserForm = ({
   // Check if current role is student
   const isStudentRole = () => {
     return formData.role === 'Student' || (userRole === 'Receptionist' && allowedRoles.includes('Student'));
+  };
+
+  // Check if current role is coordinator
+  const isCoordinatorRole = () => {
+    return formData.role === 'Coordinator';
   };
 
   // Check if user can create users
@@ -211,11 +227,7 @@ const UserForm = ({
       newErrors.lastName = 'Last name is required';
     }
     
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.role && shouldShowField('role')) newErrors.role = 'Role is required';
-    
-    // CNIC is required for all users
-    if (!formData.cnic.trim()) newErrors.cnic = 'CNIC is required';
     
     // Password validation for non-student roles
     if (!isStudentRole()) {
@@ -238,6 +250,12 @@ const UserForm = ({
       if (formData.enquiryLevel == 5) {
         if (!formData.admissionInfo.grade) newErrors['admissionInfo.grade'] = 'Grade is required for admitted students';
       }
+    }
+
+    // Additional validation for coordinators
+    if (isCoordinatorRole()) {
+      if (!formData.coordinatorGrade) newErrors.coordinatorGrade = 'Grade assignment is required for coordinators';
+      if (!formData.coordinatorCampus) newErrors.coordinatorCampus = 'Campus assignment is required for coordinators';
     }
     
     // Email validation
@@ -391,7 +409,18 @@ const UserForm = ({
         }
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      // If role is changing, clear coordinator fields if not coordinator
+      if (name === 'role') {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value,
+          // Clear coordinator fields if role is not Coordinator
+          coordinatorGrade: value === 'Coordinator' ? prev.coordinatorGrade : '',
+          coordinatorCampus: value === 'Coordinator' ? prev.coordinatorCampus : ''
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
     }
     
     // Clear error when user starts typing
@@ -535,7 +564,7 @@ const UserForm = ({
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address *
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -581,10 +610,10 @@ const UserForm = ({
               </div>
             )}
 
-            {/* CNIC - Required for all users */}
+            {/* CNIC - Optional for all users */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                CNIC *
+                CNIC
               </label>
               <div className="relative">
                 <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -743,6 +772,26 @@ const UserForm = ({
               </div>
             )}
 
+            {/* Previous School - Only for students */}
+            {isStudentRole() && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Previous School
+                </label>
+                <input
+                  type="text"
+                  name="previousSchool"
+                  value={formData.previousSchool}
+                  onChange={handleInputChange}
+                  readOnly={isReadOnly}
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    isReadOnly ? 'bg-gray-50' : ''
+                  }`}
+                  placeholder="Enter previous school name"
+                />
+              </div>
+            )}
+
             {/* Matriculation Marks - Only for students */}
             {isStudentRole() && (
               <div className="grid grid-cols-2 gap-4">
@@ -807,6 +856,57 @@ const UserForm = ({
                 </div>
                 {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
               </div>
+            )}
+
+            {/* Coordinator Assignment Fields - Only for Coordinator role */}
+            {isCoordinatorRole() && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Coordinator Grade *
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <select
+                      name="coordinatorGrade"
+                      value={formData.coordinatorGrade}
+                      onChange={handleInputChange}
+                      disabled={isReadOnly}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                        errors.coordinatorGrade ? 'border-red-300' : 'border-gray-300'
+                      } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                    >
+                      <option value="">Select Grade</option>
+                      <option value="11th">11th Grade</option>
+                      <option value="12th">12th Grade</option>
+                    </select>
+                  </div>
+                  {errors.coordinatorGrade && <p className="text-red-500 text-xs mt-1">{errors.coordinatorGrade}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Coordinator Campus *
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <select
+                      name="coordinatorCampus"
+                      value={formData.coordinatorCampus}
+                      onChange={handleInputChange}
+                      disabled={isReadOnly}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                        errors.coordinatorCampus ? 'border-red-300' : 'border-gray-300'
+                      } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                    >
+                      <option value="">Select Campus</option>
+                      <option value="Boys">Boys Campus</option>
+                      <option value="Girls">Girls Campus</option>
+                    </select>
+                  </div>
+                  {errors.coordinatorCampus && <p className="text-red-500 text-xs mt-1">{errors.coordinatorCampus}</p>}
+                </div>
+              </>
             )}
 
             {/* Date of Birth */}

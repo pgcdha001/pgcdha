@@ -14,14 +14,17 @@ import {
   Mail,
   User,
   Calendar,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuth } from '../../hooks/useAuth';
 import UserForm from './UserForm';
+import StudentImport from './StudentImport';
 import DeleteConfirmModal from '../../pages/admin/components/DeleteConfirmModal';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
@@ -38,6 +41,7 @@ const UserList = ({
 }) => {
   const { toast } = useToast();
   const { userRole, can } = usePermissions();
+  const { user } = useAuth();
   
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +51,7 @@ const UserList = ({
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
   const [error, setError] = useState('');
 
@@ -104,8 +109,15 @@ const UserList = ({
 
       // Apply role-based filtering
       if (allowedRoles.includes('Student') && allowedRoles.length === 1) {
-        // Receptionist - only students
+        // Receptionist or Coordinator - only students
         params.role = params.role || 'Student';
+        
+        // For Coordinator role, add specific filtering
+        if (userRole === 'Coordinator' && user?.coordinatorAssignment) {
+          params.enquiryLevel = 5; // Only admitted students
+          params.grade = user.coordinatorAssignment.grade; // 11th or 12th
+          params.campus = user.coordinatorAssignment.campus; // Boys or Girls
+        }
       } else if (!allowedRoles.includes('all')) {
         // IT or other limited roles
         params.allowedRoles = allowedRoles.join(',');
@@ -137,7 +149,7 @@ const UserList = ({
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filterRole, filterStatus, allowedRoles]);
+  }, [searchTerm, filterRole, filterStatus, allowedRoles, userRole, user?.coordinatorAssignment]);
 
   useEffect(() => {
     loadUsers();
@@ -390,13 +402,26 @@ const UserList = ({
             }}
             fallback={null}
           >
-            <Button
-              onClick={handleAddUser}
-              className="bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2"
-            >
-              <UserPlus className="h-4 w-4" />
-              {userRole === 'Receptionist' ? 'Add Student' : 'Add User'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleAddUser}
+                className="bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                {userRole === 'Receptionist' ? 'Add Student' : 'Add User'}
+              </Button>
+              
+              {/* Import Students Button - Only for IT and Institute Admin */}
+              {(userRole === 'IT' || userRole === 'InstituteAdmin') && (allowedRoles.includes('Student') || allowedRoles.includes('all')) && (
+                <Button
+                  onClick={() => setShowImportModal(true)}
+                  className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Import Students
+                </Button>
+              )}
+            </div>
           </PermissionGuard>
         </div>
       </div>
@@ -615,6 +640,18 @@ const UserList = ({
           user={selectedUser}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {/* Student Import Modal */}
+      {showImportModal && (
+        <StudentImport
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            loadUsers(); // Refresh the user list after successful import
+            toast.success('Student import completed successfully!');
+          }}
         />
       )}
     </div>

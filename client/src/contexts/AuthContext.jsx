@@ -103,28 +103,51 @@ export const AuthProvider = ({ children }) => {
 
       const token = getAccessToken();
       const userData = getUserData();
+      
+      console.log('Auth initialization:', { hasToken: !!token, hasUserData: !!userData, userRole: userData?.role });
 
       if (token && userData) {
-        // Verify token is still valid
+        // First, restore user state from localStorage
+        console.log('Restoring user from localStorage:', userData);
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_SUCCESS,
+          payload: {
+            user: userData,
+            permissions: userData.permissions || []
+          }
+        });
+
+        // Then verify token is still valid in background
         try {
           const response = await authAPI.getCurrentUser();
           if (response.success) {
+            console.log('Token verification successful, updating with fresh data');
+            // Update with fresh data from server - extract user from response
+            const freshUserData = response.data.user || response.data;
             dispatch({
               type: AUTH_ACTIONS.LOGIN_SUCCESS,
               payload: {
-                user: response.data,
-                permissions: response.data.permissions || []
+                user: freshUserData,
+                permissions: freshUserData.permissions || []
               }
             });
           } else {
             throw new Error('Invalid session');
           }
-        } catch {
-          // Token is invalid, clear stored data
-          clearTokens();
-          dispatch({ type: AUTH_ACTIONS.LOGOUT });
+        } catch (verifyError) {
+          console.log('Token verification failed:', verifyError);
+          // Only clear if the token is actually invalid (401), not on network errors
+          if (verifyError.status === 401 || verifyError.message?.includes('401')) {
+            console.log('Token is invalid, clearing auth state');
+            clearTokens();
+            dispatch({ type: AUTH_ACTIONS.LOGOUT });
+          } else {
+            console.log('Network/server error, keeping user logged in with cached data');
+          }
+          // For other errors (network, server down), keep user logged in with cached data
         }
       } else {
+        console.log('No token or user data found, user not authenticated');
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     } catch (error) {
@@ -147,6 +170,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(credentials);
 
       if (response.success) {
+        console.log('Login successful, user data:', response.data.user);
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
           payload: {
