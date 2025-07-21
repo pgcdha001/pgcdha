@@ -77,14 +77,19 @@ export const usePermissions = () => {
     canViewInstituteDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_INSTITUTE_DASHBOARD),
     canViewITDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_IT_DASHBOARD),
     canViewReceptionistDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_RECEPTIONIST_DASHBOARD),
+    canViewCoordinatorDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_COORDINATOR_DASHBOARD),
+    canViewStudentDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_STUDENT_DASHBOARD),
     
   }), [userRole]);
 
   return {
     ...permissions,
     userRole,
-    isInstituteAdmin: userRole === 'Institute Admin',
+    isInstituteAdmin: userRole === 'InstituteAdmin',
     isIT: userRole === 'IT',
     isReceptionist: userRole === 'Receptionist',
+    isCoordinator: userRole === 'Coordinator',
+    isTeacher: userRole === 'Teacher',
+    isStudent: userRole === 'Student',
   };
 };

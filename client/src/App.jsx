@@ -74,7 +74,7 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   requiredPermission={PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <EnquiryManagementContainer />
                 </ProtectedRoute>
@@ -88,6 +88,33 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   allowedRoles={['InstituteAdmin', 'Principal']}
+                >
+                  <ClassManagement />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          {/* General Class Management for broader access */}
+          <Route path="/classes" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Teacher', 'Coordinator']}
+                >
+                  <ClassManagement />
+                </ProtectedRoute>
+              </Layout>
+            </AuthenticatedRoute>
+          } />
+
+          <Route path="/classes/assign-students" element={
+            <AuthenticatedRoute>
+              <Layout>
+                <ProtectedRoute 
+                  requiredPermission={PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Teacher', 'Coordinator']}
                 >
                   <ClassManagement />
                 </ProtectedRoute>
@@ -121,7 +148,7 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   requiredPermission={PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <CorrespondenceManagement />
                 </ProtectedRoute>
@@ -143,7 +170,7 @@ const App = () => {
                     PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
                   ]}
                   requireAll={false}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <ReportsContainer />
                 </ProtectedRoute>
@@ -168,7 +195,7 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   requiredPermission={PERMISSIONS.USER_MANAGEMENT.VIEW_USERS}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <UserManagementContainer />
                 </ProtectedRoute>
@@ -181,7 +208,7 @@ const App = () => {
               <Layout>
                 <ProtectedRoute 
                   requiredPermission={PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <UserManagementContainer />
                 </ProtectedRoute>
@@ -213,7 +240,7 @@ const App = () => {
                     PERMISSIONS.CORRESPONDENCE.VIEW_STUDENT_CORRESPONDENCE
                   ]}
                   requireAll={false}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <div className="p-6">
                     <h1 className="text-2xl font-bold">Correspondence Management</h1>
@@ -233,7 +260,7 @@ const App = () => {
                     PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
                   ]}
                   requireAll={false}
-                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <div className="p-6">
                     <h1 className="text-2xl font-bold">Add Correspondence</h1>

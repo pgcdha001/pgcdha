@@ -8,28 +8,28 @@ export const PROTECTED_ROUTES = {
   // Admin Routes
   '/admin/users': {
     requiredPermission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS,
-    allowedRoles: ['Institute Admin', 'IT']
+    allowedRoles: ['InstituteAdmin', 'IT', 'Coordinator']
   },
   '/admin/add-student': {
     requiredPermission: PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT,
-    allowedRoles: ['Institute Admin', 'IT', 'Receptionist']
+    allowedRoles: ['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']
   },
   '/admin/advanced-statistics': {
-    allowedRoles: ['Institute Admin']
+    allowedRoles: ['InstituteAdmin']
   },
 
   // Institute Admin Routes
   '/institute-admin/staff': {
     requiredPermission: PERMISSIONS.MANAGEMENT.STAFF_MANAGEMENT,
-    allowedRoles: ['Institute Admin']
+    allowedRoles: ['InstituteAdmin']
   },
   '/institute-admin/students': {
     requiredPermission: PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT,
-    allowedRoles: ['Institute Admin']
+    allowedRoles: ['InstituteAdmin', 'Coordinator']
   },
   '/institute-admin/enquiries': {
     requiredPermission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT,
-    allowedRoles: ['Institute Admin', 'IT', 'Receptionist']
+    allowedRoles: ['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']
   },
 
   // Reports Routes
@@ -42,7 +42,7 @@ export const PROTECTED_ROUTES = {
       PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
     ],
     requireAll: false, // User needs ANY of these permissions
-    allowedRoles: ['Institute Admin', 'IT']
+    allowedRoles: ['InstituteAdmin', 'IT', 'Coordinator', 'Receptionist']
   },
 
   // Correspondence Routes
@@ -52,7 +52,7 @@ export const PROTECTED_ROUTES = {
       PERMISSIONS.CORRESPONDENCE.VIEW_STUDENT_CORRESPONDENCE
     ],
     requireAll: false,
-    allowedRoles: ['Institute Admin', 'IT', 'Receptionist']
+    allowedRoles: ['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']
   },
   '/correspondence/add': {
     requiredPermissions: [
@@ -60,18 +60,31 @@ export const PROTECTED_ROUTES = {
       PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
     ],
     requireAll: false,
-    allowedRoles: ['Institute Admin', 'IT', 'Receptionist']
+    allowedRoles: ['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']
+  },
+
+  // Class Management Routes
+  '/classes': {
+    requiredPermission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES,
+    allowedRoles: ['InstituteAdmin', 'IT', 'Teacher', 'Coordinator']
+  },
+  '/classes/assign-students': {
+    requiredPermission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS,
+    allowedRoles: ['InstituteAdmin', 'IT', 'Teacher', 'Coordinator']
   },
 
   // Role-specific Dashboard Routes (fallback protection)
   '/dashboard/institute-admin': {
-    allowedRoles: ['Institute Admin']
+    allowedRoles: ['InstituteAdmin']
   },
   '/dashboard/it': {
     allowedRoles: ['IT']
   },
   '/dashboard/receptionist': {
     allowedRoles: ['Receptionist']
+  },
+  '/dashboard/coordinator': {
+    allowedRoles: ['Coordinator']
   }
 };
 

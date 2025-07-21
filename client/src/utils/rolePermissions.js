@@ -71,6 +71,7 @@ export const PERMISSIONS = {
     VIEW_INSTITUTE_DASHBOARD: 'dashboard.view_institute_dashboard',
     VIEW_IT_DASHBOARD: 'dashboard.view_it_dashboard',
     VIEW_RECEPTIONIST_DASHBOARD: 'dashboard.view_receptionist_dashboard',
+    VIEW_COORDINATOR_DASHBOARD: 'dashboard.view_coordinator_dashboard',
     VIEW_STUDENT_DASHBOARD: 'dashboard.view_student_dashboard',
   }
 };
@@ -282,7 +283,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT,
     
     // Dashboard
-    PERMISSIONS.DASHBOARD.VIEW_RECEPTIONIST_DASHBOARD, // Reuse receptionist dashboard for now
+    PERMISSIONS.DASHBOARD.VIEW_COORDINATOR_DASHBOARD,
   ],
 };
 
