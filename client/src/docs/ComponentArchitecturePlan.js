@@ -200,7 +200,7 @@ export const ROLE_COMPONENT_CONFIG = {
 
   'IT': {
     userManagement: {
-      allowedRoles: ['Student', 'Teacher', 'Staff', 'IT'], // Cannot create Institute Admin
+      allowedRoles: ['Student', 'Teacher', 'Staff', 'Coordinator', 'IT'], // Can manage most user types except InstituteAdmin
       allowedActions: ['create', 'edit', 'view', 'delete'],
       showStatistics: true,
       showAllFields: true

@@ -15,7 +15,7 @@ const FamilyInfoSchema = new mongoose.Schema({
 const UserSchema = new mongoose.Schema({
   // Core Identity Fields
   userName: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: false, unique: true, sparse: true }, // Made optional with sparse index
   password: { type: String, required: true },
   fullName: {
     firstName: { type: String, required: true },
@@ -78,10 +78,13 @@ const UserSchema = new mongoose.Schema({
   dob: Date,
   cnic: { 
     type: String, 
-    required: true,
+    required: false, // Made optional
     unique: true,
+    sparse: true, // Allows multiple null values
     validate: {
       validator: function(value) {
+        // If CNIC is provided, validate format
+        if (!value) return true; // Allow empty CNIC
         // CNIC can be in format 12345-1234567-1 or 1234512345671 (13 digits)
         const withDashes = /^\d{5}-\d{7}-\d{1}$/;
         const withoutDashes = /^\d{13}$/;

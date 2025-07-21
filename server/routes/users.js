@@ -160,6 +160,7 @@ router.post('/',
       dateOfBirth,
       address,
       reference,
+      previousSchool,
       emergencyContact,
       status = 'active',
       matricMarks,      // Updated from matriculationObtainedMarks
@@ -168,19 +169,28 @@ router.post('/',
       coordinatorCampus // For coordinator role
     } = req.body;
 
+    // For students, if lastName is not provided, use fatherName as lastName
+    let finalLastName = lastName;
+    if (role === 'Student' && !lastName && fatherName) {
+      finalLastName = fatherName;
+    }
+
     // Validate required fields
-    if (!firstName || !lastName || !email) {
+    if (!firstName || !finalLastName) {
       return res.status(400).json({
         success: false,
-        message: 'First name, last name, and email are required'
+        message: 'First name and last name (or father name for students) are required'
       });
     }
+
+    // Preprocess optional fields - convert empty strings to undefined for sparse indexing
+    const processedCnic = cnic && cnic.trim() !== '' ? cnic.trim() : undefined;
+    const processedEmail = email && email.trim() !== '' ? email.trim() : undefined;
 
     // Additional validation for Student role
     if (role === 'Student') {
       const missingFields = [];
       if (!fatherName) missingFields.push('Father name');
-      if (!cnic) missingFields.push('CNIC');
       if (!gender) missingFields.push('Gender');
       if (!program) missingFields.push('Program');
       if (!phoneNumber) missingFields.push('Phone number');
@@ -240,7 +250,7 @@ router.post('/',
     }
 
     // Generate username from first and last name
-    const baseUserName = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`.replace(/\s+/g, '');
+    const baseUserName = `${firstName.toLowerCase()}.${finalLastName.toLowerCase()}`.replace(/\s+/g, '');
     
     // Check if username already exists, if so, append a number
     let userName = baseUserName;
@@ -250,11 +260,17 @@ router.post('/',
       counter++;
     }
 
-    // Generate default password for students (first name + last 4 digits of CNIC or "1234")
+    // Generate default password for students (first name + last 4 digits of CNIC or phone number or "1234")
     // For non-students, use the provided password
     let userPassword;
     if (role === 'Student') {
-      userPassword = `${firstName.toLowerCase()}${cnic ? cnic.slice(-4) : '1234'}`;
+      let suffix = '1234'; // Default suffix
+      if (cnic) {
+        suffix = cnic.replace(/-/g, '').slice(-4); // Last 4 digits of CNIC
+      } else if (phoneNumber) {
+        suffix = phoneNumber.replace(/\D/g, '').slice(-4); // Last 4 digits of phone number
+      }
+      userPassword = `${firstName.toLowerCase()}${suffix}`;
     } else {
       userPassword = password; // Use provided password for non-student users
     }
@@ -264,15 +280,15 @@ router.post('/',
     
     // Create new user with simplified schema
     const userData = {
-      email,
+      email: processedEmail,
       userName,
       password: userPassword,
       fullName: {
         firstName,
-        lastName
+        lastName: finalLastName
       },
       fatherName,
-      cnic,
+      cnic: processedCnic,
       gender,
       dob: dateOfBirth ? new Date(dateOfBirth) : undefined,
       phoneNumber,
@@ -280,6 +296,7 @@ router.post('/',
       program,
       address,
       reference,
+      previousSchool,
       role: normalizedRole,
       isActive: status === 'active',
       isApproved: true,
@@ -305,6 +322,11 @@ router.post('/',
         grade: coordinatorGrade,
         campus: coordinatorCampus
       };
+    }
+
+    // Auto-assign campus based on gender for students
+    if (role === 'Student' && gender) {
+      userData.campus = gender === 'Male' ? 'Boys' : 'Girls';
     }
 
     // Set status based on isActive and isApproved

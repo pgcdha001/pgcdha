@@ -16,7 +16,11 @@ import {
  */
 export const usePermissions = () => {
   const { user } = useAuth();
-  const rawUserRole = user?.role;
+  
+  // Handle nested user structure - check if user has a nested user property
+  // This handles cases where API response structure is stored directly
+  const userData = user?.user || user;
+  const rawUserRole = userData?.role;
   
   // Normalize the role to match permission system expectations
   const userRole = normalizeRole(rawUserRole);

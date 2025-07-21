@@ -39,6 +39,7 @@ const UserForm = ({
     address: '',
     reference: '',
     emergencyContact: '',
+    previousSchool: '',  // Previous school/college name
     matricMarks: '',     // Updated from matriculationObtainedMarks
     matricTotal: '',     // Updated from matriculationTotalMarks
     status: 'active',
@@ -57,9 +58,14 @@ const UserForm = ({
   const loadClasses = async () => {
     try {
       const response = await userAPI.get('/classes');
-      setClasses(response.data.classes || []);
+      console.log('Classes API response:', response);
+      // Handle different possible response structures
+      const classesData = response.data?.classes || response.classes || response.data || [];
+      setClasses(classesData);
     } catch (error) {
       console.error('Error loading classes:', error);
+      // Don't show error to user, just set empty array
+      setClasses([]);
     }
   };
 
@@ -85,6 +91,7 @@ const UserForm = ({
         address: user.address || '',
         reference: user.reference || '',
         emergencyContact: user.emergencyContact?.phone || user.emergencyContact || '',
+        previousSchool: user.previousSchool || '',
         matricMarks: user.matricMarks || user.matriculationObtainedMarks || '',
         matricTotal: user.matricTotal || user.matriculationTotalMarks || '',
         status: user.status === 1 ? 'active' : user.status === 2 ? 'inactive' : 'pending',
@@ -220,11 +227,7 @@ const UserForm = ({
       newErrors.lastName = 'Last name is required';
     }
     
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.role && shouldShowField('role')) newErrors.role = 'Role is required';
-    
-    // CNIC is required for all users
-    if (!formData.cnic.trim()) newErrors.cnic = 'CNIC is required';
     
     // Password validation for non-student roles
     if (!isStudentRole()) {
@@ -561,7 +564,7 @@ const UserForm = ({
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address *
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -607,10 +610,10 @@ const UserForm = ({
               </div>
             )}
 
-            {/* CNIC - Required for all users */}
+            {/* CNIC - Optional for all users */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                CNIC *
+                CNIC
               </label>
               <div className="relative">
                 <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -766,6 +769,26 @@ const UserForm = ({
                     ))
                   }
                 </select>
+              </div>
+            )}
+
+            {/* Previous School - Only for students */}
+            {isStudentRole() && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Previous School
+                </label>
+                <input
+                  type="text"
+                  name="previousSchool"
+                  value={formData.previousSchool}
+                  onChange={handleInputChange}
+                  readOnly={isReadOnly}
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    isReadOnly ? 'bg-gray-50' : ''
+                  }`}
+                  placeholder="Enter previous school name"
+                />
               </div>
             )}
 
