@@ -136,7 +136,7 @@ const CorrespondenceManagement = () => {
     }
   };
 
-  // Filter records based on search term and level
+  // Filter records based on search term and level (cumulative approach)
   const currentData = activeTab === 'enquiry' ? enquiries : students;
   const filteredRecords = currentData.filter(record => {
     const nameMatch = `${record.fullName?.firstName || ''} ${record.fullName?.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
@@ -144,7 +144,9 @@ const CorrespondenceManagement = () => {
     const phoneMatch = (record.phoneNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
     const searchMatch = nameMatch || emailMatch || phoneMatch;
     
-    const levelMatch = filterLevel === '' || (record.enquiryLevel || record.prospectusStage || record.level || 1).toString() === filterLevel;
+    // Cumulative level match - Level 2 includes Level 3 students, Level 3 includes Level 4 students, etc.
+    const currentLevel = record.enquiryLevel || record.prospectusStage || record.level || 1;
+    const levelMatch = filterLevel === '' || currentLevel >= parseInt(filterLevel);
     
     return searchMatch && levelMatch;
   });

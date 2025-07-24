@@ -70,11 +70,12 @@ export const DashboardProvider = ({ children }) => {
       // Calculate today's date
       const today = new Date().toISOString().split('T')[0];
       
-      // Calculate today's enquiries (new registrations)
-      const todayEnquiries = students.filter(student => 
-        student.registrationDate?.includes(today) || 
-        student.createdAt?.includes(today)
-      ).length;
+      // Calculate today's enquiries (new registrations) - check all possible date fields
+      const todayEnquiries = students.filter(student => {
+        const today = new Date().toISOString().split('T')[0];
+        const createdDate = student.createdOn || student.createdAt || student.registrationDate;
+        return createdDate && createdDate.includes(today);
+      }).length;
 
       // Get most recent enquiry
       const recentEnquiry = students.length > 0 ? students[students.length - 1] : null;
@@ -162,9 +163,10 @@ export const DashboardProvider = ({ children }) => {
         timestamp: newStudent.createdAt || new Date().toISOString()
       };
 
-      // Calculate if this is today's enquiry
+      // Calculate if this is today's enquiry - check all possible date fields
       const today = new Date().toISOString().split('T')[0];
-      const isToday = newStudent.createdAt?.includes(today) || new Date().toISOString().includes(today);
+      const createdDate = newStudent.createdOn || newStudent.createdAt || newStudent.registrationDate;
+      const isToday = createdDate && createdDate.includes(today);
 
       return {
         ...prev,

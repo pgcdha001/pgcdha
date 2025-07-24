@@ -6,6 +6,7 @@ import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import RecentActivities from '../../components/dashboard/RecentActivities';
 import QuickInsights from '../../components/dashboard/QuickInsights';
+import PrincipalDashboard from './PrincipalDashboard';
 
 /**
  * Unified Dashboard Component
@@ -18,6 +19,11 @@ const UnifiedDashboard = () => {
   
   // Get user permissions and role
   const { userRole } = usePermissions();
+
+  // Redirect Principal users to their dedicated dashboard
+  if (userRole === 'Principal') {
+    return <PrincipalDashboard />;
+  }
 
   // Get role-specific configuration
   const dashboardCards = getDashboardCardsForRole(userRole);

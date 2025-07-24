@@ -75,6 +75,7 @@ export const usePermissions = () => {
     
     // Dashboard permissions
     canViewInstituteDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_INSTITUTE_DASHBOARD),
+    canViewPrincipalDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_PRINCIPAL_DASHBOARD),
     canViewITDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_IT_DASHBOARD),
     canViewReceptionistDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_RECEPTIONIST_DASHBOARD),
     canViewCoordinatorDashboard: () => hasPermission(userRole, PERMISSIONS.DASHBOARD.VIEW_COORDINATOR_DASHBOARD),
@@ -86,6 +87,7 @@ export const usePermissions = () => {
     ...permissions,
     userRole,
     isInstituteAdmin: userRole === 'InstituteAdmin',
+    isPrincipal: userRole === 'Principal',
     isIT: userRole === 'IT',
     isReceptionist: userRole === 'Receptionist',
     isCoordinator: userRole === 'Coordinator',

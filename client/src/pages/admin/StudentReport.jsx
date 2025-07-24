@@ -58,9 +58,11 @@ const StudentReport = () => {
     }
   };
 
-  // Filtered students
+  // Filtered students (cumulative approach)
   const filteredStudents = students.filter((s) => {
-    const matchesStage = !stageFilter || String(s.prospectusStage || 1) === stageFilter;
+    // Cumulative stage match - Level 2 includes Level 3 students, etc.
+    const currentStage = s.prospectusStage || 1;
+    const matchesStage = !stageFilter || currentStage >= parseInt(stageFilter);
     const matchesName = !nameFilter || (`${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.toLowerCase().includes(nameFilter.toLowerCase()));
     const matchesCnic = !cnicFilter || (s.cnic || '').includes(cnicFilter);
     const matchesGender = !genderFilter || (s.gender || 'Not specified').toLowerCase() === genderFilter.toLowerCase();
@@ -421,14 +423,15 @@ const StudentReport = () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {STAGE_LABELS.map((label, idx) => {
-            const stageCount = students.filter(s => (s.prospectusStage || 1) === (idx + 1)).length;
+            // Cumulative counting - Level 2 includes Level 3 students, etc.
+            const stageCount = students.filter(s => (s.prospectusStage || 1) >= (idx + 1)).length;
             const percentage = ((stageCount / students.length) * 100 || 0).toFixed(1);
             
             return (
               <div key={idx} className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-4 border border-primary/20 hover:shadow-lg transition-all duration-200">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary mb-1">{stageCount}</div>
-                  <div className="text-sm font-semibold text-primary/80 mb-1">Stage {idx + 1}</div>
+                  <div className="text-sm font-semibold text-primary/80 mb-1">Stage {idx + 1}+</div>
                   <div className="text-xs text-muted-foreground">{label}</div>
                   <div className="text-xs text-primary/60 mt-1">{percentage}% of total</div>
                 </div>

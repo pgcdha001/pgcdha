@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import { useDashboard } from '../../contexts/DashboardContext';
 
 /**
  * Student Import Component
@@ -20,6 +21,7 @@ import { useToast } from '../../contexts/ToastContext';
  */
 const StudentImport = ({ isOpen, onClose, onSuccess }) => {
   const { toast } = useToast();
+  const { addNewEnquiry } = useDashboard();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
   const [fieldMapping, setFieldMapping] = useState({});
@@ -34,7 +36,7 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
     'fatherName': { label: 'Father Name * (will be used as Last Name)', required: true, example: 'Robert Doe' },
     'phoneNumber': { label: 'Phone Number *', required: true, example: '+923001234567' },
     'gender': { label: 'Gender *', required: true, example: 'Male or Female' },
-    'program': { label: 'Program *', required: true, example: 'Pre-Engineering' },
+    'program': { label: 'Program *', required: true, example: 'ICS-PHY, ICS-STAT, ICOM, Pre Engineering, Pre Medical, F.A, FA IT, General Science' },
     'enquiryLevel': { label: 'Enquiry Level *', required: true, example: '1 to 5' },
     
     // Optional fields
@@ -57,9 +59,26 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
     const headers = Object.keys(STUDENT_FIELDS);
     
     // Create simple worksheet data - just headers and one empty row for data
+    // Create dummy record as example (will be ignored during import)
+    const dummyRecord = [
+      'Ahmad Ali',        // firstName
+      'Muhammad Khan',    // fatherName
+      'Fatima Bibi',     // motherName
+      '42101-1234567-8', // cnic
+      '2005-03-15',      // dateOfBirth
+      'Male',            // gender
+      '03001234567',     // phoneNumber
+      'House 123, Street 45, Karachi', // address
+      'ICS-PHY',         // program
+      '2',               // enquiryLevel
+      'Interested in engineering', // remarks
+      'Example record - delete this row and add your data below'  // notes
+    ];
+
     const worksheetData = [
-      headers, // Field names as headers
-      [] // Empty row for user to start adding data
+      headers,     // Field names as headers
+      dummyRecord, // Example record showing format
+      []          // Empty row for user to start adding data
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -121,7 +140,19 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
 
         // Extract headers from first row and data starting from row 2
         const headers = jsonData[0];
-        const allRows = jsonData.slice(1).filter(row => row.some(cell => cell !== undefined && cell !== '' && cell !== null));
+        const allRows = jsonData.slice(1).filter(row => {
+          // Filter out empty rows and dummy records
+          const hasData = row.some(cell => cell !== undefined && cell !== '' && cell !== null);
+          if (!hasData) return false;
+          
+          // Skip dummy record (contains "Example record" in the last column)
+          const lastCell = row[row.length - 1];
+          if (lastCell && lastCell.toString().includes('Example record')) {
+            return false;
+          }
+          
+          return true;
+        });
         
         if (allRows.length === 0) {
           toast.error('No data rows found. Please add student data starting from row 2.');
@@ -175,7 +206,19 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
         
         // Simple parsing - headers in row 1, data starts from row 2
-        const allRows = jsonData.slice(1).filter(row => row.some(cell => cell !== undefined && cell !== '' && cell !== null));
+        const allRows = jsonData.slice(1).filter(row => {
+          // Filter out empty rows and dummy records
+          const hasData = row.some(cell => cell !== undefined && cell !== '' && cell !== null);
+          if (!hasData) return false;
+          
+          // Skip dummy record (contains "Example record" in the last column)
+          const lastCell = row[row.length - 1];
+          if (lastCell && lastCell.toString().includes('Example record')) {
+            return false;
+          }
+          
+          return true;
+        });
         
         const mappedData = allRows.map((row, rowIndex) => {
           const studentData = { role: 'Student' };
@@ -206,6 +249,46 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
                 // For students, father name serves as both father name and last name
                 studentData.fatherName = value.toString();
                 studentData.lastName = value.toString(); // Father name becomes last name
+              } else if (fieldKey === 'enquiryLevel') {
+                // Map enquiryLevel to prospectusStage (backend field name)
+                const level = parseInt(value);
+                if (level >= 1 && level <= 5) {
+                  studentData.prospectusStage = level;
+                } else {
+                  studentData.prospectusStage = 1; // Default to level 1
+                }
+              } else if (fieldKey === 'program') {
+                // Clean and standardize program names
+                const program = value.toString().trim();
+                const programMappings = {
+                  'ICS PHY': 'ICS-PHY',
+                  'ICS STAT': 'ICS-STAT',
+                  'ICS-PHY': 'ICS-PHY',
+                  'ICS-STAT': 'ICS-STAT',
+                  'ICOM': 'ICOM',
+                  'Pre Engineering': 'Pre Engineering',
+                  'Pre Medical': 'Pre Medical',
+                  'F.A': 'F.A',
+                  'FA': 'F.A',
+                  'FA IT': 'FA IT',
+                  'General Science': 'General Science'
+                };
+                studentData.program = programMappings[program] || program;
+              } else if (fieldKey === 'gender') {
+                // Standardize gender values
+                const gender = value.toString().trim().toLowerCase();
+                studentData.gender = (gender === 'male' || gender === 'm') ? 'Male' : 
+                                    (gender === 'female' || gender === 'f') ? 'Female' : 
+                                    value.toString();
+              } else if (fieldKey === 'dateOfBirth') {
+                // Handle date of birth
+                studentData.dateOfBirth = value.toString();
+              } else if (fieldKey === 'matricMarks' || fieldKey === 'matricTotal') {
+                // Handle numeric fields
+                const numValue = parseInt(value);
+                if (!isNaN(numValue)) {
+                  studentData[fieldKey] = numValue;
+                }
               } else {
                 studentData[fieldKey] = value.toString();
               }
@@ -221,6 +304,8 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
                 hasValue = studentData.firstName;
               } else if (key === 'fatherName') {
                 hasValue = studentData.fatherName;
+              } else if (key === 'enquiryLevel') {
+                hasValue = studentData.prospectusStage; // Check prospectusStage instead
               } else {
                 hasValue = studentData[key];
               }
@@ -262,7 +347,19 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
           
-          const rows = jsonData.slice(1).filter(row => row.some(cell => cell !== undefined && cell !== ''));
+          const rows = jsonData.slice(1).filter(row => {
+            // Filter out empty rows and dummy records
+            const hasData = row.some(cell => cell !== undefined && cell !== '');
+            if (!hasData) return false;
+            
+            // Skip dummy record (contains "Example record" in the last column)
+            const lastCell = row[row.length - 1];
+            if (lastCell && lastCell.toString().includes('Example record')) {
+              return false;
+            }
+            
+            return true;
+          });
           
           const results = {
             total: rows.length,
@@ -288,7 +385,7 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
                     studentData.admissionInfo = studentData.admissionInfo || {};
                     studentData.admissionInfo.className = value.toString();
                   } else if (fieldKey === 'firstName') {
-                    // If the firstName field contains a full name, split it
+                    // Handle first name - split if it contains full name
                     const nameValue = value.toString().trim();
                     const nameParts = nameValue.split(' ');
                     if (nameParts.length > 1) {
@@ -302,15 +399,80 @@ const StudentImport = ({ isOpen, onClose, onSuccess }) => {
                     // For students, father name serves as both father name and last name
                     studentData.fatherName = value.toString();
                     studentData.lastName = value.toString(); // Father name becomes last name
+                  } else if (fieldKey === 'enquiryLevel') {
+                    // Map enquiryLevel to prospectusStage (backend field name)
+                    const level = parseInt(value);
+                    if (level >= 1 && level <= 5) {
+                      studentData.prospectusStage = level;
+                    } else {
+                      studentData.prospectusStage = 1; // Default to level 1
+                    }
+                  } else if (fieldKey === 'program') {
+                    // Clean and standardize program names
+                    const program = value.toString().trim();
+                    const programMappings = {
+                      'ICS PHY': 'ICS-PHY',
+                      'ICS STAT': 'ICS-STAT',
+                      'ICS-PHY': 'ICS-PHY',
+                      'ICS-STAT': 'ICS-STAT',
+                      'ICOM': 'ICOM',
+                      'Pre Engineering': 'Pre Engineering',
+                      'Pre Medical': 'Pre Medical',
+                      'F.A': 'F.A',
+                      'FA': 'F.A',
+                      'FA IT': 'FA IT',
+                      'General Science': 'General Science'
+                    };
+                    studentData.program = programMappings[program] || program;
+                  } else if (fieldKey === 'gender') {
+                    // Standardize gender values
+                    const gender = value.toString().trim().toLowerCase();
+                    studentData.gender = (gender === 'male' || gender === 'm') ? 'Male' : 
+                                        (gender === 'female' || gender === 'f') ? 'Female' : 
+                                        value.toString();
+                  } else if (fieldKey === 'dateOfBirth') {
+                    // Handle date of birth
+                    studentData.dateOfBirth = value.toString();
+                  } else if (fieldKey === 'matricMarks' || fieldKey === 'matricTotal') {
+                    // Handle numeric fields
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue)) {
+                      studentData[fieldKey] = numValue;
+                    }
                   } else {
                     studentData[fieldKey] = value.toString();
                   }
                 }
               });
 
-              // Attempt to create the user
-              await userAPI.createUser(studentData);
+              // Attempt to create the user - format data to match User model schema
+              const formattedUser = {
+                fullName: {
+                  firstName: studentData.firstName || '',
+                  lastName: studentData.lastName || studentData.fatherName || ''
+                },
+                fatherName: studentData.fatherName || '',
+                motherName: studentData.motherName || '',
+                cnic: studentData.cnic || '',
+                dob: studentData.dateOfBirth || '',
+                gender: studentData.gender || '',
+                phoneNumber: studentData.phoneNumber || '',
+                address: studentData.address || '',
+                program: studentData.program || '',
+                prospectusStage: studentData.prospectusStage || 1,
+                remarks: studentData.remarks || '',
+                status: 1, // Default status for new students
+                role: 'Student',
+                userName: `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // Generate unique userName
+              };
+
+              const createdUser = await userAPI.createUser(formattedUser);
               results.successful++;
+
+              // Notify dashboard of new enquiry
+              if (createdUser?.data?.user) {
+                addNewEnquiry(createdUser.data.user);
+              }
               
             } catch (error) {
               results.failed++;

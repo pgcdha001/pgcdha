@@ -29,6 +29,11 @@ const DashboardHeader = ({
           title: 'Institute Admin Dashboard',
           subtitle: 'Manage institute operations and daily activities'
         };
+      case 'Principal':
+        return {
+          title: 'Principal Dashboard',
+          subtitle: 'Statistical overview and institutional performance metrics'
+        };
       case 'IT':
         return {
           title: 'IT Dashboard',

@@ -11,8 +11,11 @@ const ROLE_MAPPING = {
   'INSTITUTE_ADMIN': 'InstituteAdmin',
   'institute_admin': 'InstituteAdmin',
   'instituteadmin': 'InstituteAdmin',
-  'Principal': 'InstituteAdmin',
-  'principal': 'InstituteAdmin',
+  
+  // Principal variations - now separate from InstituteAdmin
+  'Principal': 'Principal',
+  'principal': 'Principal',
+  'PRINCIPAL': 'Principal',
   
   // College Admin variations
   'College Admin': 'CollegeAdmin',

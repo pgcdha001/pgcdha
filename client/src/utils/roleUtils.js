@@ -11,8 +11,11 @@ const ROLE_MAPPING = {
   'INSTITUTE_ADMIN': 'InstituteAdmin',
   'institute_admin': 'InstituteAdmin',
   'instituteadmin': 'InstituteAdmin',
-  'Principal': 'InstituteAdmin',
-  'principal': 'InstituteAdmin',
+  
+  // Principal variations - now separate from InstituteAdmin
+  'Principal': 'Principal',
+  'principal': 'Principal',
+  'PRINCIPAL': 'Principal',
   
   // College Admin variations
   'College Admin': 'CollegeAdmin',
@@ -98,6 +101,7 @@ const ROLE_MAPPING = {
 // Valid roles in the new system
 const VALID_ROLES = [
   'InstituteAdmin',
+  'Principal',
   'CollegeAdmin', 
   'FinanceAdmin',
   'Teacher',
@@ -112,6 +116,7 @@ const VALID_ROLES = [
 // Role display names
 const ROLE_DISPLAY_NAMES = {
   'InstituteAdmin': 'Institute Admin',
+  'Principal': 'Principal',
   'CollegeAdmin': 'College Admin',
   'FinanceAdmin': 'Finance Admin',
   'Teacher': 'Teacher',
@@ -126,6 +131,7 @@ const ROLE_DISPLAY_NAMES = {
 // Role colors for UI
 const ROLE_COLORS = {
   'InstituteAdmin': 'bg-red-500',
+  'Principal': 'bg-red-600',
   'CollegeAdmin': 'bg-blue-600',
   'FinanceAdmin': 'bg-green-600',
   'Teacher': 'bg-purple-600',
@@ -140,6 +146,7 @@ const ROLE_COLORS = {
 // Role icons (using Lucide icon names)
 const ROLE_ICONS = {
   'InstituteAdmin': 'Shield',
+  'Principal': 'Crown',
   'CollegeAdmin': 'Building2',
   'FinanceAdmin': 'DollarSign',
   'Teacher': 'GraduationCap',
