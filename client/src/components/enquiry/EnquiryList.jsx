@@ -5,7 +5,7 @@ import PermissionGuard from '../PermissionGuard';
 import EnquiryLevelManager from './EnquiryLevelManager';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/rolePermissions';
-import { ENQUIRY_LEVELS, getLevelInfo, getStatusIcon } from '../../constants/enquiryLevels';
+import { ENQUIRY_LEVELS, getLevelInfo } from '../../constants/enquiryLevels';
 
 const EnquiryList = ({ config }) => {
   const [enquiries, setEnquiries] = useState([]);
@@ -61,11 +61,13 @@ const EnquiryList = ({ config }) => {
       });
     }
 
-    // Level filter
+    // Level filter (cumulative approach)
+    // Level 2 includes Level 3 students, Level 3 includes Level 4 students, etc.
     if (filterLevel) {
-      filtered = filtered.filter(enquiry => 
-        (enquiry.prospectusStage || enquiry.enquiryLevel) === parseInt(filterLevel)
-      );
+      filtered = filtered.filter(enquiry => {
+        const currentLevel = enquiry.prospectusStage || enquiry.enquiryLevel;
+        return currentLevel >= parseInt(filterLevel);
+      });
     }
 
     // Gender filter

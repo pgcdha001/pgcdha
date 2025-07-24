@@ -14,7 +14,8 @@ import {
   Mail,
   User,
   Calendar,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
@@ -22,6 +23,7 @@ import { userAPI } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import UserForm from './UserForm';
+import StudentImport from './StudentImport';
 import DeleteConfirmModal from '../../pages/admin/components/DeleteConfirmModal';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
@@ -47,6 +49,7 @@ const UserList = ({
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
   const [error, setError] = useState('');
 
@@ -380,6 +383,23 @@ const UserList = ({
             Export
           </Button>
           
+          {/* Student Import Button - Only show for student management */}
+          {(allowedRoles.includes('Student') && (userRole === 'IT' || can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT))) && (
+            <PermissionGuard 
+              condition={() => can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT)}
+              fallback={null}
+            >
+              <Button
+                onClick={() => setShowImportModal(true)}
+                variant="outline"
+                className="flex items-center gap-2 text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                <Upload className="h-4 w-4" />
+                Import Students
+              </Button>
+            </PermissionGuard>
+          )}
+          
           <PermissionGuard 
             condition={() => {
               const canCreateUser = can(PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
@@ -615,6 +635,19 @@ const UserList = ({
           user={selectedUser}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {/* Student Import Modal */}
+      {showImportModal && (
+        <StudentImport
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            setShowImportModal(false);
+            loadUsers(); // Refresh the user list after import
+            toast.success('Students imported successfully!');
+          }}
         />
       )}
     </div>

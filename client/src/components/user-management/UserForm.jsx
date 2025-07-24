@@ -123,7 +123,8 @@ const UserForm = ({
         { value: 'IT', label: 'IT' },
         { value: 'Receptionist', label: 'Receptionist' },
         { value: 'Staff', label: 'Staff' },
-        { value: 'InstituteAdmin', label: 'Institute Admin' }
+        { value: 'InstituteAdmin', label: 'Institute Admin' },
+        { value: 'Principal', label: 'Principal' }
       ];
     }
 
@@ -151,10 +152,14 @@ const UserForm = ({
   const getAvailablePrograms = () => {
     return [
       { value: '', label: 'Select Program' },
-      { value: 'ICS', label: 'ICS (Computer Science)' },
+      { value: 'ICS-PHY', label: 'ICS-PHY (Computer Science with Physics)' },
+      { value: 'ICS-STAT', label: 'ICS-STAT (Computer Science with Statistics)' },
       { value: 'ICOM', label: 'ICOM (Commerce)' },
       { value: 'Pre Engineering', label: 'Pre Engineering' },
-      { value: 'Pre Medical', label: 'Pre Medical' }
+      { value: 'Pre Medical', label: 'Pre Medical' },
+      { value: 'F.A', label: 'F.A (Faculty of Arts)' },
+      { value: 'FA IT', label: 'FA IT (Faculty of Arts - Information Technology)' },
+      { value: 'General Science', label: 'General Science' }
     ];
   };
 

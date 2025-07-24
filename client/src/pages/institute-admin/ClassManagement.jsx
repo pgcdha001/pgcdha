@@ -434,10 +434,14 @@ const ClassManagement = () => {
                   required
                 >
                   <option value="">Select Program</option>
-                  <option value="ICS">ICS (Computer Science)</option>
+                  <option value="ICS-PHY">ICS-PHY (Computer Science with Physics)</option>
+                  <option value="ICS-STAT">ICS-STAT (Computer Science with Statistics)</option>
                   <option value="ICOM">ICOM (Commerce)</option>
                   <option value="Pre Engineering">Pre Engineering</option>
                   <option value="Pre Medical">Pre Medical</option>
+                  <option value="F.A">F.A (Faculty of Arts)</option>
+                  <option value="FA IT">FA IT (Faculty of Arts - Information Technology)</option>
+                  <option value="General Science">General Science</option>
                 </select>
               </div>
               
@@ -516,10 +520,14 @@ const ClassManagement = () => {
                   onChange={(e) => setClassForm(prev => ({ ...prev, program: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="ICS">ICS (Computer Science)</option>
+                  <option value="ICS-PHY">ICS-PHY (Computer Science with Physics)</option>
+                  <option value="ICS-STAT">ICS-STAT (Computer Science with Statistics)</option>
                   <option value="ICOM">ICOM (Commerce)</option>
                   <option value="Pre Engineering">Pre Engineering</option>
                   <option value="Pre Medical">Pre Medical</option>
+                  <option value="F.A">F.A (Faculty of Arts)</option>
+                  <option value="FA IT">FA IT (Faculty of Arts - Information Technology)</option>
+                  <option value="General Science">General Science</option>
                 </select>
               </div>
               

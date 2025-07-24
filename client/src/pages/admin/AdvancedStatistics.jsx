@@ -184,11 +184,12 @@ const AdvancedStatistics = () => {
     
     const stageStats = stageLabels.map((label, index) => {
       const stage = index + 1;
-      const allInStage = allUsers.filter(u => u.prospectusStage === stage).length;
-      const recentInStage = filteredUsers.filter(u => u.prospectusStage === stage).length;
+      // Cumulative counting - Level 2 includes Level 3 students, etc.
+      const allInStage = allUsers.filter(u => (u.prospectusStage || 1) >= stage).length;
+      const recentInStage = filteredUsers.filter(u => (u.prospectusStage || 1) >= stage).length;
       
       return {
-        stage: `Stage ${stage}`,
+        stage: `Stage ${stage}+`,
         name: label,
         total: allInStage,
         recent: recentInStage,

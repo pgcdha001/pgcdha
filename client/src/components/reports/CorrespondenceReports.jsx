@@ -156,9 +156,11 @@ const EnquiryCorrespondenceReport = ({ config }) => {
     setSelectedStudent(null);
   };
 
-  // Filter correspondence data
+  // Filter correspondence data (cumulative approach)
   const filteredData = correspondenceData.filter(student => {
-    const matchesStage = filters.stage === 'all' || String(student.prospectusStage || 1) === filters.stage;
+    // Cumulative level match - Level 2 includes Level 3 students, etc.
+    const currentLevel = student.prospectusStage || 1;
+    const matchesStage = filters.stage === 'all' || currentLevel >= parseInt(filters.stage);
     const matchesGender = filters.gender === 'all' || (student.gender && student.gender.toLowerCase() === filters.gender.toLowerCase());
     const matchesSearch = !filters.searchTerm || 
       `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
