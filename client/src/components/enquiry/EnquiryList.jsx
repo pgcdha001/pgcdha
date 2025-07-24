@@ -334,15 +334,14 @@ const EnquiryList = ({ config }) => {
               </tbody>
                 </table>
               </div>
-            </div>
-            
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-border/20 bg-white/50">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
-                  </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-border/20 bg-white/50">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
+                    </div>
                   
                   <div className="flex items-center space-x-2">
                     {/* Previous Button */}
@@ -415,10 +414,11 @@ const EnquiryList = ({ config }) => {
                 </div>
               </div>
             )}
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* Level Manager Modal */}
+      {/* Level Manager Modal */}
       {showLevelModal && selectedEnquiry && (
         <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-[9999]">
           <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 p-6 w-full max-w-xl mx-4 animate-fade-in transform transition-all duration-200">
