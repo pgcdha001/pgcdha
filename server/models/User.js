@@ -62,10 +62,10 @@ const UserSchema = new mongoose.Schema({
         if (!value || value.trim() === '') {
           return true; // Allow empty for students too
         }
-        const validPrograms = ['ICS', 'ICOM', 'Pre Engineering', 'Pre Medical'];
+        const validPrograms = ['ICS', 'ICOM', 'Pre Engineering', 'Pre Medical', 'ICS-PHY', 'ICS-STAT', 'FA'];
         return validPrograms.includes(value);
       },
-      message: 'Invalid program. Valid programs are: ICS, ICOM, Pre Engineering, Pre Medical'
+      message: 'Invalid program. Valid programs are: ICS, ICOM, Pre Engineering, Pre Medical, ICS-PHY, ICS-STAT, FA'
     }
   },
   
