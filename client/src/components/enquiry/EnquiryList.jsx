@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, User, Mail, Phone, Clock, XCircle, CheckCircle, Eye, Settings } from 'lucide-react';
+import { Search, Filter, User, Mail, Phone, Clock, XCircle, CheckCircle, Eye, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import PermissionGuard from '../PermissionGuard';
 import EnquiryLevelManager from './EnquiryLevelManager';
@@ -17,6 +17,17 @@ const EnquiryList = ({ config }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Calculate pagination values
+  const totalItems = filteredEnquiries.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredEnquiries.slice(startIndex, endIndex);
 
   const fetchEnquiries = useCallback(async () => {
     setLoading(true);
@@ -76,7 +87,26 @@ const EnquiryList = ({ config }) => {
     }
 
     setFilteredEnquiries(filtered);
+    // Reset to first page when filters change
+    setCurrentPage(1);
   }, [enquiries, searchTerm, filterLevel, filterGender]);
+
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   const getStatusIconComponent = (levelId) => {
     switch (levelId) {
@@ -202,8 +232,12 @@ const EnquiryList = ({ config }) => {
         <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
         <div className="p-6 border-b border-border/20">
           <h2 className="text-2xl font-extrabold text-primary tracking-tight font-[Sora,Inter,sans-serif] drop-shadow-sm">
-            Enquiries ({filteredEnquiries.length})
+            Enquiries ({totalItems})
           </h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} enquiries
+            {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+          </p>
         </div>
         
         {loading ? (
@@ -211,7 +245,7 @@ const EnquiryList = ({ config }) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
             <p className="mt-2 text-gray-600">Loading enquiries...</p>
           </div>
-        ) : filteredEnquiries.length === 0 ? (
+        ) : totalItems === 0 ? (
           <div className="p-8 text-center">
             <p className="text-gray-600">No enquiries found matching your criteria.</p>
           </div>
@@ -230,7 +264,7 @@ const EnquiryList = ({ config }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEnquiries.map((enquiry) => {
+                {currentItems.map((enquiry) => {
                   const levelInfo = getLevelInfo(enquiry.prospectusStage || enquiry.enquiryLevel || 1);
                   const fullName = `${enquiry.fullName?.firstName || ''} ${enquiry.fullName?.lastName || ''}`.trim();
                   const dateCreated = enquiry.createdOn ? new Date(enquiry.createdOn).toLocaleDateString() : 'N/A';
@@ -301,6 +335,86 @@ const EnquiryList = ({ config }) => {
                 </table>
               </div>
             </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-border/20 bg-white/50">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={currentPage === 1}
+                      className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        currentPage === 1
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-gray-600 hover:text-primary hover:bg-primary/10'
+                      }`}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center space-x-1">
+                      {[...Array(totalPages)].map((_, index) => {
+                        const page = index + 1;
+                        const isCurrentPage = page === currentPage;
+                        
+                        // Show first page, last page, current page, and 2 pages around current
+                        if (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        ) {
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => handlePageChange(page)}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                                isCurrentPage
+                                  ? 'bg-primary text-white shadow-md'
+                                  : 'text-gray-600 hover:text-primary hover:bg-primary/10'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        } else if (
+                          (page === currentPage - 2 && currentPage > 3) ||
+                          (page === currentPage + 2 && currentPage < totalPages - 2)
+                        ) {
+                          return (
+                            <span key={page} className="px-2 text-gray-400">
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        currentPage === totalPages
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-gray-600 hover:text-primary hover:bg-primary/10'
+                      }`}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           )}
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, MessageSquare, Plus, Eye, Mail, Phone, User, Calendar, Users, GraduationCap } from 'lucide-react';
+import { Search, Filter, MessageSquare, Plus, Eye, Mail, Phone, User, Calendar, Users, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import PermissionGuard from '../PermissionGuard';
 import api from '../../services/api';
@@ -16,6 +16,10 @@ const CorrespondenceManagement = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [correspondenceNote, setCorrespondenceNote] = useState('');
   const [addingCorrespondence, setAddingCorrespondence] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   const fetchEnquiries = useCallback(async () => {
     setLoading(true);
@@ -151,6 +155,35 @@ const CorrespondenceManagement = () => {
     return searchMatch && levelMatch;
   });
 
+  // Pagination logic
+  const totalItems = filteredRecords.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredRecords.slice(startIndex, endIndex);
+
+  // Reset pagination when tab or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, filterLevel]);
+
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   const getLevel = (record) => {
     const level = record.enquiryLevel || record.prospectusStage || record.level || 1;
     const levelNames = {
@@ -266,6 +299,19 @@ const CorrespondenceManagement = () => {
 
         {/* Records Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {/* Table Header with Count */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {activeTab === 'enquiry' ? 'Enquiries' : 'Students'} ({totalItems})
+            </h3>
+            {totalItems > 0 && (
+              <p className="text-sm text-gray-600 mt-1">
+                Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} records
+                {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+              </p>
+            )}
+          </div>
+          
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -281,7 +327,7 @@ const CorrespondenceManagement = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredRecords.length === 0 ? (
+                {totalItems === 0 ? (
                   <tr>
                     <td colSpan={activeTab === 'enquiry' ? "4" : "3"} className="px-6 py-12 text-center text-gray-500">
                       <MessageSquare className="mx-auto h-12 w-12 text-gray-300 mb-4" />
@@ -290,7 +336,7 @@ const CorrespondenceManagement = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredRecords.map((record) => (
+                  currentItems.map((record) => (
                     <tr key={record._id || record.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -356,6 +402,86 @@ const CorrespondenceManagement = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  {/* Previous Button */}
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                    className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                      currentPage === 1
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center space-x-1">
+                    {[...Array(totalPages)].map((_, index) => {
+                      const page = index + 1;
+                      const isCurrentPage = page === currentPage;
+                      
+                      // Show first page, last page, current page, and 2 pages around current
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                              isCurrentPage
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      } else if (
+                        (page === currentPage - 2 && currentPage > 3) ||
+                        (page === currentPage + 2 && currentPage < totalPages - 2)
+                      ) {
+                        return (
+                          <span key={page} className="px-2 text-gray-400">
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                      currentPage === totalPages
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Add Correspondence Modal */}

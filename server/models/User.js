@@ -62,8 +62,25 @@ const UserSchema = new mongoose.Schema({
         if (!value || value.trim() === '') {
           return true; // Allow empty for students too
         }
+        
+        // Auto-map common variations to valid programs
+        const programMappings = {
+          'ICS': 'ICS-PHY',
+          'ICS PHY': 'ICS-PHY',
+          'ICS STAT': 'ICS-STAT',
+          'FA': 'F.A',
+          'Pre Eng': 'Pre Engineering',
+          'Pre Med': 'Pre Medical'
+        };
+        
+        // Apply mapping if needed
+        const mappedProgram = programMappings[value] || value;
+        if (mappedProgram !== value) {
+          this.program = mappedProgram; // Auto-correct the value
+        }
+        
         const validPrograms = ['ICS-PHY', 'ICS-STAT', 'ICOM', 'Pre Engineering', 'Pre Medical', 'F.A', 'FA IT', 'General Science'];
-        return validPrograms.includes(value);
+        return validPrograms.includes(mappedProgram);
       },
       message: 'Invalid program. Valid programs are: ICS-PHY, ICS-STAT, ICOM, Pre Engineering, Pre Medical, F.A, FA IT, General Science'
     }
@@ -171,6 +188,23 @@ UserSchema.pre('save', async function(next) {
   // Auto-assign campus based on gender if not set
   if (!this.campus && this.gender) {
     this.campus = this.gender === 'Female' ? 'Girls' : 'Boys';
+  }
+  
+  // Auto-map program variations to standard programs for students
+  if (this.role === 'Student' && this.program) {
+    const programMappings = {
+      'ICS': 'ICS-PHY',
+      'ICS PHY': 'ICS-PHY',
+      'ICS STAT': 'ICS-STAT',
+      'FA': 'F.A',
+      'Pre Eng': 'Pre Engineering',
+      'Pre Med': 'Pre Medical'
+    };
+    
+    if (programMappings[this.program]) {
+      console.log(`Auto-mapping program from "${this.program}" to "${programMappings[this.program]}" for student ${this.fullName?.firstName} ${this.fullName?.lastName}`);
+      this.program = programMappings[this.program];
+    }
   }
   
   if (!this.isModified('password')) return next();

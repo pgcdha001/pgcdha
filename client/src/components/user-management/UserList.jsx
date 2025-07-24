@@ -15,7 +15,9 @@ import {
   User,
   Calendar,
   Download,
-  Upload
+  Upload,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
@@ -52,6 +54,10 @@ const UserList = ({
   const [showImportModal, setShowImportModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
   const [error, setError] = useState('');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // Filter role options based on permissions
   const getRoleOptions = () => {
@@ -145,6 +151,11 @@ const UserList = ({
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRole, filterStatus]);
 
   // Update filter when defaultFilter changes
   useEffect(() => {
@@ -364,6 +375,40 @@ const UserList = ({
     );
   }
 
+  // Client-side filtering
+  const filteredUsers = users.filter(user => {
+    const nameMatch = `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
+    const emailMatch = (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const roleMatch = !filterRole || user.role === filterRole;
+    const statusMatch = !filterStatus || user.status === filterStatus;
+    
+    return nameMatch && emailMatch && roleMatch && statusMatch;
+  });
+
+  // Pagination logic
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 p-8">
       {/* Header with Add Button */}
@@ -462,6 +507,19 @@ const UserList = ({
         </div>
       )}
 
+      {/* Table Header with Count */}
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-lg font-semibold text-gray-900">
+          {userRole === 'Receptionist' ? 'Students' : 'Users'} ({totalItems})
+        </h4>
+        {totalItems > 0 && (
+          <p className="text-sm text-gray-600">
+            Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} users
+            {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+          </p>
+        )}
+      </div>
+
       {/* Users Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -487,8 +545,8 @@ const UserList = ({
             </tr>
           </thead>
           <tbody>
-            {users.length > 0 ? (
-              users.map((user) => (
+            {currentUsers.length > 0 ? (
+              currentUsers.map((user) => (
                 <tr key={user._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
@@ -609,6 +667,104 @@ const UserList = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-sm text-gray-600">
+            Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} users
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {(() => {
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                const pages = [];
+                
+                if (startPage > 1) {
+                  pages.push(
+                    <button
+                      key={1}
+                      onClick={() => handlePageChange(1)}
+                      className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      1
+                    </button>
+                  );
+                  if (startPage > 2) {
+                    pages.push(
+                      <span key="ellipsis1" className="px-2 py-2 text-sm text-gray-500">
+                        ...
+                      </span>
+                    );
+                  }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i)}
+                      className={`px-3 py-2 text-sm font-medium rounded-md ${
+                        i === currentPage
+                          ? 'text-white bg-blue-600 border border-blue-600'
+                          : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(
+                      <span key="ellipsis2" className="px-2 py-2 text-sm text-gray-500">
+                        ...
+                      </span>
+                    );
+                  }
+                  pages.push(
+                    <button
+                      key={totalPages}
+                      onClick={() => handlePageChange(totalPages)}
+                      className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  );
+                }
+                
+                return pages;
+              })()}
+            </div>
+            
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* User Modal */}
       {showUserModal && (
