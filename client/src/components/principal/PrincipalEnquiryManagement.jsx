@@ -371,7 +371,7 @@ const PrincipalEnquiryManagement = () => {
           <div className="flex items-center space-x-2 mb-4">
             <span className="font-medium text-gray-700">Level Filter:</span>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-6">
             {levelTabs.map(tab => {
               const count = levelStats[tab.value] || 0;
               const isActive = selectedLevel === tab.value;
@@ -380,15 +380,15 @@ const PrincipalEnquiryManagement = () => {
                 <button
                   key={tab.value}
                   onClick={() => setSelectedLevel(tab.value)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center space-x-2 px-8 py-4 rounded-2xl transition-all duration-200 text-xl font-bold ${
                     isActive 
-                      ? `${tab.color} text-white shadow-lg transform scale-105` 
+                      ? `${tab.color} text-white shadow-lg transform scale-125` 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  <span className="font-medium">{tab.label}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    isActive ? 'bg-white bg-opacity-20 text-white' : 'bg-gray-300 text-gray-700'
+                  <span className="font-bold text-xl">{tab.label}</span>
+                  <span className={`px-4 py-2 rounded-full text-xl font-extrabold ${
+                    isActive ? 'bg-white text-primary shadow' : 'bg-gray-300 text-gray-700'
                   }`}>
                     {count}
                   </span>
