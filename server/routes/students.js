@@ -161,14 +161,6 @@ router.put('/:id/level', authenticate, async (req, res) => {
       console.log(`Initialized both level fields to 1 for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
     }
     
-    // Validate that level can only be upgraded, not downgraded
-    if (level < currentLevel) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot downgrade from level ${currentLevel} to level ${level}. Only upgrades are allowed.`
-      });
-    }
-    
     // If trying to set the same level, return early
     if (level === currentLevel) {
       return res.status(400).json({
@@ -181,6 +173,19 @@ router.put('/:id/level', authenticate, async (req, res) => {
     student.prospectusStage = level;
     student.enquiryLevel = level;
     student.updatedOn = new Date();
+
+    // Handle backward movement from level 5 (admitted)
+    if (currentLevel === 5 && level < 5) {
+      // Remove admission status when moving back from level 5
+      student.isApproved = false;
+      student.isProcessed = false;
+      // Clear admission info since they're no longer admitted
+      if (student.admissionInfo) {
+        student.admissionInfo.grade = undefined;
+        student.admissionInfo.className = undefined;
+      }
+      console.log(`Student ${student.fullName?.firstName} ${student.fullName?.lastName} moved back from admission level - removing admission status`);
+    }
 
     // Update progression date fields based on level
     const currentDate = new Date();
@@ -218,11 +223,15 @@ router.put('/:id/level', authenticate, async (req, res) => {
     }
 
     // Add correspondence record for the level change
-    let remarkText = `Level changed from ${currentLevel} to ${level}. Notes: ${notes.trim()}`;
+    const isUpgrade = level > currentLevel;
+    const isDowngrade = level < currentLevel;
+    let remarkText = `Level ${isUpgrade ? 'upgraded' : isDowngrade ? 'downgraded' : 'changed'} from ${currentLevel} to ${level}. Notes: ${notes.trim()}`;
     
     // Add special note for official admission
     if (level === 5) {
       remarkText += ' - OFFICIALLY ADMITTED: Student now has access to dashboard and student correspondence.';
+    } else if (currentLevel === 5 && level < 5) {
+      remarkText += ' - ADMISSION STATUS REVOKED: Student admission has been cancelled.';
     }
     
     const correspondenceData = {

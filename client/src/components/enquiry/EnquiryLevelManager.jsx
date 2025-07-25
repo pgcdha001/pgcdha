@@ -3,7 +3,7 @@ import { XCircle, Clock, CheckCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useApiWithToast } from '../../hooks/useApiWithToast';
-import { getLevelInfo, getStatusIcon } from '../../constants/enquiryLevels';
+import { getLevelInfo } from '../../constants/enquiryLevels';
 
 const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated }) => {
   const [selectedLevel, setSelectedLevel] = useState(enquiry?.prospectusStage || enquiry?.enquiryLevel || 1);
@@ -32,12 +32,6 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
       return;
     }
     
-    // Validate upgrade only
-    if (selectedLevel < currentLevel) {
-      alert(`Cannot downgrade from level ${currentLevel} to level ${selectedLevel}. Only upgrades are allowed.`);
-      return;
-    }
-    
     // If trying to set the same level
     if (selectedLevel === currentLevel) {
       alert(`Student is already at level ${currentLevel}`);
@@ -47,6 +41,19 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
     // If level has changed, notes are compulsory
     if (levelChanged && (!notes || !notes.trim())) {
       alert('Notes are required when changing enquiry level');
+      return;
+    }
+
+    // Add confirmation for level changes, especially downgrades
+    const isUpgrade = selectedLevel > currentLevel;
+    const isDowngrade = selectedLevel < currentLevel;
+    const changeType = isUpgrade ? 'upgrade' : isDowngrade ? 'downgrade' : 'change';
+    
+    const confirmMessage = isDowngrade 
+      ? `Are you sure you want to downgrade this student from level ${currentLevel} to level ${selectedLevel}? This will remove their current progress.`
+      : `Are you sure you want to ${changeType} this student from level ${currentLevel} to level ${selectedLevel}?`;
+      
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -120,16 +127,15 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              New Level (Upgrades Only)
+              New Level
             </label>
             <div className="space-y-2">
               {availableLevels.map((level) => {
                 const currentLevel = enquiry.prospectusStage || enquiry.enquiryLevel || 1;
-                const isDowngrade = level.id < currentLevel;
                 const isCurrent = level.id === currentLevel;
                 
                 return (
-                  <label key={level.id} className={`flex items-center ${isDowngrade || isCurrent ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <label key={level.id} className={`flex items-center ${isCurrent ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <input
                       type="radio"
                       name="level"
@@ -137,13 +143,12 @@ const EnquiryLevelManager = ({ enquiry, availableLevels, onClose, onLevelUpdated
                       checked={selectedLevel === level.id}
                       onChange={(e) => setSelectedLevel(parseInt(e.target.value))}
                       className="mr-3"
-                      disabled={updating || isDowngrade || isCurrent}
+                      disabled={updating || isCurrent}
                     />
                     <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${level.bgColor} ${level.textColor}`}>
                       {getStatusIconComponent(level.id)}
                       {level.name}
                       {isCurrent && <span className="text-xs">(Current)</span>}
-                      {isDowngrade && <span className="text-xs">(Cannot downgrade)</span>}
                     </div>
                   </label>
                 );
