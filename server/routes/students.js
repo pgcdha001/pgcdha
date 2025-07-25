@@ -214,16 +214,6 @@ router.put('/:id/level', authenticate, async (req, res) => {
           student.isApproved = true;
           console.log(`Student ${student.fullName?.firstName} ${student.fullName?.lastName} has been officially admitted (level 5)`);
         }
-        
-        // Initialize admission info if not already set
-        if (!student.admissionInfo) {
-          student.admissionInfo = {};
-        }
-        // Set default grade if not specified (required for level 5)
-        if (!student.admissionInfo.grade) {
-          student.admissionInfo.grade = '11th'; // Default to 11th grade
-          console.log(`Setting default grade '11th' for student ${student.fullName?.firstName} ${student.fullName?.lastName}`);
-        }
         break;
     }
 

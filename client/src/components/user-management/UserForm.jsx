@@ -123,8 +123,7 @@ const UserForm = ({
         { value: 'IT', label: 'IT' },
         { value: 'Receptionist', label: 'Receptionist' },
         { value: 'Staff', label: 'Staff' },
-        { value: 'InstituteAdmin', label: 'Institute Admin' },
-        { value: 'Principal', label: 'Principal' }
+        { value: 'InstituteAdmin', label: 'Institute Admin' }
       ];
     }
 
@@ -152,14 +151,10 @@ const UserForm = ({
   const getAvailablePrograms = () => {
     return [
       { value: '', label: 'Select Program' },
-      { value: 'ICS-PHY', label: 'ICS-PHY (Computer Science with Physics)' },
-      { value: 'ICS-STAT', label: 'ICS-STAT (Computer Science with Statistics)' },
+      { value: 'ICS', label: 'ICS (Computer Science)' },
       { value: 'ICOM', label: 'ICOM (Commerce)' },
       { value: 'Pre Engineering', label: 'Pre Engineering' },
-      { value: 'Pre Medical', label: 'Pre Medical' },
-      { value: 'F.A', label: 'F.A (Faculty of Arts)' },
-      { value: 'FA IT', label: 'FA IT (Faculty of Arts - Information Technology)' },
-      { value: 'General Science', label: 'General Science' }
+      { value: 'Pre Medical', label: 'Pre Medical' }
     ];
   };
 
@@ -488,8 +483,8 @@ const UserForm = ({
   const isReadOnly = mode === 'view';
 
   return (
-    <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-200">
+    <div className="fixed inset-0 backdrop-blur-md flex items-start justify-center z-50 p-4 pt-8">
+      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-200 mt-[-400px]">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 ">
           <div className="flex items-center gap-3">

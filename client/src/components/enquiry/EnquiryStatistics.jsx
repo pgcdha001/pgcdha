@@ -43,11 +43,9 @@ const EnquiryStatistics = ({ config }) => {
         
         ENQUIRY_LEVELS.forEach(level => {
           if (!config.levelRestrictions || config.levelRestrictions.includes(level.id)) {
-            // Cumulative counting - Level 2 includes Level 3 students, etc.
-            byLevel[level.id] = filteredEnquiries.filter(enquiry => {
-              const currentLevel = enquiry.prospectusStage || enquiry.enquiryLevel;
-              return currentLevel >= level.id;
-            }).length;
+            byLevel[level.id] = filteredEnquiries.filter(enquiry => 
+              (enquiry.prospectusStage || enquiry.enquiryLevel) === level.id
+            ).length;
           }
         });
         
