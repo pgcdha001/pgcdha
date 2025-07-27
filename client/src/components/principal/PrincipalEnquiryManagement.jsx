@@ -306,21 +306,24 @@ const PrincipalEnquiryManagement = () => {
 
   // Calculate comprehensive stats for modal
   const getComprehensiveStats = () => {
+    // Calculate total boys and girls from level 1+ (all students)
+    const totalBoys = genderLevelProgression.boys[1]?.current || 0;
+    const totalGirls = genderLevelProgression.girls[1]?.current || 0;
+    
     const stats = {
       boys: {
-        total: enquiryData.boys,
+        total: totalBoys,
         levels: {}
       },
       girls: {
-        total: enquiryData.girls,
+        total: totalGirls,
         levels: {}
       },
       programs: enquiryData.programs
     };
 
-    // Calculate level breakdown for boys and girls
+    // Calculate level breakdown for boys and girls using gender level progression
     for (let level = 1; level <= 5; level++) {
-      const levelCount = levelStats[level] || 0;
       const boysAtLevel = genderLevelProgression.boys[level]?.current || 0;
       const girlsAtLevel = genderLevelProgression.girls[level]?.current || 0;
       
@@ -520,7 +523,7 @@ const PrincipalEnquiryManagement = () => {
               <div className="mt-8 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
                   <div className="p-3">
-                    <div className="text-2xl font-bold text-gray-800">{enquiryData.total}</div>
+                    <div className="text-2xl font-bold text-gray-800">{stats.boys.total + stats.girls.total}</div>
                     <div className="text-sm text-gray-600">Total Students</div>
                   </div>
                   <div className="p-3">
