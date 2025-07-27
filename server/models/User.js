@@ -24,21 +24,21 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, required: true }, // e.g., 'SystemAdmin', 'Teacher', etc.
   roleId: { type: String }, // for legacy mapping if needed
   instituteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Institute' },
-  
+
   // Coordinator Assignment (only for Coordinator role)
   coordinatorAssignment: {
     grade: {
       type: String,
       enum: ['11th', '12th'],
-      required: function() { return this.role === 'Coordinator'; }
+      required: function () { return this.role === 'Coordinator'; }
     },
     campus: {
       type: String,
-      enum: ['Boys', 'Girls'], 
-      required: function() { return this.role === 'Coordinator'; }
+      enum: ['Boys', 'Girls'],
+      required: function () { return this.role === 'Coordinator'; }
     }
   },
-  
+
   status: { type: Number, default: 1 }, // 1=Active, 2=Paused, 3=Deleted
 
   // Contact Information - simplified to essential fields only
@@ -46,14 +46,14 @@ const UserSchema = new mongoose.Schema({
   secondaryPhone: String, // Secondary phone number (optional)
   address: String,
   reference: String,      // Reference person name
-  
+
   // Academic Background - simplified
   previousSchool: String,  // Previous school/college name
   program: {              // Student program (only for students)
     type: String,
     required: false,
     validate: {
-      validator: function(value) {
+      validator: function (value) {
         // If user is a teacher or admin, program field can be empty or any value
         if (this.role === 'Teacher' || this.role === 'SystemAdmin' || this.role === 'ITAdmin' || this.role === 'FinanceAdmin' || this.role === 'Receptionist' || this.role === 'Principal' || this.role === 'Coordinator') {
           return true; // Allow any value for non-student roles
@@ -62,27 +62,44 @@ const UserSchema = new mongoose.Schema({
         if (!value || value.trim() === '') {
           return true; // Allow empty for students too
         }
-        const validPrograms = ['ICS', 'ICOM', 'Pre Engineering', 'Pre Medical', 'ICS-PHY', 'ICS-STAT', 'FA'];
-        return validPrograms.includes(value);
+
+        // Auto-map common variations to valid programs
+        const programMappings = {
+          'ICS': 'ICS-PHY',
+          'ICS PHY': 'ICS-PHY',
+          'ICS STAT': 'ICS-STAT',
+          'FA': 'F.A',
+          'Pre Eng': 'Pre Engineering',
+          'Pre Med': 'Pre Medical'
+        };
+
+        // Apply mapping if needed
+        const mappedProgram = programMappings[value] || value;
+        if (mappedProgram !== value) {
+          this.program = mappedProgram; // Auto-correct the value
+        }
+
+        const validPrograms = ['ICS-PHY', 'ICS-STAT', 'ICOM', 'Pre Engineering', 'Pre Medical', 'F.A', 'FA IT', 'General Science'];
+        return validPrograms.includes(mappedProgram);
       },
       message: 'Invalid program. Valid programs are: ICS, ICOM, Pre Engineering, Pre Medical, ICS-PHY, ICS-STAT, FA'
     }
   },
-  
+
   // Matriculation Details - simplified
   matricMarks: Number,     // Marks obtained in matriculation
   matricTotal: Number,     // Total marks in matriculation
-  
+
   // Personal Information
   gender: String,
   dob: Date,
-  cnic: { 
-    type: String, 
+  cnic: {
+    type: String,
     required: false, // Made optional
     unique: true,
     sparse: true, // Allows multiple null values
     validate: {
-      validator: function(value) {
+      validator: function (value) {
         // If CNIC is provided, validate format
         if (!value) return true; // Allow empty CNIC
         // CNIC can be in format 12345-1234567-1 or 1234512345671 (13 digits)
@@ -113,33 +130,33 @@ const UserSchema = new mongoose.Schema({
 
   // Class Assignment for Students
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
-  
+
   // Enquiry Level System (1-5)
-  enquiryLevel: { 
-    type: Number, 
+  enquiryLevel: {
+    type: Number,
     default: 1,
     min: 1,
     max: 5,
     required: true
   }, // 1: Initial Enquiry, 2: Follow-up, 3: Serious Interest, 4: Documents Submitted, 5: Admitted
-  
+
   // Additional Information for Level 5 (Admitted) Students
   admissionInfo: {
     grade: {
       type: String,
       enum: ['11th', '12th'],
-      required: function() { return this.enquiryLevel === 5; }
+      required: function () { return this.enquiryLevel === 5; }
     },
     className: {
       type: String,
       required: false
     }
   },
-  
+
   // Essential Student Fields Only
   prospectusStage: { type: Number, default: 1 }, // Keep for backward compatibility
   isEnrolledPreClasses: { type: Boolean, default: false },
-  
+
   // Enquiry Progression Tracking
   prospectusPurchasedOn: Date,
   afSubmittedOn: Date,
@@ -167,12 +184,29 @@ const UserSchema = new mongoose.Schema({
 });
 
 // Password hashing pre-save hook
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function (next) {
   // Auto-assign campus based on gender if not set
   if (!this.campus && this.gender) {
     this.campus = this.gender === 'Female' ? 'Girls' : 'Boys';
   }
-  
+
+  // Auto-map program variations to standard programs for students
+  if (this.role === 'Student' && this.program) {
+    const programMappings = {
+      'ICS': 'ICS-PHY',
+      'ICS PHY': 'ICS-PHY',
+      'ICS STAT': 'ICS-STAT',
+      'FA': 'F.A',
+      'Pre Eng': 'Pre Engineering',
+      'Pre Med': 'Pre Medical'
+    };
+
+    if (programMappings[this.program]) {
+      console.log(`Auto-mapping program from "${this.program}" to "${programMappings[this.program]}" for student ${this.fullName?.firstName} ${this.fullName?.lastName}`);
+      this.program = programMappings[this.program];
+    }
+  }
+
   if (!this.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(12);
@@ -184,12 +218,12 @@ UserSchema.pre('save', async function(next) {
 });
 
 // Compare password method
-UserSchema.methods.comparePassword = async function(candidatePassword) {
+UserSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Virtual for accountStatus
-UserSchema.virtual('accountStatus').get(function() {
+UserSchema.virtual('accountStatus').get(function () {
   if (this.status === 1 && this.isActive && this.isApproved) return 'Active';
   if (this.status === 2 || this.isSuspended || this.isActive === false) return 'Paused';
   return 'Pending';
