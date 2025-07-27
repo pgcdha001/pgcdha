@@ -391,22 +391,99 @@ const PrincipalEnquiryManagement = () => {
           showStatsModal ? 'scale-100 rotate-0' : 'scale-95 rotate-3'
         }`}>
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-2xl flex-shrink-0">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                <BarChart3 className="w-6 h-6 text-white" />
+          <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-2xl flex-shrink-0">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Comprehensive Statistics</h2>
+                  <p className="text-gray-600">Complete overview of enquiry data</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Comprehensive Statistics</h2>
-                <p className="text-gray-600">Complete overview of enquiry data</p>
+              <button
+                onClick={() => setShowStatsModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Time Filter */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-gray-700">Time Filter:</span>
+              <div className="flex flex-wrap gap-2">
+                {dateFilters.map(filter => (
+                  <button
+                    key={filter.value}
+                    onClick={() => {
+                      setSelectedDate(filter.value);
+                      // Auto-reload data when filter changes
+                      setTimeout(() => {
+                        loadLevelStatistics();
+                        loadEnquiryData();
+                      }, 100);
+                    }}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                      selectedDate === filter.value
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
             </div>
-            <button
-              onClick={() => setShowStatsModal(false)}
-              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6 text-gray-500" />
-            </button>
+            
+            {/* Custom Date Range in Modal */}
+            {selectedDate === 'custom' && (
+              <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => {
+                        setCustomStartDate(e.target.value);
+                        // Auto-reload if both dates are set
+                        if (e.target.value && customEndDate) {
+                          setTimeout(() => {
+                            loadLevelStatistics();
+                            loadEnquiryData();
+                          }, 100);
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => {
+                        setCustomEndDate(e.target.value);
+                        // Auto-reload if both dates are set
+                        if (customStartDate && e.target.value) {
+                          setTimeout(() => {
+                            loadLevelStatistics();
+                            loadEnquiryData();
+                          }, 100);
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Content */}
