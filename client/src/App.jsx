@@ -30,7 +30,6 @@ import EnquiryManagementContainer from './components/enquiry/EnquiryManagementCo
 import CorrespondenceManagement from './components/correspondence/CorrespondenceManagement';
 import ClassManagement from './components/class-management/ClassManagement';
 import StudentAssignment from './components/class-management/StudentAssignment';
-import PrincipalEnquiryManagement from './components/principal/PrincipalEnquiryManagement';
 
 // Attendance Management
 import AttendanceManagement from './components/attendance/AttendanceManagement';
@@ -68,19 +67,6 @@ const App = () => {
             <AuthenticatedRoute>
               <Layout>
                 <ProfilePage />
-              </Layout>
-            </AuthenticatedRoute>
-          } />
-
-          {/* Principal Enquiry Management - Separate from InstituteAdmin */}
-          <Route path="/principal/enquiries" element={
-            <AuthenticatedRoute>
-              <Layout>
-                <ProtectedRoute 
-                  allowedRoles={['Principal']}
-                >
-                  <PrincipalEnquiryManagement />
-                </ProtectedRoute>
               </Layout>
             </AuthenticatedRoute>
           } />
@@ -234,7 +220,7 @@ const App = () => {
                     PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
                   ]}
                   requireAll={false}
-                  allowedRoles={['InstituteAdmin', 'Principal', 'IT', 'Receptionist', 'Coordinator']}
+                  allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                 >
                   <ReportsContainer />
                 </ProtectedRoute>

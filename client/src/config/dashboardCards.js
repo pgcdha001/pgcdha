@@ -103,64 +103,6 @@ export const DASHBOARD_CARDS = {
     }
   ],
 
-  // Principal - Statistics and reports only, no detailed management
-  'Principal': [
-    {
-      id: 'enquiry-statistics',
-      title: 'Enquiry Statistics', 
-      href: '/reports?section=enquiries', 
-      icon: 'BarChart3', 
-      bgGradient: 'from-blue-500 to-blue-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
-    },
-    {
-      id: 'student-statistics',
-      title: 'Student Analytics', 
-      href: '/reports?section=students', 
-      icon: 'Users', 
-      bgGradient: 'from-green-500 to-green-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
-    },
-    {
-      id: 'attendance-analytics',
-      title: 'Attendance Analytics', 
-      href: '/reports?section=attendance', 
-      icon: 'TrendingUp', 
-      bgGradient: 'from-purple-500 to-purple-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
-    },
-    {
-      id: 'academic-performance',
-      title: 'Academic Performance', 
-      href: '/reports?section=examinations', 
-      icon: 'Award', 
-      bgGradient: 'from-orange-500 to-orange-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
-    },
-    {
-      id: 'communication-stats',
-      title: 'Communication Analytics', 
-      href: '/reports?section=correspondence', 
-      icon: 'MessageSquare', 
-      bgGradient: 'from-indigo-500 to-indigo-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
-    },
-    {
-      id: 'institutional-reports',
-      title: 'Institutional Reports', 
-      href: '/reports', 
-      icon: 'FileText', 
-      bgGradient: 'from-gray-500 to-gray-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
-    }
-  ],
-
   // IT Role - Limited access to specific areas
   'IT': [
     {

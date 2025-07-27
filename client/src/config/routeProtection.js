@@ -42,7 +42,7 @@ export const PROTECTED_ROUTES = {
       PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
     ],
     requireAll: false, // User needs ANY of these permissions
-    allowedRoles: ['InstituteAdmin', 'Principal', 'IT', 'Coordinator', 'Receptionist']
+    allowedRoles: ['InstituteAdmin', 'IT', 'Coordinator', 'Receptionist']
   },
 
   // Correspondence Routes

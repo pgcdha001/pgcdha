@@ -82,7 +82,7 @@ const UserSchema = new mongoose.Schema({
         const validPrograms = ['ICS-PHY', 'ICS-STAT', 'ICOM', 'Pre Engineering', 'Pre Medical', 'F.A', 'FA IT', 'General Science'];
         return validPrograms.includes(mappedProgram);
       },
-      message: 'Invalid program. Valid programs are: ICS, ICOM, Pre Engineering, Pre Medical'
+      message: 'Invalid program. Valid programs are: ICS, ICOM, Pre Engineering, Pre Medical, ICS-PHY, ICS-STAT, FA'
     }
   },
 

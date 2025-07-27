@@ -81,7 +81,6 @@ export const PERMISSIONS = {
   // Dashboard
   DASHBOARD: {
     VIEW_INSTITUTE_DASHBOARD: 'dashboard.view_institute_dashboard',
-    VIEW_PRINCIPAL_DASHBOARD: 'dashboard.view_principal_dashboard',
     VIEW_IT_DASHBOARD: 'dashboard.view_it_dashboard',
     VIEW_RECEPTIONIST_DASHBOARD: 'dashboard.view_receptionist_dashboard',
     VIEW_COORDINATOR_DASHBOARD: 'dashboard.view_coordinator_dashboard',
@@ -154,21 +153,6 @@ export const ROLE_PERMISSIONS = {
     
     // Dashboard
     PERMISSIONS.DASHBOARD.VIEW_INSTITUTE_DASHBOARD,
-  ],
-  
-  // Principal - Statistics and reports only, no detailed access
-  'Principal': [
-    // Reports - Only viewing statistical reports, no detailed data
-    PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS,
-    PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS,
-    PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS,
-    PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS,
-    PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS,
-    PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS,
-    PERMISSIONS.REPORTS.EXPORT_REPORTS,
-    
-    // Dashboard - Principal dashboard for statistical overview
-    PERMISSIONS.DASHBOARD.VIEW_PRINCIPAL_DASHBOARD,
   ],
   
   // IT Role - User management + Complete enquiry + Complete correspondence
@@ -393,7 +377,6 @@ export const canCreateAnyUser = (userRole) => {
 // Export role names for easy reference
 export const ROLES = {
   INSTITUTE_ADMIN: 'InstituteAdmin',
-  PRINCIPAL: 'Principal',
   IT: 'IT',
   RECEPTIONIST: 'Receptionist',
   STUDENT: 'Student',

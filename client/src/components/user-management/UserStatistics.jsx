@@ -35,11 +35,14 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
         if (allowedRoles.includes('all') || allowedRoles.includes('Teacher')) {
           promises.push(userAPI.getUsers({ role: 'Teacher', limit: 1 }).then(res => ({ type: 'teachers', count: res.data?.pagination?.totalUsers || 0 })));
         }
-        
-        if (allowedRoles.includes('all')) {
+
+        // Always fetch these for IT dashboard
+        if (userRole === 'IT' || allowedRoles.includes('all')) {
           promises.push(userAPI.getUsers({ role: 'Receptionist', limit: 1 }).then(res => ({ type: 'receptionists', count: res.data?.pagination?.totalUsers || 0 })));
           promises.push(userAPI.getUsers({ role: 'InstituteAdmin', limit: 1 }).then(res => ({ type: 'admins', count: res.data?.pagination?.totalUsers || 0 })));
           promises.push(userAPI.getUsers({ role: 'IT', limit: 1 }).then(res => ({ type: 'it', count: res.data?.pagination?.totalUsers || 0 })));
+        }
+        if (allowedRoles.includes('all')) {
           promises.push(userAPI.getUsers({ limit: 1 }).then(res => ({ type: 'total', count: res.data?.pagination?.totalUsers || 0 })));
         }
 
@@ -70,7 +73,7 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
     };
 
     fetchStatistics();
-  }, [allowedRoles]);
+  }, [allowedRoles, userRole]);
 
   // Define which statistics to show based on role and permissions
   const getVisibleStats = () => {
@@ -89,7 +92,38 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
       return stats;
     }
 
-    // For IT and Institute Admin - show comprehensive stats
+    // For IT - show only non-student roles
+    if (userRole === 'IT') {
+      stats.push(
+        {
+          title: 'Teachers',
+          count: statistics.teachers,
+          icon: UserCheck,
+          gradient: 'from-green-500 to-green-600',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700'
+        },
+        {
+          title: 'Staff & Admins',
+          count: statistics.staff,
+          icon: Shield,
+          gradient: 'from-orange-500 to-orange-600',
+          bgColor: 'bg-orange-50',
+          textColor: 'text-orange-700'
+        },
+        {
+          title: 'IT',
+          count: statistics.it,
+          icon: Shield,
+          gradient: 'from-purple-500 to-purple-600',
+          bgColor: 'bg-purple-50',
+          textColor: 'text-purple-700'
+        }
+      );
+      return stats;
+    }
+
+    // For Institute Admin - show comprehensive stats
     if (allowedRoles.includes('all')) {
       stats.push(
         {
@@ -137,7 +171,6 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
           textColor: 'text-blue-700'
         });
       }
-      
       if (allowedRoles.includes('Teacher')) {
         stats.push({
           title: 'Teachers',
