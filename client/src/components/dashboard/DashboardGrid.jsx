@@ -44,13 +44,33 @@ const DashboardGrid = ({
     );
   }
 
+  // Determine the title based on user role
+  const getGridTitle = () => {
+    switch (userRole) {
+      case 'Principal':
+        return 'Principal Dashboard';
+      case 'InstituteAdmin':
+        return 'Institute Management';
+      case 'IT':
+        return 'IT Management';
+      case 'Teacher':
+        return 'Teacher Dashboard';
+      case 'Receptionist':
+        return 'Reception Desk';
+      case 'Coordinator':
+        return 'Coordination Center';
+      default:
+        return 'Dashboard';
+    }
+  };
+
   return (
     <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70" 
          style={{boxShadow: '0 12px 48px 0 rgba(26,35,126,0.12)'}}>
       
       <h3 className="text-2xl font-bold text-primary mb-6 font-[Sora,Inter,sans-serif] flex items-center gap-3">
         <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-        Institute Management
+        {getGridTitle()}
       </h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

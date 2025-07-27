@@ -520,6 +520,23 @@ export const QUICK_MANAGEMENT_ACCESS = {
     }
   ],
 
+  'Principal': [
+    {
+      title: 'Enquiry Stats',
+      href: '/principal/enquiries',
+      icon: 'BarChart3',
+      description: 'View enquiry statistics and analytics',
+      permission: null
+    },
+    {
+      title: 'Enquiry Correspondence Stats',
+      href: '/principal/enquiry-correspondence',
+      icon: 'Mail',
+      description: 'View enquiry correspondence analytics',
+      permission: null
+    }
+  ],
+
   'Receptionist': [
     {
       title: 'Student Management',

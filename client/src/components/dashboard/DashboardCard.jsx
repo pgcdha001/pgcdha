@@ -158,6 +158,36 @@ const DashboardCard = ({
     );
   };
 
+  // If card is disabled, render a disabled version without Link
+  if (card.disabled) {
+    return (
+      <div className="group bg-white/40 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-border/30 opacity-60 cursor-not-allowed">
+        <div className="text-center">
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r ${card.bgGradient} text-white shadow-lg mb-4 opacity-50`}>
+            <Icon className="h-8 w-8" />
+          </div>
+          <h4 className="text-lg font-semibold text-gray-400 mb-3">
+            {card.title}
+          </h4>
+          
+          {/* Description for disabled cards */}
+          {card.description && (
+            <div className="mb-3 min-h-[1.5rem]">
+              <p className="text-sm text-gray-500">{card.description}</p>
+            </div>
+          )}
+          
+          {/* Disabled status */}
+          <div className="inline-block px-3 py-2 rounded-lg bg-gray-400 shadow-md">
+            <p className="text-white text-sm font-medium">
+              Coming Soon
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Link
       to={card.href}
@@ -171,10 +201,19 @@ const DashboardCard = ({
           {card.title}
         </h4>
         
+        {/* Description for normal cards */}
+        {card.description && !renderRecentActivity() && (
+          <div className="mb-3 min-h-[1.5rem]">
+            <p className="text-sm text-gray-600">{card.description}</p>
+          </div>
+        )}
+        
         {/* Recent Activity */}
-        <div className="mb-3 min-h-[1.5rem]">
-          {renderRecentActivity()}
-        </div>
+        {renderRecentActivity() && (
+          <div className="mb-3 min-h-[1.5rem]">
+            {renderRecentActivity()}
+          </div>
+        )}
         
         {/* Today Count - with background */}
         <div className={`inline-block px-3 py-2 rounded-lg bg-gradient-to-r ${card.bgGradient} shadow-md group-hover:shadow-lg transition-shadow duration-300`}>

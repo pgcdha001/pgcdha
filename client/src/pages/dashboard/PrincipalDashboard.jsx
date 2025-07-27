@@ -7,52 +7,58 @@ const PrincipalDashboard = () => {
   const { userRole } = usePermissions();
   const { dashboardData, loading, refreshDashboard } = useDashboard();
 
-  // Principal-specific dashboard cards (similar to InstituteAdmin but different links)
+  // Principal-specific dashboard cards - focused on what we have created so far
   const principalDashboardCards = [
     {
-      id: 'enquiry-management',
-      title: 'Enquiry Management', 
-      href: '/principal/enquiries', // Different route for Principal
+      id: 'enquiry-stats',
+      title: 'Enquiry Stats', 
+      href: '/principal/enquiries', 
       icon: 'MessageSquare', 
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
-      permission: null
+      permission: null,
+      description: 'View student enquiry statistics and analytics'
+    },
+    {
+      id: 'enquiry-correspondence-stats',
+      title: 'Enquiry Correspondence Stats', 
+      href: '/principal/enquiry-correspondence', 
+      icon: 'Mail', 
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: null,
+      description: 'View correspondence statistics related to enquiries'
+    },
+    {
+      id: 'student-correspondence-stats',
+      title: 'Student Correspondence Stats', 
+      href: '/principal/student-correspondence', 
+      icon: 'Users', 
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: null,
+      description: 'View general student correspondence statistics (Coming Soon)',
+      disabled: true // Since we haven't created this yet
     },
     {
       id: 'student-reports',
       title: 'Student Reports', 
       href: '/reports?section=students', 
-      icon: 'Users', 
-      bgGradient: 'from-green-500 to-green-600',
+      icon: 'BarChart3', 
+      bgGradient: 'from-orange-500 to-orange-600',
       type: 'normal',
-      permission: null
+      permission: null,
+      description: 'View comprehensive student reports'
     },
     {
       id: 'attendance-reports',
       title: 'Attendance Reports', 
       href: '/reports?section=attendance', 
       icon: 'UserCheck', 
-      bgGradient: 'from-purple-500 to-purple-600',
-      type: 'normal',
-      permission: null
-    },
-    {
-      id: 'enquiry-reports',
-      title: 'Enquiry Reports', 
-      href: '/reports?section=enquiries', 
-      icon: 'BarChart3', 
-      bgGradient: 'from-orange-500 to-orange-600',
-      type: 'normal',
-      permission: null
-    },
-    {
-      id: 'correspondence-reports',
-      title: 'Correspondence Reports', 
-      href: '/reports?section=correspondence', 
-      icon: 'Mail', 
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
-      permission: null
+      permission: null,
+      description: 'View attendance statistics and reports'
     },
     {
       id: 'class-statistics',
@@ -61,7 +67,8 @@ const PrincipalDashboard = () => {
       icon: 'School', 
       bgGradient: 'from-cyan-500 to-cyan-600',
       type: 'normal',
-      permission: null
+      permission: null,
+      description: 'View class performance and statistics'
     }
   ];
 
