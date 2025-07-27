@@ -26,11 +26,17 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
   const { minLevel, dateFilter, startDate, endDate } = req.query;
   console.log('Query parameters:', { minLevel, dateFilter, startDate, endDate });
 
+  // Debug: Check total students in database
+  const totalStudents = await User.countDocuments({ role: 'Student' });
+  console.log('Total students in database:', totalStudents);
+
   // Build query for students (Level 1-5 only, as requested)
   let query = {
     role: 'Student',
     prospectusStage: { $gte: 1, $lte: 5 } // Only levels 1-5
   };
+  
+  console.log('Base query:', query);
 
   // Apply level filter - show students AT LEAST this level (as client requested)
   if (minLevel && minLevel !== 'all') {
@@ -45,10 +51,11 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       const customEndDate = new Date(endDate);
       customEndDate.setHours(23, 59, 59, 999); // Include the entire end date
       
-      query.createdAt = { 
+      query.createdOn = { 
         $gte: customStartDate,
         $lte: customEndDate
       };
+      console.log('Applied custom date filter:', customStartDate, 'to', customEndDate);
     } else {
       // Handle predefined date filters
       const now = new Date();
@@ -60,6 +67,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
           break;
         case 'week':
           filterStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          console.log('Stats WEEK filter - Current time:', now);
+          console.log('Stats WEEK filter - Start date (7 days ago):', filterStartDate);
           break;
         case 'month':
           filterStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -72,7 +81,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       }
 
       if (filterStartDate) {
-        query.createdAt = { $gte: filterStartDate };
+        query.createdOn = { $gte: filterStartDate };
+        console.log('Applied date filter:', dateFilter, 'Start date:', filterStartDate);
       }
     }
   }
@@ -81,7 +91,11 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
     // Get total count (cumulative approach)
     // If a specific level is requested, show students at that level and above
     const totalStudents = await User.countDocuments(query);
-    console.log('Total students found:', totalStudents, 'with query:', query);
+    console.log('=== PRINCIPAL STATS DEBUG ===');
+    console.log('Date filter applied:', dateFilter);
+    console.log('Level filter applied:', minLevel);
+    console.log('Final query for bottom cards:', JSON.stringify(query, null, 2));
+    console.log('Total students found:', totalStudents);
 
     // Get gender breakdown
     const genderStats = await User.aggregate([
@@ -141,8 +155,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       };
       
       // Apply same date filter to level calculations
-      if (query.createdAt) {
-        levelQuery.createdAt = query.createdAt;
+      if (query.createdOn) {
+        levelQuery.createdOn = query.createdOn;
       }
       
       // Get boys count for current level (cumulative - includes higher levels)
@@ -160,8 +174,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
           prospectusStage: { $gte: i - 1 },
           gender: { $in: ['Male', 'male', 'M'] }
         };
-        if (query.createdAt) {
-          prevLevelQuery.createdAt = query.createdAt;
+        if (query.createdOn) {
+          prevLevelQuery.createdOn = query.createdOn;
         }
         boysPreviousLevel = await User.countDocuments(prevLevelQuery);
       } else {
@@ -184,8 +198,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
           prospectusStage: { $gte: i - 1 },
           gender: { $in: ['Female', 'female', 'F'] }
         };
-        if (query.createdAt) {
-          prevLevelQuery.createdAt = query.createdAt;
+        if (query.createdOn) {
+          prevLevelQuery.createdOn = query.createdOn;
         }
         girlsPreviousLevel = await User.countDocuments(prevLevelQuery);
       } else {
@@ -220,8 +234,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       };
       
       // Apply same date filter to level calculations
-      if (query.createdAt) {
-        levelQuery.createdAt = query.createdAt;
+      if (query.createdOn) {
+        levelQuery.createdOn = query.createdOn;
       }
       
       // Get count for current level (cumulative - includes higher levels)
@@ -234,8 +248,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
           role: 'Student',
           prospectusStage: { $gte: i - 1 }
         };
-        if (query.createdAt) {
-          prevLevelQuery.createdAt = query.createdAt;
+        if (query.createdOn) {
+          prevLevelQuery.createdOn = query.createdOn;
         }
         previousLevelCount = await User.countDocuments(prevLevelQuery);
       } else {
@@ -272,16 +286,21 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
     });
 
     // Send response
+    const responseData = {
+      total: totalStudents,
+      boys: boysCount,
+      girls: girlsCount,
+      programs: programs,
+      levelProgression: levelProgression,
+      genderLevelProgression: genderLevelProgression
+    };
+    
+    console.log('=== PRINCIPAL STATS RESPONSE ===');
+    console.log('Bottom cards data:', JSON.stringify(responseData, null, 2));
+    
     res.json({
       success: true,
-      data: {
-        total: totalStudents,
-        boys: boysCount,
-        girls: girlsCount,
-        programs: programs,
-        levelProgression: levelProgression,
-        genderLevelProgression: genderLevelProgression
-      },
+      data: responseData,
       filters: {
         minLevel: minLevel || 'all',
         dateFilter: dateFilter || 'all'
@@ -312,37 +331,126 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
     });
   }
 
+  const { dateFilter, startDate, endDate } = req.query;
+  console.log('Overview query parameters:', { dateFilter, startDate, endDate });
+
   try {
-    // Get counts for each level (cumulative approach)
+    // Debug: Check total students in database
+    const totalStudents = await User.countDocuments({ role: 'Student' });
+    console.log('Total students in database:', totalStudents);
+    
+    // Debug: Show sample student creation dates for overview
+    const sampleStudentsOverview = await User.find({ role: 'Student' })
+      .select('fullName createdOn prospectusStage')
+      .limit(3)
+      .sort({ createdOn: -1 });
+    console.log('Sample students for overview:', sampleStudentsOverview.map(s => ({
+      name: `${s.fullName?.firstName} ${s.fullName?.lastName}`,
+      createdOn: s.createdOn,
+      level: s.prospectusStage
+    })));
+    
+    // Debug: Show sample student creation dates
+    const sampleStudents = await User.find({ role: 'Student' })
+      .select('fullName createdOn prospectusStage')
+      .limit(5)
+      .sort({ createdOn: -1 });
+    console.log('Sample students with creation dates:', sampleStudents.map(s => ({
+      name: `${s.fullName?.firstName} ${s.fullName?.lastName}`,
+      createdOn: s.createdOn,
+      level: s.prospectusStage
+    })));
+    
+    // Build base query for date filtering
+    let dateQuery = {};
+    
+    // Apply date filter
+    if (dateFilter && dateFilter !== 'all') {
+      const now = new Date();
+      let filterStartDate;
+      
+      switch (dateFilter) {
+        case 'today':
+          filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          dateQuery.createdOn = { $gte: filterStartDate };
+          console.log('Overview date filter applied: today, Start date:', filterStartDate);
+          break;
+        case 'week':
+          filterStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          dateQuery.createdOn = { $gte: filterStartDate };
+          console.log('Overview WEEK filter - Current time:', now);
+          console.log('Overview WEEK filter - Start date (7 days ago):', filterStartDate);
+          console.log('Overview WEEK filter - Will show students created >= ', filterStartDate);
+          break;
+        case 'month':
+          filterStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          dateQuery.createdOn = { $gte: filterStartDate };
+          break;
+        case 'year':
+          filterStartDate = new Date(now.getFullYear(), 0, 1);
+          dateQuery.createdOn = { $gte: filterStartDate };
+          break;
+        case 'custom':
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Include the entire end date
+            dateQuery.createdOn = { $gte: start, $lte: end };
+            console.log('Overview custom date filter applied:', start, 'to', end);
+          }
+          break;
+      }
+    }
+
+    console.log('=== PRINCIPAL OVERVIEW DEBUG ===');
+    console.log('Date filter applied:', dateFilter);
+    console.log('Final dateQuery for level cards:', JSON.stringify(dateQuery, null, 2));
+    
+    // Debug: Test the date filter with a simple query
+    if (dateQuery.createdOn) {
+      const testCount = await User.countDocuments({
+        role: 'Student',
+        ...dateQuery
+      });
+      console.log('TEST: Students matching date filter:', testCount);
+    }
+
+    // Get counts for each level (cumulative approach) with date filtering
     // Level 2 includes Level 3 students, Level 3 includes Level 4 students, etc.
     const levelBreakdown = {};
     for (let level = 1; level <= 5; level++) {
-      levelBreakdown[level] = await User.countDocuments({
+      const levelQuery = {
         role: 'Student',
-        prospectusStage: { $gte: level, $lte: 5 }
-      });
+        prospectusStage: { $gte: level, $lte: 5 },
+        ...dateQuery
+      };
+      levelBreakdown[level] = await User.countDocuments(levelQuery);
+      console.log(`Level ${level}+ count:`, levelBreakdown[level], 'with query:', levelQuery);
     }
 
-    // Get total enquiries (Level 1)
+    // Get total enquiries (Level 1) with date filtering
     const totalEnquiries = await User.countDocuments({
       role: 'Student',
-      prospectusStage: { $gte: 1 }
+      prospectusStage: { $gte: 1 },
+      ...dateQuery
     });
 
-    // Get admitted students (Level 5)
+    // Get admitted students (Level 5) with date filtering
     const admittedStudents = await User.countDocuments({
       role: 'Student',
-      prospectusStage: 5
+      prospectusStage: 5,
+      ...dateQuery
     });
     
-    // Get level progression data
+    // Get level progression data with date filtering
     const levelProgression = {};
     for (let i = 1; i <= 5; i++) {
       // Get count for current level (cumulative - includes higher levels)
       // Level 2 includes Level 3 students, Level 3 includes Level 4 students, etc.
       const currentLevelCount = await User.countDocuments({
         role: 'Student',
-        prospectusStage: { $gte: i }
+        prospectusStage: { $gte: i },
+        ...dateQuery
       });
       
       // Get count for previous level (should be exact count at previous level for proper progression calculation)
@@ -351,7 +459,8 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
         // For cumulative display, previous should be the cumulative count at previous level
         previousLevelCount = await User.countDocuments({
           role: 'Student',
-          prospectusStage: { $gte: i - 1 }
+          prospectusStage: { $gte: i - 1 },
+          ...dateQuery
         });
       } else {
         // For level 1, previous should be current since all students are at least level 1
@@ -369,14 +478,19 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
       };
     }
 
+    const overviewData = {
+      totalEnquiries,
+      admittedStudents,
+      levelBreakdown,
+      levelProgression
+    };
+    
+    console.log('=== PRINCIPAL OVERVIEW RESPONSE ===');
+    console.log('Level cards data:', JSON.stringify(levelBreakdown, null, 2));
+    
     res.json({
       success: true,
-      data: {
-        totalEnquiries,
-        admittedStudents,
-        levelBreakdown,
-        levelProgression
-      }
+      data: overviewData
     });
 
   } catch (error) {
