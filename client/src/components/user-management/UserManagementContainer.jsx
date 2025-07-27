@@ -4,6 +4,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { ROLE_COMPONENT_CONFIG } from '../../docs/ComponentArchitecturePlan';
 import UserList from './UserList';
 import UserStatistics from './UserStatistics';
+import StudentStatistics from './StudentStatistics';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 
@@ -11,7 +12,7 @@ import { PERMISSIONS } from '../../utils/rolePermissions';
  * User Management Container Component
  * Routes to appropriate user management view based on user role and permissions
  */
-const UserManagementContainer = () => {
+const UserManagementContainer = ({ userType }) => {
   const { userRole, can } = usePermissions();
   const location = useLocation();
   
@@ -23,11 +24,14 @@ const UserManagementContainer = () => {
   const roleConfig = ROLE_COMPONENT_CONFIG[userRole] || {};
   const userMgmtConfig = roleConfig.userManagement || {};
 
-  // Determine page title and description based on filter
+  // Determine page title and description based on userType or filter
   const getPageInfo = () => {
-    if (filterParam === 'Student') {
+    // Check if we're in student management mode (either via userType prop or filter parameter)
+    const isStudentManagement = userType === 'student' || filterParam === 'Student';
+    
+    if (isStudentManagement) {
       return {
-        title: 'Student Information',
+        title: 'Student Management',
         description: 'Manage student information and details'
       };
     }
@@ -46,6 +50,9 @@ const UserManagementContainer = () => {
   };
 
   const { title, description } = getPageInfo();
+  
+  // Determine the effective userType (including legacy filter support)
+  const effectiveUserType = userType || (filterParam === 'Student' ? 'student' : null);
 
   // Check if user has basic access
   if (!can(PERMISSIONS.USER_MANAGEMENT.VIEW_USERS)) {
@@ -95,12 +102,16 @@ const UserManagementContainer = () => {
         </div>
       </div>
 
-      {/* Statistics Section - Only show if allowed */}
+      {/* Statistics Section - Show different stats based on userType */}
       <PermissionGuard 
         condition={() => userMgmtConfig.showStatistics !== false}
         fallback={null}
       >
-        <UserStatistics allowedRoles={userMgmtConfig.allowedRoles} />
+        {effectiveUserType === 'student' ? (
+          <StudentStatistics />
+        ) : (
+          <UserStatistics allowedRoles={userMgmtConfig.allowedRoles} />
+        )}
       </PermissionGuard>
 
       {/* Main User List */}
@@ -108,7 +119,8 @@ const UserManagementContainer = () => {
         allowedRoles={userMgmtConfig.allowedRoles}
         allowedActions={userMgmtConfig.allowedActions}
         restrictedFields={userMgmtConfig.restrictedFields}
-        defaultFilter={filterParam}
+        defaultFilter={effectiveUserType === 'student' ? 'Student' : filterParam}
+        userType={effectiveUserType}
       />
     </div>
   );

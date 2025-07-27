@@ -274,7 +274,7 @@ const App = () => {
                       requiredPermission={PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT}
                       allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                     >
-                      <UserManagementContainer />
+                      <UserManagementContainer userType="student" />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>
@@ -360,8 +360,8 @@ const App = () => {
                 <AuthenticatedRoute>
                   <Layout>
                     <ProtectedRoute
-                      requiredPermission={PERMISSIONS.MANAGEMENT.STUDENT_MANAGEMENT}
-                      allowedRoles={['InstituteAdmin']}
+                      requiredPermission={PERMISSIONS.USER_MANAGEMENT.VIEW_USERS}
+                      allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                     >
                       <UserManagementContainer userType="student" />
                     </ProtectedRoute>

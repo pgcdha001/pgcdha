@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronDown, Users, UserCheck, GraduationCap, Calendar, Filter, BarChart3, X, Move } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import api from '../../services/api';
 
@@ -9,7 +8,6 @@ import api from '../../services/api';
  * Shows hierarchical family tree view of enquiries with level and date filtering
  */
 const PrincipalEnquiryManagement = () => {
-  const { user } = useAuth();
   const { userRole } = usePermissions();
 
   // State management
@@ -22,6 +20,7 @@ const PrincipalEnquiryManagement = () => {
   // State for custom date filter
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [customDatesApplied, setCustomDatesApplied] = useState(false);
   
   // State for floating stats pill
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -81,17 +80,29 @@ const PrincipalEnquiryManagement = () => {
   useEffect(() => {
     loadLevelStatistics();
     loadEnquiryData();
-  }, [selectedLevel, selectedDate, customStartDate, customEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedLevel, selectedDate, customDatesApplied]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset custom dates applied state when date filter changes away from custom
+  useEffect(() => {
+    if (selectedDate !== 'custom') {
+      setCustomDatesApplied(false);
+    }
+  }, [selectedDate]);
 
   const loadLevelStatistics = async () => {
     try {
+      // Skip loading if custom date is selected but not applied
+      if (selectedDate === 'custom' && !customDatesApplied) {
+        return;
+      }
+
       // Prepare query parameters to match the main data loading
       const params = {
         dateFilter: selectedDate
       };
 
       // Add custom date parameters if needed
-      if (selectedDate === 'custom' && customStartDate && customEndDate) {
+      if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
         params.startDate = customStartDate;
         params.endDate = customEndDate;
       }
@@ -116,6 +127,27 @@ const PrincipalEnquiryManagement = () => {
     try {
       setLoading(true);
 
+      // Skip loading if custom date is selected but not applied
+      if (selectedDate === 'custom' && !customDatesApplied) {
+        // Set empty/zero data for custom date that hasn't been applied
+        setEnquiryData({
+          total: 0,
+          boys: 0,
+          girls: 0,
+          programs: { boys: {}, girls: {} }
+        });
+        setLevelStats({});
+        setLevelProgression({});
+        setGenderLevelProgression({ boys: {}, girls: {} });
+        setPercentages({
+          boys: { value: 0, text: '0%' },
+          girls: { value: 0, text: '0%' },
+          programs: { boys: {}, girls: {} }
+        });
+        setLoading(false);
+        return;
+      }
+
       console.log('Loading data with filters:', { selectedLevel, selectedDate, customStartDate, customEndDate });
 
       // Prepare query parameters
@@ -125,7 +157,7 @@ const PrincipalEnquiryManagement = () => {
       };
 
       // Add custom date parameters if needed
-      if (selectedDate === 'custom' && customStartDate && customEndDate) {
+      if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
         params.startDate = customStartDate;
         params.endDate = customEndDate;
       }
@@ -239,6 +271,7 @@ const PrincipalEnquiryManagement = () => {
     setSelectedDate('all');
     setCustomStartDate('');
     setCustomEndDate('');
+    setCustomDatesApplied(false);
   };
 
   const handleApplyFilters = () => {
@@ -252,6 +285,8 @@ const PrincipalEnquiryManagement = () => {
         alert('Start date cannot be later than end date');
         return;
       }
+      // Mark custom dates as applied
+      setCustomDatesApplied(true);
     }
     
     // Reload data with current filters
@@ -273,7 +308,7 @@ const PrincipalEnquiryManagement = () => {
     }
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     if (isDragging) {
       const newX = e.clientX - dragOffset.x;
       const newY = e.clientY - dragOffset.y;
@@ -287,7 +322,7 @@ const PrincipalEnquiryManagement = () => {
         y: Math.max(0, Math.min(newY, maxY))
       });
     }
-  };
+  }, [isDragging, dragOffset]);
 
   const handleMouseUp = () => {
     setIsDragging(false);
@@ -302,7 +337,7 @@ const PrincipalEnquiryManagement = () => {
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragOffset]);
+  }, [isDragging, dragOffset, handleMouseMove]);
 
   // Calculate comprehensive stats for modal
   const getComprehensiveStats = () => {
@@ -345,25 +380,29 @@ const PrincipalEnquiryManagement = () => {
       }}
     >
       {/* Gradient border wrapper */}
-      <div className="p-1 rounded-full bg-gradient-to-r from-blue-500 to-red-500 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+      <div className={`p-1 rounded-full bg-gradient-to-r from-blue-500 to-red-500 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="bg-white bg-opacity-95 backdrop-blur-md rounded-full flex items-center overflow-hidden">
           {/* Main clickable area */}
           <div
-            className="px-8 py-4 flex items-center space-x-4 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-red-50 transition-all duration-200 flex-1 text-gray-800"
+            className={`px-8 py-4 flex items-center space-x-4 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-red-50 transition-all duration-200 flex-1 text-gray-800 ${loading ? 'cursor-not-allowed' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
-              setShowStatsModal(true);
+              if (!loading) {
+                setShowStatsModal(true);
+              }
             }}
           >
             <BarChart3 className="w-6 h-6 text-blue-600" />
-            <span className="text-lg font-semibold text-gray-800">Glimpse</span>
+            <span className="text-lg font-semibold text-gray-800">
+              {loading ? 'Loading...' : 'Glimpse'}
+            </span>
           </div>
           
           {/* Draggable handle area */}
           <div
-            className={`px-4 py-4 border-l border-gray-200 cursor-grab hover:bg-gradient-to-r hover:from-blue-50 hover:to-red-50 transition-all duration-200 ${isDragging ? 'cursor-grabbing bg-gradient-to-r from-blue-50 to-red-50' : ''}`}
-            onMouseDown={handleMouseDown}
-            title="Drag to move"
+            className={`px-4 py-4 border-l border-gray-200 cursor-grab hover:bg-gradient-to-r hover:from-blue-50 hover:to-red-50 transition-all duration-200 ${isDragging ? 'cursor-grabbing bg-gradient-to-r from-blue-50 to-red-50' : ''} ${loading ? 'cursor-not-allowed' : ''}`}
+            onMouseDown={loading ? undefined : handleMouseDown}
+            title={loading ? 'Loading data...' : 'Drag to move'}
           >
             <Move className="w-5 h-5 text-gray-600" />
           </div>
@@ -411,30 +450,41 @@ const PrincipalEnquiryManagement = () => {
             </div>
             
             {/* Time Filter */}
-            <div className="flex items-center space-x-3">
-              <span className="text-sm font-medium text-gray-700">Time Filter:</span>
-              <div className="flex flex-wrap gap-2">
-                {dateFilters.map(filter => (
-                  <button
-                    key={filter.value}
-                    onClick={() => {
-                      setSelectedDate(filter.value);
-                      // Auto-reload data when filter changes
-                      setTimeout(() => {
-                        loadLevelStatistics();
-                        loadEnquiryData();
-                      }, 100);
-                    }}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      selectedDate === filter.value
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
-                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-sm font-medium text-gray-700">Time Filter:</span>
+                <div className="flex flex-wrap gap-2">
+                  {dateFilters.map(filter => (
+                    <button
+                      key={filter.value}
+                      onClick={() => {
+                        setSelectedDate(filter.value);
+                        // Auto-reload data when filter changes
+                        setTimeout(() => {
+                          loadLevelStatistics();
+                          loadEnquiryData();
+                        }, 100);
+                      }}
+                      disabled={loading}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        selectedDate === filter.value
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                          : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+              
+              {/* Loading indicator */}
+              {loading && (
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm font-medium">Updating data...</span>
+                </div>
+              )}
             </div>
             
             {/* Custom Date Range in Modal */}
@@ -450,15 +500,10 @@ const PrincipalEnquiryManagement = () => {
                       value={customStartDate}
                       onChange={(e) => {
                         setCustomStartDate(e.target.value);
-                        // Auto-reload if both dates are set
-                        if (e.target.value && customEndDate) {
-                          setTimeout(() => {
-                            loadLevelStatistics();
-                            loadEnquiryData();
-                          }, 100);
-                        }
+                        setCustomDatesApplied(false); // Reset applied state when date changes
                       }}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      disabled={loading}
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -470,24 +515,75 @@ const PrincipalEnquiryManagement = () => {
                       value={customEndDate}
                       onChange={(e) => {
                         setCustomEndDate(e.target.value);
-                        // Auto-reload if both dates are set
-                        if (customStartDate && e.target.value) {
-                          setTimeout(() => {
-                            loadLevelStatistics();
-                            loadEnquiryData();
-                          }, 100);
-                        }
+                        setCustomDatesApplied(false); // Reset applied state when date changes
                       }}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      disabled={loading}
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
+                
+                {/* Status indicator */}
+                {selectedDate === 'custom' && customStartDate && customEndDate && !customDatesApplied && (
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-xs text-yellow-800 text-center">
+                      📅 Custom dates selected but not applied. Click "Apply Custom Range" to load data.
+                    </p>
+                    <p className="text-xs text-yellow-600 text-center mt-1">
+                      Selected range: {Math.ceil((new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)) + 1} days
+                    </p>
+                  </div>
+                )}
+                
+                {/* Apply Filter Button for Custom Range */}
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={() => {
+                      if (customStartDate && customEndDate) {
+                        setCustomDatesApplied(true);
+                        loadLevelStatistics();
+                        loadEnquiryData();
+                      }
+                    }}
+                    disabled={loading || !customStartDate || !customEndDate}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Loading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Filter className="w-3 h-3" />
+                        <span>Apply Custom Range</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                {loading && (
+                  <div className="mt-2 text-center">
+                    <span className="text-xs text-blue-600">Updating data with custom date range...</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
           
           {/* Content */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden relative">
+            {/* Loading Overlay */}
+            {loading && (
+              <div className="absolute inset-0 bg-white bg-opacity-80 z-10 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-lg font-semibold text-blue-600">Updating Statistics...</p>
+                  <p className="text-sm text-gray-600">Please wait while we fetch the latest data</p>
+                </div>
+              </div>
+            )}
+            
             <div className="p-6 h-full overflow-y-auto">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
@@ -635,9 +731,9 @@ const PrincipalEnquiryManagement = () => {
     };
 
     // Format the count based on whether we have level progression data
-    const formattedCount = levelData ? 
+    const formattedCount = loading ? '...' : (levelData ? 
       `${levelData.current}/${levelData.previous}` : 
-      count;
+      count);
     
     // Calculate percentage for level progression (should be current/previous * 100)
     const progressPercentage = levelData && levelData.previous > 0 ? 
@@ -651,8 +747,10 @@ const PrincipalEnquiryManagement = () => {
 
     return (
       <div 
-        onClick={onClick}
-        className={`bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-105 ${onClick ? 'hover:border-blue-300' : ''}`}
+        onClick={loading ? undefined : onClick}
+        className={`bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${
+          loading ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'
+        } ${onClick && !loading ? 'hover:border-blue-300' : ''}`}
       >
         <div className="flex items-center justify-between mb-4">
           <div className={`p-3 rounded-lg bg-gradient-to-r ${colorClasses[color]}`}>
@@ -742,7 +840,8 @@ const PrincipalEnquiryManagement = () => {
                 <select
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 appearance-none cursor-pointer text-gray-700 font-medium"
+                  disabled={loading}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 appearance-none cursor-pointer text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
                 >
                   {dateFilters.map(filter => (
                     <option key={filter.value} value={filter.value}>
@@ -795,8 +894,12 @@ const PrincipalEnquiryManagement = () => {
                   <input
                     type="date"
                     value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    onChange={(e) => {
+                      setCustomStartDate(e.target.value);
+                      setCustomDatesApplied(false); // Reset applied state when date changes
+                    }}
+                    disabled={loading}
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
                   />
                 </div>
                 <div>
@@ -806,11 +909,33 @@ const PrincipalEnquiryManagement = () => {
                   <input
                     type="date"
                     value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    onChange={(e) => {
+                      setCustomEndDate(e.target.value);
+                      setCustomDatesApplied(false); // Reset applied state when date changes
+                    }}
+                    disabled={loading}
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
                   />
                 </div>
               </div>
+              
+              {/* Status indicator */}
+              {customStartDate && customEndDate && !customDatesApplied && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800 text-center">
+                    📅 Custom dates selected but not applied. Click "Apply Filters" to load data.
+                  </p>
+                  <p className="text-xs text-yellow-600 text-center mt-1">
+                    Selected range: {Math.ceil((new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)) + 1} days
+                  </p>
+                </div>
+              )}
+              
+              {loading && (
+                <div className="mt-3 text-center">
+                  <span className="text-sm text-blue-600">Applying custom date range...</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -826,7 +951,7 @@ const PrincipalEnquiryManagement = () => {
               </span>
               {selectedDate === 'custom' && customStartDate && customEndDate && (
                 <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full">
-                  {customStartDate} to {customEndDate}
+                  {Math.ceil((new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)) + 1} days selected
                 </span>
               )}
             </div>
@@ -847,16 +972,17 @@ const PrincipalEnquiryManagement = () => {
                 <button
                   key={tab.value}
                   onClick={() => setSelectedLevel(tab.value)}
+                  disabled={loading}
                   className={`flex flex-col items-center justify-center p-8 h-32 rounded-xl transition-all duration-200 border-2 ${
                     isActive 
                       ? `${tab.color} text-white shadow-lg transform scale-105 border-transparent` 
                       : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${loading ? 'opacity-50 cursor-not-allowed hover:bg-gray-50 hover:border-gray-200 transform-none' : ''}`}
                 >
                   <span className={`text-6xl font-bold mb-3 ${
                     isActive ? 'text-white' : 'text-gray-800'
                   }`}>
-                    {count}
+                    {loading ? '...' : count}
                   </span>
                   <span className={`text-lg font-medium ${
                     isActive ? 'text-white text-opacity-90' : 'text-gray-500'

@@ -13,7 +13,8 @@ import {
   Phone,
   Mail,
   User,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
@@ -35,7 +36,8 @@ const UserList = ({
   allowedRoles = ['all'],
   allowedActions = ['view'],
   restrictedFields = [],
-  defaultFilter = ''
+  defaultFilter = '',
+  userType = null
 }) => {
   const { toast } = useToast();
   const { userRole, can } = usePermissions();
@@ -57,6 +59,14 @@ const UserList = ({
 
   // Filter role options based on permissions
   const getRoleOptions = () => {
+    // If userType is student, only show student option
+    if (userType === 'student') {
+      return [
+        { value: '', label: 'All Students' },
+        { value: 'Student', label: 'Student' }
+      ];
+    }
+
     const baseOptions = [{ value: '', label: 'All Roles' }];
 
     if (allowedRoles.includes('all')) {
@@ -64,16 +74,14 @@ const UserList = ({
         ...baseOptions,
         { value: 'InstituteAdmin', label: 'Institute Admin' },
         { value: 'Teacher', label: 'Teacher' },
-        { value: 'Student', label: 'Student' },
         { value: 'IT', label: 'IT' },
         { value: 'Receptionist', label: 'Receptionist' },
         { value: 'Staff', label: 'Staff' }
       ];
     }
 
-    // For specific roles
+    // For specific roles - exclude Student from regular user management
     const roleMap = {
-      'Student': { value: 'Student', label: 'Student' },
       'Teacher': { value: 'Teacher', label: 'Teacher' },
       'IT': { value: 'IT', label: 'IT' },
       'Receptionist': { value: 'Receptionist', label: 'Receptionist' },
@@ -87,13 +95,28 @@ const UserList = ({
     return [...baseOptions, ...filteredOptions];
   };
 
-  const statusOptions = [
-    { value: '', label: 'All Status' },
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-    { value: 'pending', label: 'Pending Approval' },
-    { value: 'suspended', label: 'Suspended' }
-  ];
+  // Status options based on userType
+  const getStatusOptions = () => {
+    if (userType === 'student') {
+      // For student management, only show basic status options
+      return [
+        { value: '', label: 'All Status' },
+        { value: 'inactive', label: 'Inactive' },
+        { value: 'suspended', label: 'Suspended' }
+      ];
+    }
+    
+    // For regular user management, show all options
+    return [
+      { value: '', label: 'All Status' },
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+      { value: 'pending', label: 'Pending Approval' },
+      { value: 'suspended', label: 'Suspended' }
+    ];
+  };
+
+  const statusOptions = getStatusOptions();
 
   // Load users with role-based filtering
   const loadUsers = useCallback(async () => {
@@ -108,11 +131,21 @@ const UserList = ({
         limit: 1000 // Show all users by default
       };
 
-      // Apply role-based filtering
-      if (allowedRoles.includes('Student') && allowedRoles.length === 1) {
-        // Receptionist - only students
+      // Apply userType-based filtering
+      if (userType === 'student') {
+        // Student management - only show students
         params.role = params.role || 'Student';
-      } else if (!allowedRoles.includes('all')) {
+      } else {
+        // Regular user management - exclude students
+        params.excludeRole = 'Student';
+      }
+
+      // Apply role-based filtering for backwards compatibility
+      if (allowedRoles.includes('Student') && allowedRoles.length === 1) {
+        // Receptionist - only students (this overrides the excludeRole)
+        params.role = params.role || 'Student';
+        delete params.excludeRole;
+      } else if (!allowedRoles.includes('all') && userType !== 'student') {
         // IT or other limited roles
         params.allowedRoles = allowedRoles.join(',');
       }
@@ -120,34 +153,42 @@ const UserList = ({
       console.log('Loading users with params:', params);
       const response = await userAPI.getUsers(params);
       console.log('Users API response:', response);
-      console.log('Raw users data:', response.data?.users);
 
       if (response.success) {
         let userData = response.data.users || [];
-        console.log('Users before client filtering:', userData.length, userData.map(u => ({ id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status })));
 
         // Client-side filtering as backup
-        if (!allowedRoles.includes('all')) {
-          userData = userData.filter(user => allowedRoles.includes(user.role));
+        if (userType === 'student') {
+          // Student management - only show students
+          userData = userData.filter(user => user.role === 'Student');
+        } else {
+          // Regular user management - exclude students
+          userData = userData.filter(user => user.role !== 'Student');
+          
+          // Further filter by allowed roles if not 'all'
+          if (!allowedRoles.includes('all')) {
+            userData = userData.filter(user => allowedRoles.includes(user.role));
+          }
         }
 
         setUsers(userData);
-        console.log('Users after client filtering:', userData.length, userData.map(u => ({ id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status })));
       } else {
-        setError(response.message || 'Failed to load users');
+        const errorMessage = userType === 'student' ? 'Failed to load students' : 'Failed to load users';
+        setError(response.message || errorMessage);
         console.error('Failed to load users:', response.message);
       }
     } catch (err) {
-      setError('Failed to load users. Please try again.');
+      const errorMessage = userType === 'student' ? 'Failed to load students. Please try again.' : 'Failed to load users. Please try again.';
+      setError(errorMessage);
       console.error('Load users error:', err);
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, filterRole, filterStatus, allowedRoles, userRole]);
+  }, [debouncedSearchTerm, filterRole, filterStatus, allowedRoles, userType]);
 
   useEffect(() => {
     loadUsers();
-  }, [debouncedSearchTerm, filterRole, filterStatus, allowedRoles, userRole]);
+  }, [loadUsers]);
 
   // Update filter when defaultFilter changes
   useEffect(() => {
@@ -171,7 +212,7 @@ const UserList = ({
       can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
 
     if (!allowedActions.includes('create') || !canCreateUser) {
-      toast.error('You don\'t have permission to add users');
+      toast.error(userType === 'student' ? 'You don\'t have permission to add students' : 'You don\'t have permission to add users');
       return;
     }
     setSelectedUser(null);
@@ -181,7 +222,7 @@ const UserList = ({
 
   const handleEditUser = (user) => {
     if (!allowedActions.includes('edit') || !can(PERMISSIONS.USER_MANAGEMENT.EDIT_USERS)) {
-      toast.error('You don\'t have permission to edit users');
+      toast.error(userType === 'student' ? 'You don\'t have permission to edit students' : 'You don\'t have permission to edit users');
       return;
     }
     setSelectedUser(user);
@@ -197,7 +238,7 @@ const UserList = ({
 
   const handleDeleteUser = (user) => {
     if (!allowedActions.includes('delete') || !can(PERMISSIONS.USER_MANAGEMENT.DELETE_USERS)) {
-      toast.error('You don\'t have permission to delete users');
+      toast.error(userType === 'student' ? 'You don\'t have permission to delete students' : 'You don\'t have permission to delete users');
       return;
     }
     setSelectedUser(user);
@@ -376,7 +417,7 @@ const UserList = ({
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-2xl font-bold text-primary font-[Sora,Inter,sans-serif] flex items-center gap-3">
           <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-          {userRole === 'Receptionist' ? 'Student List' : 'User List'}
+          {userType === 'student' ? 'Students List' : 'User List'}
         </h3>
 
         <div className="flex items-center gap-2">
@@ -420,7 +461,7 @@ const UserList = ({
               className="bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2"
             >
               <UserPlus className="h-4 w-4" />
-              {userRole === 'Receptionist' ? 'Add Student' : 'Add User'}
+              {userType === 'student' || userRole === 'Receptionist' ? 'Add Student' : 'Add User'}
             </Button>
           </PermissionGuard>
         </div>
@@ -432,7 +473,7 @@ const UserList = ({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder={userType === 'student' ? 'Search students...' : 'Search users...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -606,7 +647,7 @@ const UserList = ({
                 <td colSpan="5" className="py-12 text-center">
                   <div className="text-gray-500">
                     <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p>No users found</p>
+                    <p>{userType === 'student' ? 'No students found' : 'No users found'}</p>
                   </div>
                 </td>
               </tr>
@@ -622,6 +663,7 @@ const UserList = ({
           mode={modalMode}
           allowedRoles={allowedRoles}
           restrictedFields={restrictedFields}
+          userType={userType}
           onClose={() => {
             setShowUserModal(false);
             setSelectedUser(null);

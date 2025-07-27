@@ -18,11 +18,13 @@ const UserForm = ({
   mode = 'create',
   allowedRoles = ['all'],
   restrictedFields = [],
+  userType = null,
   onClose,
   onSave
 }) => {
   const { toast } = useToast();
   const { userRole, can } = usePermissions();
+  
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState([]);
   const [formData, setFormData] = useState({
@@ -106,18 +108,24 @@ const UserForm = ({
         coordinatorCampus: user.coordinatorAssignment?.campus || ''
       });
     } else {
-      // For create mode, set default role based on permissions
-      const defaultRole = (userRole === 'Receptionist') ? 'Student' : '';
+      // For create mode, set default role based on userType or permissions
+      const defaultRole = userType === 'student' ? 'Student' : (userRole === 'Receptionist') ? 'Student' : '';
       setFormData(prev => ({ ...prev, role: defaultRole }));
     }
-  }, [user, mode, userRole]);
+  }, [user, mode, userRole, userType]);
 
   // Get available roles based on permissions
   const getAvailableRoles = () => {
+    // If userType is student, only allow Student role
+    if (userType === 'student') {
+      return [
+        { value: 'Student', label: 'Student' }
+      ];
+    }
+
     if (allowedRoles.includes('all')) {
       return [
         { value: '', label: 'Select Role' },
-        { value: 'Student', label: 'Student' },
         { value: 'Teacher', label: 'Teacher' },
         { value: 'Coordinator', label: 'Coordinator' },
         { value: 'IT', label: 'IT' },
@@ -128,7 +136,7 @@ const UserForm = ({
       ];
     }
 
-    // For limited roles
+    // For limited roles - exclude Student from regular user management
     const roleMap = {
       'Teacher': { value: 'Teacher', label: 'Teacher' },
       'Coordinator': { value: 'Coordinator', label: 'Coordinator' },
@@ -139,7 +147,7 @@ const UserForm = ({
 
     const availableRoles = [{ value: '', label: 'Select Role' }];
     allowedRoles.forEach(role => {
-      if (role !== 'Student' && roleMap[role]) {
+      if (roleMap[role]) {
         availableRoles.push(roleMap[role]);
       }
     });
@@ -191,6 +199,11 @@ const UserForm = ({
   // Check if field should be shown
   const shouldShowField = (fieldName) => {
     if (restrictedFields.includes(fieldName)) {
+      return false;
+    }
+
+    // For student management, hide role field (auto-set to Student)
+    if (fieldName === 'role' && userType === 'student') {
       return false;
     }
 
@@ -494,7 +507,7 @@ const UserForm = ({
   const isReadOnly = mode === 'view';
 
   return (
-    <div className="fixed inset-0 backdrop-blur-md flex items-start justify-center z-50 p-4 pt-8">
+    <div className="fixed inset-0 backdrop-blur-md flex items-start justify-center z-50 p-4 mt-8 pt-8">
       <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-border/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-200 mt-[-400px]">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 ">
@@ -540,15 +553,19 @@ const UserForm = ({
                   value={formData.role}
                   onChange={handleInputChange}
                   required
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.role ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                  disabled={userType === 'student'}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    userType === 'student' ? 'bg-gray-100 cursor-not-allowed' : ''
+                  } ${errors.role ? 'border-red-300' : 'border-gray-300'}`}
                 >
-                  <option value="">Select Role</option>
                   {getAvailableRoles().map(role => (
                     <option key={role.value} value={role.value}>{role.label}</option>
                   ))}
                 </select>
                 {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+                {userType === 'student' && (
+                  <p className="text-gray-500 text-xs mt-1">Role is automatically set to Student</p>
+                )}
               </div>
             )}
 
@@ -899,9 +916,9 @@ const UserForm = ({
                         name="role"
                         value={formData.role}
                         onChange={handleInputChange}
-                        disabled={isReadOnly}
+                        disabled={isReadOnly || userType === 'student'}
                         className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.role ? 'border-red-300' : 'border-gray-300'
-                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                          } ${isReadOnly || userType === 'student' ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                       >
                         {getAvailableRoles().map(role => (
                           <option key={role.value} value={role.value}>{role.label}</option>

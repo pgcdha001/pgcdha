@@ -175,7 +175,7 @@ export const DASHBOARD_CARDS = {
     {
       id: 'student-info-edit',
       title: 'Student Information',
-      href: '/admin/users?filter=Student',
+      href: '/students',
       icon: 'UserCheck',
       bgGradient: 'from-teal-500 to-teal-600',
       type: 'normal',
@@ -291,7 +291,7 @@ export const DASHBOARD_CARDS = {
     {
       id: 'student-management',
       title: 'Student Management',
-      href: '/admin/users?filter=Student',
+      href: '/students',
       icon: 'Users',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
@@ -340,7 +340,7 @@ export const DASHBOARD_CARDS = {
     {
       id: 'student-management',
       title: 'Student Management',
-      href: '/admin/users?filter=Student',
+      href: '/students',
       icon: 'Users',
       bgGradient: 'from-teal-500 to-teal-600',
       type: 'normal',
@@ -460,7 +460,7 @@ export const QUICK_MANAGEMENT_ACCESS = {
     },
     {
       title: 'Student Information',
-      href: '/admin/users?filter=Student',
+      href: '/students',
       icon: 'UserCheck',
       description: 'Edit student information and details',
       permission: PERMISSIONS.USER_MANAGEMENT.EDIT_USERS
@@ -505,7 +505,7 @@ export const QUICK_MANAGEMENT_ACCESS = {
   'Receptionist': [
     {
       title: 'Student Management',
-      href: '/admin/users?filter=Student',
+      href: '/students',
       icon: 'Users',
       description: 'View and edit student information',
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
@@ -529,7 +529,7 @@ export const QUICK_MANAGEMENT_ACCESS = {
   'Coordinator': [
     {
       title: 'Student Management',
-      href: '/admin/users?filter=Student',
+      href: '/students',
       icon: 'Users',
       description: 'Supervise and manage student information',
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
