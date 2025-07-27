@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import PermissionGuard from '../PermissionGuard';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/rolePermissions';
+import { useDebounce } from '../../hooks/usePerformance';
 
 const CorrespondenceManagement = () => {
   const [activeTab, setActiveTab] = useState('enquiry'); // 'enquiry' or 'student'
@@ -20,6 +21,8 @@ const CorrespondenceManagement = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
 
   const fetchEnquiries = useCallback(async () => {
     setLoading(true);
@@ -143,9 +146,9 @@ const CorrespondenceManagement = () => {
   // Filter records based on search term and level (cumulative approach)
   const currentData = activeTab === 'enquiry' ? enquiries : students;
   const filteredRecords = currentData.filter(record => {
-    const nameMatch = `${record.fullName?.firstName || ''} ${record.fullName?.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
-    const emailMatch = (record.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const phoneMatch = (record.phoneNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const nameMatch = `${record.fullName?.firstName || ''} ${record.fullName?.lastName || ''}`.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+    const emailMatch = (record.email || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+    const phoneMatch = (record.phoneNumber || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     const searchMatch = nameMatch || emailMatch || phoneMatch;
     
     // Cumulative level match - Level 2 includes Level 3 students, Level 3 includes Level 4 students, etc.

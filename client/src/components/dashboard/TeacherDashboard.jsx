@@ -23,6 +23,7 @@ import PermissionGuard from '../PermissionGuard';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 import { useAuth } from '../../hooks/useAuth';
+import { useDebounce } from '../../hooks/usePerformance';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
@@ -36,6 +37,8 @@ const TeacherDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [attendanceStats, setAttendanceStats] = useState(null);
   const [recentAttendance, setRecentAttendance] = useState([]);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
 
   useEffect(() => {
     fetchAssignedClasses();
@@ -144,7 +147,7 @@ const TeacherDashboard = () => {
     const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase();
     const fatherName = (student.fatherName || '').toLowerCase();
     const rollNumber = (student.rollNumber || '').toLowerCase();
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = debouncedSearchTerm.toLowerCase();
     
     return fullName.includes(searchLower) || 
            fatherName.includes(searchLower) || 

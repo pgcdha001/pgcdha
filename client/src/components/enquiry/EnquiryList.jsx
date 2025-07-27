@@ -6,6 +6,7 @@ import EnquiryLevelManager from './EnquiryLevelManager';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 import { ENQUIRY_LEVELS, getLevelInfo, getStatusIcon } from '../../constants/enquiryLevels';
+import { useDebounce } from '../../hooks/usePerformance';
 
 const EnquiryList = ({ config }) => {
   const [enquiries, setEnquiries] = useState([]);
@@ -46,18 +47,20 @@ const EnquiryList = ({ config }) => {
     fetchEnquiries();
   }, [config, fetchEnquiries]);
 
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
+
   useEffect(() => {
     let filtered = enquiries;
 
     // Search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
+    if (debouncedSearchTerm.trim()) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(enquiry => {
         const fullName = `${enquiry.fullName?.firstName || ''} ${enquiry.fullName?.lastName || ''}`.trim();
         return fullName.toLowerCase().includes(searchLower) ||
                enquiry.email?.toLowerCase().includes(searchLower) ||
                enquiry.session?.toLowerCase().includes(searchLower) ||
-               enquiry.cnic?.includes(searchTerm);
+               enquiry.cnic?.includes(debouncedSearchTerm);
       });
     }
 
@@ -74,7 +77,7 @@ const EnquiryList = ({ config }) => {
     }
 
     setFilteredEnquiries(filtered);
-  }, [enquiries, searchTerm, filterLevel, filterGender]);
+  }, [enquiries, debouncedSearchTerm, filterLevel, filterGender]);
 
   const getStatusIconComponent = (levelId) => {
     switch (levelId) {

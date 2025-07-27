@@ -106,9 +106,8 @@ const UserForm = ({
         coordinatorCampus: user.coordinatorAssignment?.campus || ''
       });
     } else {
-      // For create mode, set default role based on permissions
-      const defaultRole = (userRole === 'Receptionist' || userRole === 'IT') ? 'Student' : '';
-      setFormData(prev => ({ ...prev, role: defaultRole }));
+      // For create mode, do not set a default role
+      setFormData(prev => ({ ...prev, role: '' }));
     }
   }, [user, mode, userRole]);
 
@@ -117,7 +116,6 @@ const UserForm = ({
     if (allowedRoles.includes('all')) {
       return [
         { value: '', label: 'Select Role' },
-        { value: 'Student', label: 'Student' },
         { value: 'Teacher', label: 'Teacher' },
         { value: 'Coordinator', label: 'Coordinator' },
         { value: 'IT', label: 'IT' },
@@ -129,7 +127,6 @@ const UserForm = ({
 
     // For limited roles
     const roleMap = {
-      'Student': { value: 'Student', label: 'Student' },
       'Teacher': { value: 'Teacher', label: 'Teacher' },
       'Coordinator': { value: 'Coordinator', label: 'Coordinator' },
       'IT': { value: 'IT', label: 'IT' },
@@ -139,7 +136,7 @@ const UserForm = ({
 
     const availableRoles = [{ value: '', label: 'Select Role' }];
     allowedRoles.forEach(role => {
-      if (roleMap[role]) {
+      if (role !== 'Student' && roleMap[role]) {
         availableRoles.push(roleMap[role]);
       }
     });
@@ -341,6 +338,10 @@ const UserForm = ({
             submitData.lastName = submitData.lastName || submitData.fatherName || 'Name';
           }
         }
+        // Remove admissionInfo.grade for non-student users
+        if (!isStudentRole() && submitData.admissionInfo && ('grade' in submitData.admissionInfo)) {
+          delete submitData.admissionInfo.grade;
+        }
       }
 
       // For create mode, ensure required fields are present
@@ -366,6 +367,10 @@ const UserForm = ({
               return;
             }
           }
+        }
+        // Remove admissionInfo.grade for non-student users
+        if (!isStudentRole() && submitData.admissionInfo && ('grade' in submitData.admissionInfo)) {
+          delete submitData.admissionInfo.grade;
         }
       }
 
@@ -497,12 +502,12 @@ const UserForm = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                {mode === 'create' && ((userRole === 'Receptionist' || (userRole === 'IT' && formData.role === 'Student')) ? 'Add New Student' : 'Add New User')}
+                {mode === 'create' && 'Add New User'}
                 {mode === 'edit' && 'Edit User'}
                 {mode === 'view' && 'User Details'}
               </h2>
               <p className="text-sm text-gray-600">
-                {mode === 'create' && ((userRole === 'Receptionist' || (userRole === 'IT' && formData.role === 'Student')) ? 'Fill in the student details' : 'Fill in the details to create a new user')}
+                {mode === 'create' && 'Fill in the details to create a new user'}
                 {mode === 'edit' && 'Update user information'}
                 {mode === 'view' && 'View user information'}
               </p>
@@ -519,10 +524,37 @@ const UserForm = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Role Selection - Only for create mode */}
+            {mode === 'create' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role *
+                </label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                  required
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    errors.role ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select Role</option>
+                  {getAvailableRoles().map(role => (
+                    <option key={role.value} value={role.value}>{role.label}</option>
+                  ))}
+                </select>
+                {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+              </div>
+            )}
+
+            {/* Only show the rest of the form if a role is selected (for create mode) */}
+            {(mode !== 'create' || formData.role) && (
+              <>
             {/* First Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {isStudentRole() ? 'Student Name *' : 'First Name *'}
+                    First Name *
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -535,7 +567,7 @@ const UserForm = ({
                   className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
                     errors.firstName ? 'border-red-300' : 'border-gray-300'
                   } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  placeholder={isStudentRole() ? 'Enter student name' : 'Enter first name'}
+                      placeholder="Enter first name"
                 />
               </div>
               {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
@@ -565,8 +597,9 @@ const UserForm = ({
               </div>
             )}
 
-            {/* Father Name - Only for students */}
+                {/* Father Name, Gender, Program, Enquiry Level, etc. - Only for students */}
             {isStudentRole() && (
+                  <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Father Name *
@@ -587,10 +620,6 @@ const UserForm = ({
                 </div>
                 {errors.fatherName && <p className="text-red-500 text-xs mt-1">{errors.fatherName}</p>}
               </div>
-            )}
-
-            {/* Gender - Only for students */}
-            {isStudentRole() && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Gender *
@@ -610,6 +639,9 @@ const UserForm = ({
                 </select>
                 {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
               </div>
+                    {/* Program, Enquiry Level, etc. */}
+                    {/* ...existing student fields... */}
+                  </>
             )}
 
             {/* Email */}
@@ -983,6 +1015,8 @@ const UserForm = ({
                   <option value="suspended">Suspended</option>
                 </select>
               </div>
+                )}
+              </>
             )}
           </div>
 

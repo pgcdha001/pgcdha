@@ -25,6 +25,7 @@ import UserForm from './UserForm';
 import DeleteConfirmModal from '../../pages/admin/components/DeleteConfirmModal';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
+import { useDebounce } from '../../hooks/usePerformance';
 
 /**
  * User List Component
@@ -49,6 +50,9 @@ const UserList = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
   const [error, setError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
 
   // Filter role options based on permissions
   const getRoleOptions = () => {
@@ -97,9 +101,10 @@ const UserList = ({
       setError('');
       
       const params = {
-        search: searchTerm,
+        search: debouncedSearchTerm,
         role: filterRole,
-        status: filterStatus
+        status: filterStatus,
+        limit: 1000 // Show all users by default
       };
 
       // Apply role-based filtering
@@ -124,6 +129,10 @@ const UserList = ({
         if (!allowedRoles.includes('all')) {
           userData = userData.filter(user => allowedRoles.includes(user.role));
         }
+        // Exclude students for IT dashboard
+        if (userRole === 'IT') {
+          userData = userData.filter(user => user.role !== 'Student');
+        }
         
         setUsers(userData);
         console.log('Users after client filtering:', userData.length, userData.map(u => ({id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status})));
@@ -137,11 +146,11 @@ const UserList = ({
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filterRole, filterStatus, allowedRoles]);
+  }, [debouncedSearchTerm, filterRole, filterStatus, allowedRoles, userRole]);
 
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+  }, [debouncedSearchTerm, filterRole, filterStatus, allowedRoles, userRole]);
 
   // Update filter when defaultFilter changes
   useEffect(() => {
@@ -199,6 +208,8 @@ const UserList = ({
   };
 
   const confirmDelete = async () => {
+    if (!selectedUser || deleteLoading) return; // Prevent double delete
+    setDeleteLoading(true);
     try {
       const response = await userAPI.deleteUser(selectedUser._id);
       if (response.success) {
@@ -226,6 +237,7 @@ const UserList = ({
     } finally {
       setShowDeleteModal(false);
       setSelectedUser(null);
+      setDeleteLoading(false);
     }
   };
 
@@ -615,6 +627,7 @@ const UserList = ({
           user={selectedUser}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
+          loading={deleteLoading}
         />
       )}
     </div>

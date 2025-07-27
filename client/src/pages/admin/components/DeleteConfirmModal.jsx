@@ -3,54 +3,12 @@ import { X, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { userAPI } from '../../../services/api';
 
-const DeleteConfirmModal = ({ user, onClose, onConfirm }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
+const DeleteConfirmModal = ({ user, onClose, onConfirm, loading, error }) => {
   // Safety check for user prop
   if (!user) {
     console.error('DeleteConfirmModal: user prop is required');
     return null;
   }
-
-  const handleDelete = async () => {
-    if (!user?._id) {
-      setError('User ID is missing');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    
-    try {
-      const response = await userAPI.deleteUser(user._id);
-      
-      if (response.success) {
-        onConfirm();
-      } else {
-        setError(response.message || 'Failed to delete user');
-      }
-    } catch (err) {
-      console.error('Delete user error:', err);
-      
-      // Handle different error types
-      if (err.response?.status === 404) {
-        setError('User not found. They may have already been deleted.');
-        // Auto-close modal and refresh the list
-        setTimeout(() => {
-          onConfirm(); // This will close modal and refresh user list
-        }, 2000);
-      } else if (err.response?.status === 400) {
-        setError(err.response?.data?.message || 'Cannot delete this user');
-      } else if (err.response?.status === 401) {
-        setError('Session expired. Please login again.');
-      } else {
-        setError(err.message || 'An error occurred while deleting the user');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-[9999] animate-fade-in pt-20">
@@ -171,7 +129,7 @@ const DeleteConfirmModal = ({ user, onClose, onConfirm }) => {
           </Button>
           <Button
             type="button"
-            onClick={handleDelete}
+            onClick={onConfirm}
             disabled={loading}
             className="flex items-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
