@@ -15,7 +15,8 @@ import {
   User,
   Download,
   Upload,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
@@ -426,6 +427,15 @@ const UserList = ({
         </h3>
 
         <div className="flex items-center gap-2">
+          <Button
+            onClick={loadUsers}
+            variant="outline"
+            className="flex items-center gap-2"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Button
             onClick={handleExportUsers}
             variant="outline"

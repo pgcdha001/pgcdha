@@ -1,11 +1,9 @@
-import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useDashboard } from '../../contexts/DashboardContext';
 import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 
 const PrincipalDashboard = () => {
-  const { user } = useAuth();
   const { userRole } = usePermissions();
   const { dashboardData, loading, refreshDashboard } = useDashboard();
 
@@ -94,6 +92,7 @@ const PrincipalDashboard = () => {
         dashboardData={dashboardData}
         loading={loading}
         slidingItems={{}} // No sliding items for Principal
+        userRole={userRole}
       />
 
       {/* Role Debug Info (only in development) */}

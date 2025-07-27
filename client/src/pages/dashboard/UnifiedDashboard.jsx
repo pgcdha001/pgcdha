@@ -103,6 +103,7 @@ const UnifiedDashboard = () => {
         dashboardData={dashboardData}
         loading={loading}
         slidingItems={slidingItems}
+        userRole={userRole}
       />
 
       {/* Additional Sections for Admin Roles */}

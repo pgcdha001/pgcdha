@@ -58,6 +58,26 @@ export const DashboardProvider = ({ children }) => {
     
     setLoading(true);
     try {
+      let todayStats = {
+        todayEnquiries: 0,
+        todayCorrespondence: 0,
+        recentCorrespondence: null,
+        recentEnquiry: null
+      };
+
+      // Fetch today's statistics for InstituteAdmin
+      if (user.role === 'InstituteAdmin') {
+        try {
+          const statsResponse = await api.get('/dashboard/today-stats');
+          if (statsResponse.data.success) {
+            todayStats = statsResponse.data.data;
+          }
+        } catch (error) {
+          console.error('Error fetching today stats:', error);
+          // Continue with basic data fetch if today stats fail
+        }
+      }
+
       // Fetch initial data
       const [studentsRes, staffRes] = await Promise.all([
         api.get('/users?role=Student&limit=1000'),
@@ -70,52 +90,59 @@ export const DashboardProvider = ({ children }) => {
       // Calculate today's date
       const today = new Date().toISOString().split('T')[0];
       
-      // Calculate today's enquiries (new registrations) - check all possible date fields
-      const todayEnquiries = students.filter(student => {
-        const today = new Date().toISOString().split('T')[0];
-        const createdDate = student.createdOn || student.createdAt || student.registrationDate;
-        return createdDate && createdDate.includes(today);
-      }).length;
+      // Use API data if available, otherwise fallback to calculated values
+      let calculatedTodayEnquiries = 0;
+      let calculatedTodayCorrespondence = 0;
+      let calculatedRecentCorrespondence = null;
+      let calculatedRecentEnquiry = null;
 
-      // Get most recent enquiry
-      const recentEnquiry = students.length > 0 ? students[students.length - 1] : null;
+      if (user.role !== 'InstituteAdmin') {
+        // Calculate today's enquiries (new registrations) - check all possible date fields
+        calculatedTodayEnquiries = students.filter(student => {
+          const today = new Date().toISOString().split('T')[0];
+          const createdDate = student.createdOn || student.createdAt || student.registrationDate;
+          return createdDate && createdDate.includes(today);
+        }).length;
 
-      // Calculate correspondence statistics
-      const studentsWithCorrespondence = students.filter(student => 
-        student.receptionistRemarks && student.receptionistRemarks.length > 0
-      );
-      
-      const totalCorrespondence = studentsWithCorrespondence.reduce((sum, student) => 
+        // Get most recent enquiry
+        calculatedRecentEnquiry = students.length > 0 ? students[students.length - 1] : null;
+
+        // Calculate correspondence statistics
+        const studentsWithCorrespondence = students.filter(student => 
+          student.receptionistRemarks && student.receptionistRemarks.length > 0
+        );
+        
+        // Calculate today's correspondence
+        calculatedTodayCorrespondence = studentsWithCorrespondence.reduce((sum, student) => {
+          const todayRemarks = student.receptionistRemarks.filter(remark => {
+            const remarkDate = new Date(remark.timestamp).toISOString().split('T')[0];
+            return remarkDate === today;
+          });
+          return sum + todayRemarks.length;
+        }, 0);
+        
+        // Get most recent correspondence
+        let latestTimestamp = 0;
+        studentsWithCorrespondence.forEach(student => {
+          if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
+            const latestRemark = student.receptionistRemarks[student.receptionistRemarks.length - 1];
+            const timestamp = new Date(latestRemark.timestamp).getTime();
+            if (timestamp > latestTimestamp) {
+              latestTimestamp = timestamp;
+              calculatedRecentCorrespondence = {
+                studentName: `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+                remark: latestRemark.remark,
+                receptionistName: latestRemark.receptionistName,
+                timestamp: latestRemark.timestamp
+              };
+            }
+          }
+        });
+      }
+
+      const totalCorrespondence = students.reduce((sum, student) => 
         sum + (student.receptionistRemarks ? student.receptionistRemarks.length : 0), 0
       );
-      
-      // Calculate today's correspondence
-      const todayCorrespondence = studentsWithCorrespondence.reduce((sum, student) => {
-        const todayRemarks = student.receptionistRemarks.filter(remark => {
-          const remarkDate = new Date(remark.timestamp).toISOString().split('T')[0];
-          return remarkDate === today;
-        });
-        return sum + todayRemarks.length;
-      }, 0);
-      
-      // Get most recent correspondence
-      let recentCorrespondence = null;
-      let latestTimestamp = 0;
-      studentsWithCorrespondence.forEach(student => {
-        if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
-          const latestRemark = student.receptionistRemarks[student.receptionistRemarks.length - 1];
-          const timestamp = new Date(latestRemark.timestamp).getTime();
-          if (timestamp > latestTimestamp) {
-            latestTimestamp = timestamp;
-            recentCorrespondence = {
-              studentName: `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
-              remark: latestRemark.remark,
-              receptionistName: latestRemark.receptionistName,
-              timestamp: latestRemark.timestamp
-            };
-          }
-        }
-      });
 
       // Create recent activities from latest students
       const recentActivities = students.slice(-5).reverse().map(student => ({
@@ -131,13 +158,13 @@ export const DashboardProvider = ({ children }) => {
       setDashboardData({
         totalStudents: students.length,
         totalStaff: staff.length,
-        todayEnquiries,
-        recentEnquiry,
+        todayEnquiries: user.role === 'InstituteAdmin' ? todayStats.todayEnquiries : calculatedTodayEnquiries,
+        recentEnquiry: user.role === 'InstituteAdmin' ? todayStats.recentEnquiry : calculatedRecentEnquiry,
         recentActivities,
         upcomingExams: 3,
         totalCorrespondence,
-        todayCorrespondence,
-        recentCorrespondence,
+        todayCorrespondence: user.role === 'InstituteAdmin' ? todayStats.todayCorrespondence : calculatedTodayCorrespondence,
+        recentCorrespondence: user.role === 'InstituteAdmin' ? todayStats.recentCorrespondence : calculatedRecentCorrespondence,
         scheduledAppointments: 5,
         lastUpdated: new Date(),
         isInitialized: true

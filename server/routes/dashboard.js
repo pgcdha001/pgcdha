@@ -10,6 +10,87 @@ const router = express.Router();
 router.use(authenticate);
 
 /**
+ * @route   GET /api/dashboard/today-stats
+ * @desc    Get today's dashboard statistics for Institute Admin
+ * @access  Private (InstituteAdmin only)
+ */
+router.get('/today-stats', asyncHandler(async (req, res) => {
+  // Check if user is InstituteAdmin
+  if (req.user.role !== 'InstituteAdmin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Institute Admin privileges required.'
+    });
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Get today's enquiries (new registrations)
+  const todayEnquiries = await User.countDocuments({
+    role: 'Student',
+    $or: [
+      { createdOn: { $gte: today, $lt: tomorrow } },
+      { createdAt: { $gte: today, $lt: tomorrow } },
+      { registrationDate: { $gte: today, $lt: tomorrow } }
+    ]
+  });
+
+  // Get students with correspondence
+  const studentsWithCorrespondence = await User.find({
+    role: 'Student',
+    receptionistRemarks: { $exists: true, $ne: [] }
+  }).select('receptionistRemarks fullName');
+
+  // Calculate today's correspondence
+  let todayCorrespondence = 0;
+  let recentCorrespondence = null;
+  let latestTimestamp = 0;
+
+  studentsWithCorrespondence.forEach(student => {
+    if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
+      // Count today's remarks
+      const todayRemarks = student.receptionistRemarks.filter(remark => {
+        const remarkDate = new Date(remark.timestamp);
+        return remarkDate >= today && remarkDate < tomorrow;
+      });
+      todayCorrespondence += todayRemarks.length;
+
+      // Find most recent correspondence
+      const latestRemark = student.receptionistRemarks[student.receptionistRemarks.length - 1];
+      const timestamp = new Date(latestRemark.timestamp).getTime();
+      if (timestamp > latestTimestamp) {
+        latestTimestamp = timestamp;
+        recentCorrespondence = {
+          studentName: `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+          remark: latestRemark.remark,
+          receptionistName: latestRemark.receptionistName,
+          timestamp: latestRemark.timestamp
+        };
+      }
+    }
+  });
+
+  // Get most recent enquiry
+  const recentEnquiry = await User.findOne({
+    role: 'Student'
+  }).sort({ createdAt: -1 }).select('fullName createdAt');
+
+  res.json({
+    success: true,
+    data: {
+      todayEnquiries,
+      todayCorrespondence,
+      recentCorrespondence,
+      recentEnquiry,
+      lastUpdated: new Date()
+    }
+  });
+}));
+
+/**
  * @route   GET /api/dashboard/stats
  * @desc    Get dashboard statistics
  * @access  Private (Admin only)

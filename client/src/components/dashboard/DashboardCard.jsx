@@ -12,7 +12,8 @@ import {
   BarChart3,
   UserPlus,
   UserCog,
-  FileText
+  FileText,
+  School
 } from 'lucide-react';
 
 // Icon mapping for dynamic icon rendering
@@ -28,7 +29,8 @@ const ICON_MAP = {
   BarChart3,
   UserPlus,
   UserCog,
-  FileText
+  FileText,
+  School
 };
 
 /**
@@ -38,7 +40,8 @@ const ICON_MAP = {
 const DashboardCard = ({ 
   card, 
   dashboardData = {}, 
-  slidingItems = [] 
+  slidingItems = [],
+  userRole = null
 }) => {
   const Icon = ICON_MAP[card.icon] || MessageSquare;
 
@@ -78,6 +81,11 @@ const DashboardCard = ({
 
   // Render recent activity based on card type
   const renderRecentActivity = () => {
+    // Only show recent activity for InstituteAdmin
+    if (userRole !== 'InstituteAdmin') {
+      return null;
+    }
+
     if (card.type === 'sliding') {
       return (
         <SlidingText 
@@ -87,10 +95,26 @@ const DashboardCard = ({
       );
     }
 
-    // Normal card with static recent activity
+    // Normal card with dynamic recent activity
+    let activityText = 'No recent activity';
+    
+    if (card.id === 'enquiry-management' || card.id === 'enquiry-reports') {
+      if (dashboardData.recentEnquiry) {
+        const fullName = `${dashboardData.recentEnquiry.fullName?.firstName || ''} ${dashboardData.recentEnquiry.fullName?.lastName || ''}`.trim();
+        activityText = fullName ? `Latest: ${fullName}` : 'No recent activity';
+      }
+    } else if (card.id === 'correspondence-management' || card.id === 'correspondence') {
+      if (dashboardData.recentCorrespondence) {
+        const studentName = dashboardData.recentCorrespondence.studentName;
+        activityText = studentName ? `Latest: ${studentName}` : 'No recent activity';
+      }
+    } else if (card.recentActivity) {
+      activityText = card.recentActivity;
+    }
+
     return (
       <p className="text-sm text-gray-600 mb-2">
-        {card.recentActivity || 'No recent activity'}
+        {activityText}
       </p>
     );
   };
@@ -99,11 +123,19 @@ const DashboardCard = ({
   const renderTodayCount = () => {
     let displayText = card.todayCount || '';
 
-    // Replace dashboard data placeholders
-    if (card.id === 'enquiry-reports' && dashboardData.todayEnquiries !== undefined) {
-      displayText = `${dashboardData.todayEnquiries} new today`;
-    } else if (card.id === 'correspondence' && dashboardData.todayCorrespondence !== undefined) {
-      displayText = `${dashboardData.todayCorrespondence || 0} today, ${dashboardData.totalCorrespondence || 0} total`;
+    // Replace dashboard data placeholders - enhanced for today's statistics
+    if (card.id === 'enquiry-reports' || card.id === 'enquiry-management') {
+      if (dashboardData.todayEnquiries !== undefined) {
+        displayText = `${dashboardData.todayEnquiries} new today`;
+      } else {
+        displayText = '0 new today';
+      }
+    } else if (card.id === 'correspondence' || card.id === 'correspondence-management') {
+      if (dashboardData.todayCorrespondence !== undefined) {
+        displayText = `${dashboardData.todayCorrespondence || 0} today`;
+      } else {
+        displayText = '0 today';
+      }
     } else if (card.id === 'examinations' && dashboardData.upcomingExams !== undefined) {
       displayText = `${dashboardData.upcomingExams} exams this week`;
     } else if (card.id === 'appointments' && dashboardData.scheduledAppointments !== undefined) {
@@ -112,6 +144,11 @@ const DashboardCard = ({
       displayText = `${dashboardData.totalStaff} staff members`;
     } else if (card.id === 'student-management' && dashboardData.totalStudents !== undefined) {
       displayText = `${dashboardData.totalStudents} students`;
+    }
+
+    // If no specific text is set, use a default
+    if (!displayText) {
+      displayText = 'View Details';
     }
 
     return (

@@ -10,7 +10,8 @@ const DashboardGrid = ({
   cards = [], 
   dashboardData = {}, 
   loading = false,
-  slidingItems = {} // Object with card.id as key and array of items as value
+  slidingItems = {}, // Object with card.id as key and array of items as value
+  userRole = null
 }) => {
   if (loading) {
     return (
@@ -59,6 +60,7 @@ const DashboardGrid = ({
               card={card}
               dashboardData={dashboardData}
               slidingItems={slidingItems[card.id] || []}
+              userRole={userRole}
             />
           </PermissionGuard>
         ))}

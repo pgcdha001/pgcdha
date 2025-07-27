@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, UserCheck, Shield } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, GraduationCap, UserCheck, Shield, RefreshCw } from 'lucide-react';
 import { userAPI } from '../../services/api';
 import { usePermissions } from '../../hooks/usePermissions';
+import { Button } from '../ui/button';
 
 /**
  * User Statistics Component
@@ -20,60 +21,60 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
   });
   const [loading, setLoading] = useState(true);
   
-  useEffect(() => {
-    const fetchStatistics = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch user counts based on allowed roles
-        const promises = [];
-        
-        if (allowedRoles.includes('all') || allowedRoles.includes('Student')) {
-          promises.push(userAPI.getUsers({ role: 'Student', limit: 1 }).then(res => ({ type: 'students', count: res.data?.pagination?.totalUsers || 0 })));
-        }
-        
-        if (allowedRoles.includes('all') || allowedRoles.includes('Teacher')) {
-          promises.push(userAPI.getUsers({ role: 'Teacher', limit: 1 }).then(res => ({ type: 'teachers', count: res.data?.pagination?.totalUsers || 0 })));
-        }
-
-        // Always fetch these for IT dashboard
-        if (userRole === 'IT' || allowedRoles.includes('all')) {
-          promises.push(userAPI.getUsers({ role: 'Receptionist', limit: 1 }).then(res => ({ type: 'receptionists', count: res.data?.pagination?.totalUsers || 0 })));
-          promises.push(userAPI.getUsers({ role: 'InstituteAdmin', limit: 1 }).then(res => ({ type: 'admins', count: res.data?.pagination?.totalUsers || 0 })));
-          promises.push(userAPI.getUsers({ role: 'IT', limit: 1 }).then(res => ({ type: 'it', count: res.data?.pagination?.totalUsers || 0 })));
-        }
-        if (allowedRoles.includes('all')) {
-          promises.push(userAPI.getUsers({ limit: 1 }).then(res => ({ type: 'total', count: res.data?.pagination?.totalUsers || 0 })));
-        }
-
-        const results = await Promise.all(promises);
-        
-        const newStats = {
-          total: 0,
-          students: 0,
-          teachers: 0,
-          staff: 0,
-          admins: 0,
-          receptionists: 0,
-          it: 0
-        };
-        results.forEach(result => {
-          newStats[result.type] = result.count;
-        });
-        
-        // Calculate staff count (receptionists + admins + it)
-        newStats.staff = newStats.receptionists + newStats.admins + newStats.it;
-        
-        setStatistics(newStats);
-      } catch (error) {
-        console.error('Failed to fetch user statistics:', error);
-      } finally {
-        setLoading(false);
+  const fetchStatistics = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch user counts based on allowed roles
+      const promises = [];
+      
+      if (allowedRoles.includes('all') || allowedRoles.includes('Student')) {
+        promises.push(userAPI.getUsers({ role: 'Student', limit: 1 }).then(res => ({ type: 'students', count: res.data?.pagination?.totalUsers || 0 })));
       }
-    };
+      
+      if (allowedRoles.includes('all') || allowedRoles.includes('Teacher')) {
+        promises.push(userAPI.getUsers({ role: 'Teacher', limit: 1 }).then(res => ({ type: 'teachers', count: res.data?.pagination?.totalUsers || 0 })));
+      }
 
-    fetchStatistics();
+      // Always fetch these for IT dashboard
+      if (userRole === 'IT' || allowedRoles.includes('all')) {
+        promises.push(userAPI.getUsers({ role: 'Receptionist', limit: 1 }).then(res => ({ type: 'receptionists', count: res.data?.pagination?.totalUsers || 0 })));
+        promises.push(userAPI.getUsers({ role: 'InstituteAdmin', limit: 1 }).then(res => ({ type: 'admins', count: res.data?.pagination?.totalUsers || 0 })));
+        promises.push(userAPI.getUsers({ role: 'IT', limit: 1 }).then(res => ({ type: 'it', count: res.data?.pagination?.totalUsers || 0 })));
+      }
+      if (allowedRoles.includes('all')) {
+        promises.push(userAPI.getUsers({ limit: 1 }).then(res => ({ type: 'total', count: res.data?.pagination?.totalUsers || 0 })));
+      }
+
+      const results = await Promise.all(promises);
+      
+      const newStats = {
+        total: 0,
+        students: 0,
+        teachers: 0,
+        staff: 0,
+        admins: 0,
+        receptionists: 0,
+        it: 0
+      };
+      results.forEach(result => {
+        newStats[result.type] = result.count;
+      });
+      
+      // Calculate staff count (receptionists + admins + it)
+      newStats.staff = newStats.receptionists + newStats.admins + newStats.it;
+      
+      setStatistics(newStats);
+    } catch (error) {
+      console.error('Failed to fetch user statistics:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [allowedRoles, userRole]);
+  
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
 
   // Define which statistics to show based on role and permissions
   const getVisibleStats = () => {
@@ -208,10 +209,22 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
 
   return (
     <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 p-6">
-      <h3 className="text-xl font-bold text-primary mb-6 font-[Sora,Inter,sans-serif] flex items-center gap-3">
-        <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-        User Statistics
-      </h3>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-primary font-[Sora,Inter,sans-serif] flex items-center gap-3">
+          <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+          User Statistics
+        </h3>
+        <Button
+          onClick={fetchStatistics}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          disabled={loading}
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {visibleStats.map((stat, index) => {

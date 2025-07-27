@@ -9,13 +9,28 @@ export const DASHBOARD_CARDS = {
   // Institute Admin - Gets access to all dashboard cards
   'InstituteAdmin': [
     {
-      id: 'enquiry-reports',
-      title: 'Enquiry Reports',
-      href: '/reports?section=enquiries',
+      id: 'enquiry-management',
+      title: 'Enquiry Management',
+      href: '/institute-admin/enquiries',
       icon: 'MessageSquare',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
+      permission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT,
+      // Dynamic data will be populated by dashboard
+      recentActivity: null, // Will be set dynamically
+      todayCount: null // Will be set dynamically
+    },
+    {
+      id: 'enquiry-reports',
+      title: 'Enquiry Reports',
+      href: '/reports?section=enquiries',
+      icon: 'BarChart3',
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS,
+      // Dynamic data will be populated by dashboard
+      recentActivity: null, // Will be set dynamically
+      todayCount: null // Will be set dynamically
     },
     {
       id: 'attendance-management',
@@ -60,7 +75,10 @@ export const DASHBOARD_CARDS = {
       icon: 'MessageSquare',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
-      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
+      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE,
+      // Dynamic data will be populated by dashboard
+      recentActivity: null, // Will be set dynamically
+      todayCount: null // Will be set dynamically
     },
     {
       id: 'correspondence',

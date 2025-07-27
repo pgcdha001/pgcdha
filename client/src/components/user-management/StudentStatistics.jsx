@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, UserCheck, Clock } from 'lucide-react';
+import { Users, GraduationCap, UserCheck, Clock, RefreshCw } from 'lucide-react';
 import { userAPI } from '../../services/api';
+import { Button } from '../ui/button';
 
 /**
  * Student Statistics Component
@@ -115,30 +116,47 @@ const StudentStatistics = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {statCards.map((stat) => {
-        const IconComponent = stat.icon;
-        return (
-          <div
-            key={stat.title}
-            className={`${stat.bgColor} rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-200 hover:scale-105`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">
-                  {stat.title}
-                </p>
-                <p className={`text-3xl font-bold ${stat.textColor}`}>
-                  {stat.value}
-                </p>
-              </div>
-              <div className={`${stat.color} p-3 rounded-lg`}>
-                <IconComponent className="w-6 h-6 text-white" />
+    <div className="space-y-4">
+      {/* Header with Refresh Button */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-700">Student Statistics</h3>
+        <Button
+          onClick={loadStudentStatistics}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          disabled={statistics.loading}
+        >
+          <RefreshCw className={`h-4 w-4 ${statistics.loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statCards.map((stat) => {
+          const IconComponent = stat.icon;
+          return (
+            <div
+              key={stat.title}
+              className={`${stat.bgColor} rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-200 hover:scale-105`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">
+                    {stat.title}
+                  </p>
+                  <p className={`text-3xl font-bold ${stat.textColor}`}>
+                    {stat.value}
+                  </p>
+                </div>
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <IconComponent className="w-6 h-6 text-white" />
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };
