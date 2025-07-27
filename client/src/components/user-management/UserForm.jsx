@@ -13,13 +13,13 @@ import { ENQUIRY_LEVELS } from '../../constants/enquiryLevels';
  * User Form Component
  * Form for adding/editing users with role-based field visibility
  */
-const UserForm = ({ 
-  user = null, 
-  mode = 'create', 
+const UserForm = ({
+  user = null,
+  mode = 'create',
   allowedRoles = ['all'],
   restrictedFields = [],
-  onClose, 
-  onSave 
+  onClose,
+  onSave
 }) => {
   const { toast } = useToast();
   const { userRole, can } = usePermissions();
@@ -75,7 +75,7 @@ const UserForm = ({
   useEffect(() => {
     // Load classes when component mounts
     loadClasses();
-    
+
     if (user && mode !== 'create') {
       setFormData({
         firstName: user.fullName?.firstName || user.firstName || '',
@@ -106,8 +106,9 @@ const UserForm = ({
         coordinatorCampus: user.coordinatorAssignment?.campus || ''
       });
     } else {
-      // For create mode, do not set a default role
-      setFormData(prev => ({ ...prev, role: '' }));
+      // For create mode, set default role based on permissions
+      const defaultRole = (userRole === 'Receptionist') ? 'Student' : '';
+      setFormData(prev => ({ ...prev, role: defaultRole }));
     }
   }, [user, mode, userRole]);
 
@@ -116,12 +117,14 @@ const UserForm = ({
     if (allowedRoles.includes('all')) {
       return [
         { value: '', label: 'Select Role' },
+        { value: 'Student', label: 'Student' },
         { value: 'Teacher', label: 'Teacher' },
         { value: 'Coordinator', label: 'Coordinator' },
         { value: 'IT', label: 'IT' },
         { value: 'Receptionist', label: 'Receptionist' },
         { value: 'Staff', label: 'Staff' },
-        { value: 'InstituteAdmin', label: 'Institute Admin' }
+        { value: 'InstituteAdmin', label: 'Institute Admin' },
+        { value: 'Principal', label: 'Principal' }
       ];
     }
 
@@ -144,14 +147,17 @@ const UserForm = ({
     return availableRoles;
   };
 
-  // Get available programs for students
   const getAvailablePrograms = () => {
     return [
       { value: '', label: 'Select Program' },
-      { value: 'ICS', label: 'ICS (Computer Science)' },
+      { value: 'ICS-PHY', label: 'ICS-PHY (Computer Science with Physics)' },
+      { value: 'ICS-STAT', label: 'ICS-STAT (Computer Science with Statistics)' },
       { value: 'ICOM', label: 'ICOM (Commerce)' },
       { value: 'Pre Engineering', label: 'Pre Engineering' },
-      { value: 'Pre Medical', label: 'Pre Medical' }
+      { value: 'Pre Medical', label: 'Pre Medical' },
+      { value: 'F.A', label: 'F.A (Faculty of Arts)' },
+      { value: 'FA IT', label: 'FA IT (Faculty of Arts - Information Technology)' },
+      { value: 'General Science', label: 'General Science' }
     ];
   };
 
@@ -177,9 +183,9 @@ const UserForm = ({
   // Check if user can create users
   const canCreateUser = () => {
     return can(PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
-           can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
-           can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
-           can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
+      can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
+      can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
+      can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
   };
 
   // Check if field should be shown
@@ -187,37 +193,37 @@ const UserForm = ({
     if (restrictedFields.includes(fieldName)) {
       return false;
     }
-    
+
     // For receptionist, hide role field if only Student is allowed
     if (fieldName === 'role' && userRole === 'Receptionist' && allowedRoles.length === 1 && allowedRoles[0] === 'Student') {
       return false;
     }
-    
+
     // For IT users, hide role field when creating students (auto-set to Student)
     if (fieldName === 'role' && userRole === 'IT' && mode === 'create' && formData.role === 'Student') {
       return false;
     }
-    
+
     return true;
   };
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate permissions - check if user can create users based on their role
     if (mode === 'create') {
       const canCreateUser = can(PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
-                           can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
-                           can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
-                           can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
-      
+        can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
+        can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
+        can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
+
       if (!canCreateUser) {
         toast.error('You don\'t have permission to create users');
         return;
       }
     }
-    
+
     if (mode === 'edit' && !can(PERMISSIONS.USER_MANAGEMENT.EDIT_USERS)) {
       toast.error('You don\'t have permission to edit users');
       return;
@@ -225,18 +231,18 @@ const UserForm = ({
 
     // Validate form
     const newErrors = {};
-    
+
     if (!formData.firstName.trim()) {
       newErrors.firstName = isStudentRole() ? 'Student name is required' : 'First name is required';
     }
-    
+
     // For all roles, ensure we have a last name (for students, we'll use father name as fallback)
     if (!isStudentRole() && !formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required';
     }
-    
+
     if (!formData.role && shouldShowField('role')) newErrors.role = 'Role is required';
-    
+
     // Password validation for non-student roles
     if (!isStudentRole()) {
       if (mode === 'create' && !formData.password.trim()) {
@@ -246,14 +252,14 @@ const UserForm = ({
         newErrors.password = 'Password must be at least 6 characters';
       }
     }
-    
+
     // Additional validation for students
     if (isStudentRole()) {
       if (!formData.fatherName.trim()) newErrors.fatherName = 'Father name is required';
       if (!formData.gender) newErrors.gender = 'Gender is required';
       if (!formData.program) newErrors.program = 'Program is required';
       if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
-      
+
       // Grade validation for Level 5 students (officially admitted)
       if (formData.enquiryLevel >= 5) {
         if (!formData.admissionInfo.grade) {
@@ -267,7 +273,7 @@ const UserForm = ({
       if (!formData.coordinatorGrade) newErrors.coordinatorGrade = 'Grade assignment is required for coordinators';
       if (!formData.coordinatorCampus) newErrors.coordinatorCampus = 'Campus assignment is required for coordinators';
     }
-    
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (formData.email && !emailRegex.test(formData.email)) {
@@ -284,12 +290,12 @@ const UserForm = ({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      
+
       // Show a helpful message about what's missing
       const missingFields = Object.keys(newErrors);
       const fieldLabels = {
         firstName: isStudentRole() ? 'Student Name' : 'First Name',
-        lastName: 'Last Name', 
+        lastName: 'Last Name',
         email: 'Email',
         role: 'Role',
         fatherName: 'Father Name',
@@ -300,10 +306,10 @@ const UserForm = ({
         enquiryLevel: 'Enquiry Level',
         'admissionInfo.grade': 'Grade'
       };
-      
+
       const missingFieldNames = missingFields.map(field => fieldLabels[field] || field);
       toast.error(`Please fill in the following required fields: ${missingFieldNames.join(', ')}`);
-      
+
       return;
     }
 
@@ -313,12 +319,12 @@ const UserForm = ({
     try {
       let response;
       const submitData = { ...formData };
-      
+
       // For students, use father name as last name if lastName is empty
       if (isStudentRole() && !submitData.lastName && submitData.fatherName) {
         submitData.lastName = submitData.fatherName;
       }
-      
+
       // Set default role for receptionist or IT if not shown
       if (!shouldShowField('role') && (userRole === 'Receptionist' || userRole === 'IT')) {
         submitData.role = 'Student';
@@ -330,7 +336,7 @@ const UserForm = ({
         if (isStudentRole() && !submitData.lastName && submitData.fatherName) {
           submitData.lastName = submitData.fatherName;
         }
-        
+
         // Ensure both firstName and lastName are present
         if (!submitData.firstName || !submitData.lastName) {
           if (isStudentRole()) {
@@ -350,7 +356,7 @@ const UserForm = ({
         if (isStudentRole() && !submitData.lastName && submitData.fatherName) {
           submitData.lastName = submitData.fatherName;
         }
-        
+
         // Ensure firstName and lastName are not empty
         if (!submitData.firstName || !submitData.lastName) {
           if (isStudentRole()) {
@@ -407,7 +413,7 @@ const UserForm = ({
             // Don't fail the whole operation for this
           }
         }
-        
+
         toast.success(`User ${mode === 'create' ? 'created' : 'updated'} successfully`);
         onSave();
       } else {
@@ -416,7 +422,7 @@ const UserForm = ({
       }
     } catch (error) {
       console.error(`${mode} user error:`, error);
-      
+
       // More detailed error logging
       if (error.response?.data) {
         console.error('Server response:', error.response.data);
@@ -431,7 +437,7 @@ const UserForm = ({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Handle nested admissionInfo fields
     if (name.startsWith('admissionInfo.')) {
       const field = name.split('.')[1];
@@ -469,12 +475,12 @@ const UserForm = ({
         setFormData(prev => ({ ...prev, [name]: value }));
       }
     }
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
-    
+
     // Clear admission info errors when enquiry level changes
     if (name === 'enquiryLevel' && parseInt(e.target.value) < 5) {
       setErrors(prev => {
@@ -493,11 +499,10 @@ const UserForm = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 ">
           <div className="flex items-center gap-3">
-            <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${
-              mode === 'create' ? 'bg-green-100 text-green-600' :
+            <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${mode === 'create' ? 'bg-green-100 text-green-600' :
               mode === 'edit' ? 'bg-blue-100 text-blue-600' :
-              'bg-gray-100 text-gray-600'
-            }`}>
+                'bg-gray-100 text-gray-600'
+              }`}>
               {mode === 'view' ? <Eye className="h-5 w-5" /> : <User className="h-5 w-5" />}
             </div>
             <div>
@@ -535,9 +540,8 @@ const UserForm = ({
                   value={formData.role}
                   onChange={handleInputChange}
                   required
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.role ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.role ? 'border-red-300' : 'border-gray-300'
+                    }`}
                 >
                   <option value="">Select Role</option>
                   {getAvailableRoles().map(role => (
@@ -551,470 +555,451 @@ const UserForm = ({
             {/* Only show the rest of the form if a role is selected (for create mode) */}
             {(mode !== 'create' || formData.role) && (
               <>
-            {/* First Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {/* First Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     First Name *
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.firstName ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      readOnly={isReadOnly}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.firstName ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
                       placeholder="Enter first name"
-                />
-              </div>
-              {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
-            </div>
-
-            {/* Last Name - Hidden for students */}
-            {!isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name *
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    readOnly={isReadOnly}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.lastName ? 'border-red-300' : 'border-gray-300'
-                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                    placeholder="Enter last name"
-                  />
+                    />
+                  </div>
+                  {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
                 </div>
-                {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
-              </div>
-            )}
+
+                {/* Last Name - Hidden for students */}
+                {!isStudentRole() && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name *
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        readOnly={isReadOnly}
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.lastName ? 'border-red-300' : 'border-gray-300'
+                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                        placeholder="Enter last name"
+                      />
+                    </div>
+                    {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+                  </div>
+                )}
 
                 {/* Father Name, Gender, Program, Enquiry Level, etc. - Only for students */}
-            {isStudentRole() && (
+                {isStudentRole() && (
                   <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Father Name *
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    name="fatherName"
-                    value={formData.fatherName}
-                    onChange={handleInputChange}
-                    readOnly={isReadOnly}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.fatherName ? 'border-red-300' : 'border-gray-300'
-                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                    placeholder="Enter father name"
-                  />
-                </div>
-                {errors.fatherName && <p className="text-red-500 text-xs mt-1">{errors.fatherName}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Gender *
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleInputChange}
-                  disabled={isReadOnly}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.gender ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
-                {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Father Name *
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <input
+                          type="text"
+                          name="fatherName"
+                          value={formData.fatherName}
+                          onChange={handleInputChange}
+                          readOnly={isReadOnly}
+                          className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.fatherName ? 'border-red-300' : 'border-gray-300'
+                            } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                          placeholder="Enter father name"
+                        />
+                      </div>
+                      {errors.fatherName && <p className="text-red-500 text-xs mt-1">{errors.fatherName}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Gender *
+                      </label>
+                      <select
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleInputChange}
+                        disabled={isReadOnly}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.gender ? 'border-red-300' : 'border-gray-300'
+                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                      {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
+                    </div>
                     {/* Program, Enquiry Level, etc. */}
                     {/* ...existing student fields... */}
                   </>
-            )}
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  placeholder="Enter email address"
-                />
-              </div>
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            </div>
-
-            {/* Password - Required for non-student roles */}
-            {!isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password {mode === 'create' ? '*' : ''}
-                </label>
-                <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    readOnly={isReadOnly}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.password ? 'border-red-300' : 'border-gray-300'
-                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                    placeholder={mode === 'edit' ? 'Leave blank to keep current password' : 'Enter password'}
-                  />
-                </div>
-                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-                {mode === 'edit' && (
-                  <p className="text-gray-500 text-xs mt-1">Leave blank to keep current password</p>
                 )}
-              </div>
-            )}
 
-            {/* CNIC - Optional for all users */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                CNIC
-              </label>
-              <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="text"
-                  name="cnic"
-                  value={formData.cnic}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.cnic ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  placeholder="12345-1234567-1"
-                />
-              </div>
-              {errors.cnic && <p className="text-red-500 text-xs mt-1">{errors.cnic}</p>}
-            </div>
-
-            {/* Phone Number */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number {isStudentRole() ? '*' : ''}
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="tel"
-                  name="phoneNumber"
-                  value={formData.phoneNumber}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.phoneNumber ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  placeholder="Enter phone number"
-                />
-              </div>
-              {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
-            </div>
-
-            {/* Secondary Phone - Only for students */}
-            {isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Secondary Phone
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="tel"
-                    name="secondaryPhone"
-                    value={formData.secondaryPhone}
-                    onChange={handleInputChange}
-                    readOnly={isReadOnly}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Enter secondary phone number"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Program - Only for students */}
-            {isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Program *
-                </label>
-                <select
-                  name="program"
-                  value={formData.program}
-                  onChange={handleInputChange}
-                  disabled={isReadOnly}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.program ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                >
-                  {getAvailablePrograms().map(program => (
-                    <option key={program.value} value={program.value}>{program.label}</option>
-                  ))}
-                </select>
-                {errors.program && <p className="text-red-500 text-xs mt-1">{errors.program}</p>}
-              </div>
-            )}
-
-            {/* Enquiry Level - Only for students */}
-            {isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Enquiry Level *
-                </label>
-                <select
-                  name="enquiryLevel"
-                  value={formData.enquiryLevel}
-                  onChange={handleInputChange}
-                  disabled={isReadOnly}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors.enquiryLevel ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                >
-                  {ENQUIRY_LEVELS.map(level => (
-                    <option key={level.id} value={level.id}>
-                      Level {level.id} - {level.shortName}
-                    </option>
-                  ))}
-                </select>
-                {errors.enquiryLevel && <p className="text-red-500 text-xs mt-1">{errors.enquiryLevel}</p>}
-              </div>
-            )}
-
-            {/* Grade - Only for Level 5 students (officially admitted) */}
-            {isStudentRole() && formData.enquiryLevel >= 5 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <span className="flex items-center gap-2">
-                    Grade *
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                      Admitted Student
-                    </span>
-                  </span>
-                </label>
-                <select
-                  name="admissionInfo.grade"
-                  value={formData.admissionInfo.grade}
-                  onChange={handleInputChange}
-                  disabled={isReadOnly}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    errors['admissionInfo.grade'] ? 'border-red-300' : 'border-gray-300'
-                  } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                >
-                  {getAvailableGrades().map(grade => (
-                    <option key={grade.value} value={grade.value}>{grade.label}</option>
-                  ))}
-                </select>
-                {errors['admissionInfo.grade'] && <p className="text-red-500 text-xs mt-1">{errors['admissionInfo.grade']}</p>}
-                <p className="text-xs text-gray-500 mt-1">
-                  This field is required for students who have been officially admitted (Level 5)
-                </p>
-              </div>
-            )}
-
-            {/* Previous School - Only for students */}
-            {isStudentRole() && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Previous School
-                </label>
-                <input
-                  type="text"
-                  name="previousSchool"
-                  value={formData.previousSchool}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    isReadOnly ? 'bg-gray-50' : ''
-                  }`}
-                  placeholder="Enter previous school name"
-                />
-              </div>
-            )}
-
-            {/* Matriculation Marks - Only for students */}
-            {isStudentRole() && (
-              <div className="grid grid-cols-2 gap-4">
+                {/* Email */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Matriculation Obtained Marks
-                  </label>
-                  <input
-                    type="number"
-                    name="matricMarks"
-                    value={formData.matricMarks}
-                    onChange={handleInputChange}
-                    placeholder="Enter obtained marks"
-                    disabled={isReadOnly}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.matricMarks ? 'border-red-300' : 'border-gray-300'
-                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  />
-                  {errors.matricMarks && <p className="text-red-500 text-xs mt-1">{errors.matricMarks}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Matriculation Total Marks
-                  </label>
-                  <input
-                    type="number"
-                    name="matricTotal"
-                    value={formData.matricTotal}
-                    onChange={handleInputChange}
-                    placeholder="Enter total marks"
-                    disabled={isReadOnly}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.matricTotal ? 'border-red-300' : 'border-gray-300'
-                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  />
-                  {errors.matricTotal && <p className="text-red-500 text-xs mt-1">{errors.matricTotal}</p>}
-                </div>
-              </div>
-            )}
-
-            {/* Role - Show only if allowed */}
-            {shouldShowField('role') && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role *
-                </label>
-                <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    disabled={isReadOnly}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      errors.role ? 'border-red-300' : 'border-gray-300'
-                    } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                  >
-                    {getAvailableRoles().map(role => (
-                      <option key={role.value} value={role.value}>{role.label}</option>
-                    ))}
-                  </select>
-                </div>
-                {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
-              </div>
-            )}
-
-            {/* Coordinator Assignment Fields - Only for Coordinator role */}
-            {isCoordinatorRole() && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Coordinator Grade *
+                    Email Address
                   </label>
                   <div className="relative">
-                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <select
-                      name="coordinatorGrade"
-                      value={formData.coordinatorGrade}
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
                       onChange={handleInputChange}
-                      disabled={isReadOnly}
-                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                        errors.coordinatorGrade ? 'border-red-300' : 'border-gray-300'
-                      } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                    >
-                      <option value="">Select Grade</option>
-                      <option value="11th">11th Grade</option>
-                      <option value="12th">12th Grade</option>
-                    </select>
+                      readOnly={isReadOnly}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.email ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      placeholder="Enter email address"
+                    />
                   </div>
-                  {errors.coordinatorGrade && <p className="text-red-500 text-xs mt-1">{errors.coordinatorGrade}</p>}
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
 
+                {/* Password - Required for non-student roles */}
+                {!isStudentRole() && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Password {mode === 'create' ? '*' : ''}
+                    </label>
+                    <div className="relative">
+                      <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        readOnly={isReadOnly}
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.password ? 'border-red-300' : 'border-gray-300'
+                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                        placeholder={mode === 'edit' ? 'Leave blank to keep current password' : 'Enter password'}
+                      />
+                    </div>
+                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                    {mode === 'edit' && (
+                      <p className="text-gray-500 text-xs mt-1">Leave blank to keep current password</p>
+                    )}
+                  </div>
+                )}
+
+                {/* CNIC - Optional for all users */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Coordinator Campus *
+                    CNIC
                   </label>
                   <div className="relative">
-                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      type="text"
+                      name="cnic"
+                      value={formData.cnic}
+                      onChange={handleInputChange}
+                      readOnly={isReadOnly}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.cnic ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      placeholder="12345-1234567-1"
+                    />
+                  </div>
+                  {errors.cnic && <p className="text-red-500 text-xs mt-1">{errors.cnic}</p>}
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number {isStudentRole() ? '*' : ''}
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={handleInputChange}
+                      readOnly={isReadOnly}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.phoneNumber ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
+                </div>
+
+                {/* Secondary Phone - Only for students */}
+                {isStudentRole() && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Secondary Phone
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="tel"
+                        name="secondaryPhone"
+                        value={formData.secondaryPhone}
+                        onChange={handleInputChange}
+                        readOnly={isReadOnly}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="Enter secondary phone number"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Program - Only for students */}
+                {isStudentRole() && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Program *
+                    </label>
                     <select
-                      name="coordinatorCampus"
-                      value={formData.coordinatorCampus}
+                      name="program"
+                      value={formData.program}
                       onChange={handleInputChange}
                       disabled={isReadOnly}
-                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                        errors.coordinatorCampus ? 'border-red-300' : 'border-gray-300'
-                      } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.program ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
                     >
-                      <option value="">Select Campus</option>
-                      <option value="Boys">Boys Campus</option>
-                      <option value="Girls">Girls Campus</option>
+                      {getAvailablePrograms().map(program => (
+                        <option key={program.value} value={program.value}>{program.label}</option>
+                      ))}
+                    </select>
+                    {errors.program && <p className="text-red-500 text-xs mt-1">{errors.program}</p>}
+                  </div>
+                )}
+
+                {/* Enquiry Level - Only for students */}
+                {isStudentRole() && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Enquiry Level *
+                    </label>
+                    <select
+                      name="enquiryLevel"
+                      value={formData.enquiryLevel}
+                      onChange={handleInputChange}
+                      disabled={isReadOnly}
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.enquiryLevel ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                    >
+                      {ENQUIRY_LEVELS.map(level => (
+                        <option key={level.id} value={level.id}>
+                          Level {level.id} - {level.shortName}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.enquiryLevel && <p className="text-red-500 text-xs mt-1">{errors.enquiryLevel}</p>}
+                  </div>
+                )}
+
+                {/* Grade - Only for Level 5 students (officially admitted) */}
+                {isStudentRole() && formData.enquiryLevel >= 5 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <span className="flex items-center gap-2">
+                        Grade *
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                          Admitted Student
+                        </span>
+                      </span>
+                    </label>
+                    <select
+                      name="admissionInfo.grade"
+                      value={formData.admissionInfo.grade}
+                      onChange={handleInputChange}
+                      disabled={isReadOnly}
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors['admissionInfo.grade'] ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                    >
+                      {getAvailableGrades().map(grade => (
+                        <option key={grade.value} value={grade.value}>{grade.label}</option>
+                      ))}
+                    </select>
+                    {errors['admissionInfo.grade'] && <p className="text-red-500 text-xs mt-1">{errors['admissionInfo.grade']}</p>}
+                    <p className="text-xs text-gray-500 mt-1">
+                      This field is required for students who have been officially admitted (Level 5)
+                    </p>
+                  </div>
+                )}
+
+                {/* Previous School - Only for students */}
+                {isStudentRole() && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Previous School
+                    </label>
+                    <input
+                      type="text"
+                      name="previousSchool"
+                      value={formData.previousSchool}
+                      onChange={handleInputChange}
+                      readOnly={isReadOnly}
+                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isReadOnly ? 'bg-gray-50' : ''
+                        }`}
+                      placeholder="Enter previous school name"
+                    />
+                  </div>
+                )}
+
+                {/* Matriculation Marks - Only for students */}
+                {isStudentRole() && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Matriculation Obtained Marks
+                      </label>
+                      <input
+                        type="number"
+                        name="matricMarks"
+                        value={formData.matricMarks}
+                        onChange={handleInputChange}
+                        placeholder="Enter obtained marks"
+                        disabled={isReadOnly}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.matricMarks ? 'border-red-300' : 'border-gray-300'
+                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      />
+                      {errors.matricMarks && <p className="text-red-500 text-xs mt-1">{errors.matricMarks}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Matriculation Total Marks
+                      </label>
+                      <input
+                        type="number"
+                        name="matricTotal"
+                        value={formData.matricTotal}
+                        onChange={handleInputChange}
+                        placeholder="Enter total marks"
+                        disabled={isReadOnly}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.matricTotal ? 'border-red-300' : 'border-gray-300'
+                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      />
+                      {errors.matricTotal && <p className="text-red-500 text-xs mt-1">{errors.matricTotal}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Role - Show only if allowed */}
+                {shouldShowField('role') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Role *
+                    </label>
+                    <div className="relative">
+                      <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <select
+                        name="role"
+                        value={formData.role}
+                        onChange={handleInputChange}
+                        disabled={isReadOnly}
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.role ? 'border-red-300' : 'border-gray-300'
+                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                      >
+                        {getAvailableRoles().map(role => (
+                          <option key={role.value} value={role.value}>{role.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+                  </div>
+                )}
+
+                {/* Coordinator Assignment Fields - Only for Coordinator role */}
+                {isCoordinatorRole() && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Coordinator Grade *
+                      </label>
+                      <div className="relative">
+                        <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <select
+                          name="coordinatorGrade"
+                          value={formData.coordinatorGrade}
+                          onChange={handleInputChange}
+                          disabled={isReadOnly}
+                          className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.coordinatorGrade ? 'border-red-300' : 'border-gray-300'
+                            } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                        >
+                          <option value="">Select Grade</option>
+                          <option value="11th">11th Grade</option>
+                          <option value="12th">12th Grade</option>
+                        </select>
+                      </div>
+                      {errors.coordinatorGrade && <p className="text-red-500 text-xs mt-1">{errors.coordinatorGrade}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Coordinator Campus *
+                      </label>
+                      <div className="relative">
+                        <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <select
+                          name="coordinatorCampus"
+                          value={formData.coordinatorCampus}
+                          onChange={handleInputChange}
+                          disabled={isReadOnly}
+                          className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.coordinatorCampus ? 'border-red-300' : 'border-gray-300'
+                            } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                        >
+                          <option value="">Select Campus</option>
+                          <option value="Boys">Boys Campus</option>
+                          <option value="Girls">Girls Campus</option>
+                        </select>
+                      </div>
+                      {errors.coordinatorCampus && <p className="text-red-500 text-xs mt-1">{errors.coordinatorCampus}</p>}
+                    </div>
+                  </>
+                )}
+
+                {/* Date of Birth */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date of Birth
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      value={formData.dateOfBirth}
+                      onChange={handleInputChange}
+                      readOnly={isReadOnly}
+                      className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isReadOnly ? 'bg-gray-50' : ''
+                        }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Status - Only for edit mode and if allowed */}
+                {mode !== 'create' && !restrictedFields.includes('status') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      disabled={isReadOnly}
+                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isReadOnly ? 'bg-gray-50' : ''
+                        }`}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="pending">Pending</option>
+                      <option value="suspended">Suspended</option>
                     </select>
                   </div>
-                  {errors.coordinatorCampus && <p className="text-red-500 text-xs mt-1">{errors.coordinatorCampus}</p>}
-                </div>
-              </>
-            )}
-
-            {/* Date of Birth */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date of Birth
-              </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleInputChange}
-                  readOnly={isReadOnly}
-                  className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    isReadOnly ? 'bg-gray-50' : ''
-                  }`}
-                />
-              </div>
-            </div>
-
-            {/* Status - Only for edit mode and if allowed */}
-            {mode !== 'create' && !restrictedFields.includes('status') && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  disabled={isReadOnly}
-                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    isReadOnly ? 'bg-gray-50' : ''
-                  }`}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
-                  <option value="suspended">Suspended</option>
-                </select>
-              </div>
                 )}
               </>
             )}
@@ -1031,9 +1016,8 @@ const UserForm = ({
               onChange={handleInputChange}
               readOnly={isReadOnly}
               rows="3"
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                isReadOnly ? 'bg-gray-50' : ''
-              }`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isReadOnly ? 'bg-gray-50' : ''
+                }`}
               placeholder="Enter address"
             />
           </div>
@@ -1050,9 +1034,8 @@ const UserForm = ({
                 value={formData.reference}
                 onChange={handleInputChange}
                 readOnly={isReadOnly}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  isReadOnly ? 'bg-gray-50' : ''
-                }`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isReadOnly ? 'bg-gray-50' : ''
+                  }`}
                 placeholder="Enter reference"
               />
             </div>
@@ -1070,9 +1053,8 @@ const UserForm = ({
                 value={formData.emergencyContact}
                 onChange={handleInputChange}
                 readOnly={isReadOnly}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                  isReadOnly ? 'bg-gray-50' : ''
-                }`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isReadOnly ? 'bg-gray-50' : ''
+                  }`}
                 placeholder="Enter emergency contact"
               />
             </div>
@@ -1088,7 +1070,7 @@ const UserForm = ({
             >
               {mode === 'view' ? 'Close' : 'Cancel'}
             </Button>
-            
+
             {!isReadOnly && (
               <Button
                 type="submit"

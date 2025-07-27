@@ -404,10 +404,14 @@ const StudentAssignment = () => {
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Programs</option>
-                  <option value="ICS">ICS</option>
+                  <option value="ICS-PHY">ICS-PHY</option>
+                  <option value="ICS-STAT">ICS-STAT</option>
                   <option value="ICOM">ICOM</option>
                   <option value="Pre Engineering">Pre Engineering</option>
                   <option value="Pre Medical">Pre Medical</option>
+                  <option value="F.A">F.A</option>
+                  <option value="FA IT">FA IT</option>
+                  <option value="General Science">General Science</option>
                 </select>
               </div>
             </div>
@@ -498,7 +502,6 @@ const StudentAssignment = () => {
                 <tbody className="divide-y divide-gray-200">
                   {filteredStudents.map((student) => {
                     const availableClasses = getAvailableClasses(student);
-                    
                     return (
                       <tr key={student._id} className="hover:bg-gray-50">
                         <td className="px-4 py-4">
@@ -783,10 +786,14 @@ const StudentAssignment = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select Program</option>
-                      <option value="ICS">ICS</option>
+                      <option value="ICS-PHY">ICS-PHY</option>
+                      <option value="ICS-STAT">ICS-STAT</option>
                       <option value="ICOM">ICOM</option>
                       <option value="Pre Engineering">Pre Engineering</option>
                       <option value="Pre Medical">Pre Medical</option>
+                      <option value="F.A">F.A</option>
+                      <option value="FA IT">FA IT</option>
+                      <option value="General Science">General Science</option>
                     </select>
                   </div>
 

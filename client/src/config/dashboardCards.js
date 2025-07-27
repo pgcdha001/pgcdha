@@ -10,26 +10,26 @@ export const DASHBOARD_CARDS = {
   'InstituteAdmin': [
     {
       id: 'enquiry-reports',
-      title: 'Enquiry Reports', 
-      href: '/reports?section=enquiries', 
-      icon: 'MessageSquare', 
+      title: 'Enquiry Reports',
+      href: '/reports?section=enquiries',
+      icon: 'MessageSquare',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
     },
     {
       id: 'attendance-management',
-      title: 'Attendance Management', 
-      href: '/attendance', 
-      icon: 'UserCheck', 
+      title: 'Attendance Management',
+      href: '/attendance',
+      icon: 'UserCheck',
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: null // Available to Institute Admin, IT, and Teachers
     },
     {
       id: 'student-attendance',
-      title: 'Student Attendance Reports', 
-      href: '/reports?section=student-attendance', 
+      title: 'Student Attendance Reports',
+      href: '/reports?section=student-attendance',
       icon: 'UserX',
       bgGradient: 'from-red-500 to-red-600',
       type: 'sliding',
@@ -37,36 +37,36 @@ export const DASHBOARD_CARDS = {
     },
     {
       id: 'lecture-attendance',
-      title: 'Lecture Attendance Reports', 
-      href: '/reports?section=lecture-attendance', 
-      icon: 'BookOpen', 
+      title: 'Lecture Attendance Reports',
+      href: '/reports?section=lecture-attendance',
+      icon: 'BookOpen',
       bgGradient: 'from-red-500 to-red-600',
       type: 'sliding',
       permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
     },
     {
       id: 'examinations',
-      title: 'Examination Reports', 
-      href: '/reports?section=examinations', 
-      icon: 'ClipboardList', 
+      title: 'Examination Reports',
+      href: '/reports?section=examinations',
+      icon: 'ClipboardList',
       bgGradient: 'from-orange-500 to-orange-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
     },
     {
       id: 'correspondence-management',
-      title: 'Correspondence Management', 
-      href: '/correspondence/manage', 
-      icon: 'MessageSquare', 
+      title: 'Correspondence Management',
+      href: '/correspondence/manage',
+      icon: 'MessageSquare',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
     },
     {
       id: 'correspondence',
-      title: 'Correspondence Reports', 
-      href: '/reports?section=correspondence', 
-      icon: 'Mail', 
+      title: 'Correspondence Reports',
+      href: '/reports?section=correspondence',
+      icon: 'Mail',
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS,
@@ -76,30 +76,88 @@ export const DASHBOARD_CARDS = {
     },
     {
       id: 'appointments',
-      title: 'Principal Appointments', 
-      href: '/reports?section=appointments', 
-      icon: 'Calendar', 
+      title: 'Principal Appointments',
+      href: '/reports?section=appointments',
+      icon: 'Calendar',
       bgGradient: 'from-amber-500 to-amber-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
     },
     {
       id: 'class-management',
-      title: 'Class Management', 
-      href: '/classes', 
-      icon: 'School', 
+      title: 'Class Management',
+      href: '/classes',
+      icon: 'School',
       bgGradient: 'from-cyan-500 to-cyan-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
     },
     {
       id: 'student-assignment',
-      title: 'Student Assignment', 
-      href: '/classes/assign-students', 
-      icon: 'UserPlus', 
+      title: 'Student Assignment',
+      href: '/classes/assign-students',
+      icon: 'UserPlus',
       bgGradient: 'from-emerald-500 to-emerald-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
+    }
+  ],
+
+  // Principal - Statistics and reports only, no detailed management
+  'Principal': [
+    {
+      id: 'enquiry-statistics',
+      title: 'Enquiry Statistics',
+      href: '/reports?section=enquiries',
+      icon: 'BarChart3',
+      bgGradient: 'from-blue-500 to-blue-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
+    },
+    {
+      id: 'student-statistics',
+      title: 'Student Analytics',
+      href: '/reports?section=students',
+      icon: 'Users',
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
+    },
+    {
+      id: 'attendance-analytics',
+      title: 'Attendance Analytics',
+      href: '/reports?section=attendance',
+      icon: 'TrendingUp',
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
+    },
+    {
+      id: 'academic-performance',
+      title: 'Academic Performance',
+      href: '/reports?section=examinations',
+      icon: 'Award',
+      bgGradient: 'from-orange-500 to-orange-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
+    },
+    {
+      id: 'communication-stats',
+      title: 'Communication Analytics',
+      href: '/reports?section=correspondence',
+      icon: 'MessageSquare',
+      bgGradient: 'from-indigo-500 to-indigo-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
+    },
+    {
+      id: 'institutional-reports',
+      title: 'Institutional Reports',
+      href: '/reports',
+      icon: 'FileText',
+      bgGradient: 'from-gray-500 to-gray-600',
+      type: 'normal',
+      permission: PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
     }
   ],
 
@@ -107,72 +165,72 @@ export const DASHBOARD_CARDS = {
   'IT': [
     {
       id: 'user-management',
-      title: 'User Management', 
-      href: '/admin/users', 
-      icon: 'Users', 
+      title: 'User Management',
+      href: '/admin/users',
+      icon: 'Users',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
       id: 'student-info-edit',
-      title: 'Student Information', 
-      href: '/admin/users?filter=Student', 
-      icon: 'UserCheck', 
+      title: 'Student Information',
+      href: '/admin/users?filter=Student',
+      icon: 'UserCheck',
       bgGradient: 'from-teal-500 to-teal-600',
       type: 'normal',
       permission: PERMISSIONS.USER_MANAGEMENT.EDIT_USERS
     },
     {
       id: 'enquiry-management',
-      title: 'Enquiry Management', 
-      href: '/institute-admin/enquiries', 
-      icon: 'MessageSquare', 
+      title: 'Enquiry Management',
+      href: '/institute-admin/enquiries',
+      icon: 'MessageSquare',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT
     },
     {
       id: 'enquiry-reports',
-      title: 'Enquiry Reports', 
-      href: '/reports?section=enquiries', 
-      icon: 'BarChart3', 
+      title: 'Enquiry Reports',
+      href: '/reports?section=enquiries',
+      icon: 'BarChart3',
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
     },
     {
       id: 'correspondence-management',
-      title: 'Correspondence Management', 
-      href: '/correspondence/manage', 
-      icon: 'MessageSquare', 
+      title: 'Correspondence Management',
+      href: '/correspondence/manage',
+      icon: 'MessageSquare',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
     },
     {
       id: 'correspondence',
-      title: 'Correspondence Reports', 
-      href: '/reports?section=correspondence', 
-      icon: 'Mail', 
+      title: 'Correspondence Reports',
+      href: '/reports?section=correspondence',
+      icon: 'Mail',
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
     },
     {
       id: 'class-management',
-      title: 'Class Management', 
-      href: '/classes', 
-      icon: 'School', 
+      title: 'Class Management',
+      href: '/classes',
+      icon: 'School',
       bgGradient: 'from-cyan-500 to-cyan-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
     },
     {
       id: 'student-assignment',
-      title: 'Bulk Student Assignment', 
-      href: '/classes/assign-students', 
-      icon: 'UserPlus', 
+      title: 'Bulk Student Assignment',
+      href: '/classes/assign-students',
+      icon: 'UserPlus',
       bgGradient: 'from-emerald-500 to-emerald-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
@@ -183,45 +241,45 @@ export const DASHBOARD_CARDS = {
   'Teacher': [
     {
       id: 'attendance-management',
-      title: 'Attendance Management', 
-      href: '/attendance', 
-      icon: 'UserCheck', 
+      title: 'Attendance Management',
+      href: '/attendance',
+      icon: 'UserCheck',
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: null // Teachers access based on class/floor assignments
     },
     {
       id: 'class-management',
-      title: 'Class Management', 
-      href: '/classes', 
-      icon: 'School', 
+      title: 'Class Management',
+      href: '/classes',
+      icon: 'School',
       bgGradient: 'from-teal-500 to-teal-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
     },
     {
       id: 'student-assignment',
-      title: 'Student Assignment', 
-      href: '/classes/assign-students', 
-      icon: 'UserPlus', 
+      title: 'Student Assignment',
+      href: '/classes/assign-students',
+      icon: 'UserPlus',
       bgGradient: 'from-orange-500 to-orange-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     },
     {
       id: 'my-classes',
-      title: 'My Classes', 
-      href: '/teacher/classes', 
-      icon: 'BookOpen', 
+      title: 'My Classes',
+      href: '/teacher/classes',
+      icon: 'BookOpen',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
       permission: null
     },
     {
       id: 'my-timetable',
-      title: 'My Schedule', 
-      href: '/teacher/schedule', 
-      icon: 'Calendar', 
+      title: 'My Schedule',
+      href: '/teacher/schedule',
+      icon: 'Calendar',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: null
@@ -232,45 +290,45 @@ export const DASHBOARD_CARDS = {
   'Receptionist': [
     {
       id: 'student-management',
-      title: 'Student Management', 
-      href: '/admin/users?filter=Student', 
-      icon: 'Users', 
+      title: 'Student Management',
+      href: '/admin/users?filter=Student',
+      icon: 'Users',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
       id: 'enquiry-management',
-      title: 'Enquiry Management', 
-      href: '/institute-admin/enquiries', 
-      icon: 'MessageSquare', 
+      title: 'Enquiry Management',
+      href: '/institute-admin/enquiries',
+      icon: 'MessageSquare',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'normal',
       permission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT
     },
     {
       id: 'correspondence-management',
-      title: 'Correspondence Management', 
-      href: '/correspondence/manage', 
-      icon: 'MessageSquare', 
+      title: 'Correspondence Management',
+      href: '/correspondence/manage',
+      icon: 'MessageSquare',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
     },
     {
       id: 'correspondence',
-      title: 'Correspondence Reports', 
-      href: '/reports?section=correspondence', 
-      icon: 'Mail', 
+      title: 'Correspondence Reports',
+      href: '/reports?section=correspondence',
+      icon: 'Mail',
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
       permission: PERMISSIONS.CORRESPONDENCE.VIEW_ENQUIRY_CORRESPONDENCE
     },
     {
       id: 'enquiry-reports',
-      title: 'Enquiry Reports', 
-      href: '/reports?section=enquiries', 
-      icon: 'BarChart3', 
+      title: 'Enquiry Reports',
+      href: '/reports?section=enquiries',
+      icon: 'BarChart3',
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
@@ -281,17 +339,17 @@ export const DASHBOARD_CARDS = {
   'Coordinator': [
     {
       id: 'student-management',
-      title: 'Student Management', 
-      href: '/admin/users?filter=Student', 
-      icon: 'Users', 
+      title: 'Student Management',
+      href: '/admin/users?filter=Student',
+      icon: 'Users',
       bgGradient: 'from-teal-500 to-teal-600',
       type: 'normal',
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
       id: 'student-attendance',
-      title: 'Student Attendance Reports', 
-      href: '/reports?section=student-attendance', 
+      title: 'Student Attendance Reports',
+      href: '/reports?section=student-attendance',
       icon: 'UserCheck',
       bgGradient: 'from-blue-500 to-blue-600',
       type: 'sliding',
@@ -299,45 +357,45 @@ export const DASHBOARD_CARDS = {
     },
     {
       id: 'student-reports',
-      title: 'Student Reports', 
-      href: '/reports?section=students', 
-      icon: 'FileText', 
+      title: 'Student Reports',
+      href: '/reports?section=students',
+      icon: 'FileText',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
     },
     {
       id: 'correspondence-management',
-      title: 'Student Correspondence', 
-      href: '/correspondence/manage', 
-      icon: 'MessageSquare', 
+      title: 'Student Correspondence',
+      href: '/correspondence/manage',
+      icon: 'MessageSquare',
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
     },
     {
       id: 'enquiry-management',
-      title: 'Enquiry Management', 
-      href: '/institute-admin/enquiries', 
-      icon: 'MessageCircle', 
+      title: 'Enquiry Management',
+      href: '/institute-admin/enquiries',
+      icon: 'MessageCircle',
       bgGradient: 'from-orange-500 to-orange-600',
       type: 'normal',
       permission: PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES
     },
     {
       id: 'class-management',
-      title: 'Class Management', 
-      href: '/classes', 
-      icon: 'School', 
+      title: 'Class Management',
+      href: '/classes',
+      icon: 'School',
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
     },
     {
       id: 'student-assignment',
-      title: 'Student Assignment', 
-      href: '/classes/assign-students', 
-      icon: 'UserPlus', 
+      title: 'Student Assignment',
+      href: '/classes/assign-students',
+      icon: 'UserPlus',
       bgGradient: 'from-rose-500 to-rose-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
@@ -391,7 +449,7 @@ export const QUICK_MANAGEMENT_ACCESS = {
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     }
   ],
-  
+
   'IT': [
     {
       title: 'User Management',
@@ -443,7 +501,7 @@ export const QUICK_MANAGEMENT_ACCESS = {
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     }
   ],
-  
+
   'Receptionist': [
     {
       title: 'Student Management',

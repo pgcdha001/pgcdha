@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Users, 
-  UserPlus, 
-  Search, 
-  Filter, 
-  Edit, 
-  Trash2, 
+import {
+  Users,
+  UserPlus,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
   Eye,
   CheckCircle,
   XCircle,
@@ -13,7 +13,6 @@ import {
   Phone,
   Mail,
   User,
-  Calendar,
   Download
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -21,6 +20,7 @@ import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import StudentImport from './StudentImport';
 import UserForm from './UserForm';
 import DeleteConfirmModal from '../../pages/admin/components/DeleteConfirmModal';
 import PermissionGuard from '../PermissionGuard';
@@ -31,15 +31,15 @@ import { useDebounce } from '../../hooks/usePerformance';
  * User List Component
  * Displays filtered list of users based on permissions and allowed roles
  */
-const UserList = ({ 
-  allowedRoles = ['all'], 
-  allowedActions = ['view'], 
+const UserList = ({
+  allowedRoles = ['all'],
+  allowedActions = ['view'],
   restrictedFields = [],
   defaultFilter = ''
 }) => {
   const { toast } = useToast();
   const { userRole, can } = usePermissions();
-  
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,6 +48,7 @@ const UserList = ({
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
   const [error, setError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -57,7 +58,7 @@ const UserList = ({
   // Filter role options based on permissions
   const getRoleOptions = () => {
     const baseOptions = [{ value: '', label: 'All Roles' }];
-    
+
     if (allowedRoles.includes('all')) {
       return [
         ...baseOptions,
@@ -69,7 +70,7 @@ const UserList = ({
         { value: 'Staff', label: 'Staff' }
       ];
     }
-    
+
     // For specific roles
     const roleMap = {
       'Student': { value: 'Student', label: 'Student' },
@@ -78,11 +79,11 @@ const UserList = ({
       'Receptionist': { value: 'Receptionist', label: 'Receptionist' },
       'Staff': { value: 'Staff', label: 'Staff' }
     };
-    
+
     const filteredOptions = allowedRoles
       .filter(role => roleMap[role])
       .map(role => roleMap[role]);
-    
+
     return [...baseOptions, ...filteredOptions];
   };
 
@@ -99,7 +100,7 @@ const UserList = ({
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {
         search: debouncedSearchTerm,
         role: filterRole,
@@ -120,22 +121,18 @@ const UserList = ({
       const response = await userAPI.getUsers(params);
       console.log('Users API response:', response);
       console.log('Raw users data:', response.data?.users);
-      
+
       if (response.success) {
         let userData = response.data.users || [];
-        console.log('Users before client filtering:', userData.length, userData.map(u => ({id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status})));
-        
+        console.log('Users before client filtering:', userData.length, userData.map(u => ({ id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status })));
+
         // Client-side filtering as backup
         if (!allowedRoles.includes('all')) {
           userData = userData.filter(user => allowedRoles.includes(user.role));
         }
-        // Exclude students for IT dashboard
-        if (userRole === 'IT') {
-          userData = userData.filter(user => user.role !== 'Student');
-        }
-        
+
         setUsers(userData);
-        console.log('Users after client filtering:', userData.length, userData.map(u => ({id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status})));
+        console.log('Users after client filtering:', userData.length, userData.map(u => ({ id: u._id, name: u.fullName || u.firstName, role: u.role, status: u.status })));
       } else {
         setError(response.message || 'Failed to load users');
         console.error('Failed to load users:', response.message);
@@ -169,10 +166,10 @@ const UserList = ({
   // Handle user actions based on permissions
   const handleAddUser = () => {
     const canCreateUser = can(PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
-                         can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
-                         can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
-                         can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
-    
+      can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
+      can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
+      can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
+
     if (!allowedActions.includes('create') || !canCreateUser) {
       toast.error('You don\'t have permission to add users');
       return;
@@ -220,7 +217,7 @@ const UserList = ({
       }
     } catch (error) {
       console.error('Delete error:', error);
-      
+
       // Handle different error types
       if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
@@ -248,10 +245,10 @@ const UserList = ({
       pending: { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
       suspended: { color: 'bg-red-100 text-red-800', icon: XCircle }
     };
-    
+
     const statusInfo = statusMap[status] || statusMap.active;
     const IconComponent = statusInfo.icon;
-    
+
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
         <IconComponent className="h-3 w-3" />
@@ -268,7 +265,7 @@ const UserList = ({
     }
 
     const isStudentOnly = allowedRoles.includes('Student') && allowedRoles.length === 1;
-    
+
     let excelData;
     if (isStudentOnly) {
       // Student-specific export with all fields
@@ -342,7 +339,7 @@ const UserList = ({
       { wch: 15 },  // Registration Date
       { wch: 15 }   // Last Updated
     ];
-    
+
     worksheet['!cols'] = columnWidths;
 
     // Add worksheet to workbook
@@ -355,7 +352,7 @@ const UserList = ({
 
     // Save the file
     XLSX.writeFile(workbook, filename);
-    
+
     // Show success toast
     toast.success(`${isStudentOnly ? 'Students' : 'Users'} exported successfully`);
   };
@@ -381,7 +378,7 @@ const UserList = ({
           <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full"></div>
           {userRole === 'Receptionist' ? 'Student List' : 'User List'}
         </h3>
-        
+
         <div className="flex items-center gap-2">
           <Button
             onClick={handleExportUsers}
@@ -391,13 +388,29 @@ const UserList = ({
             <Download className="h-4 w-4" />
             Export
           </Button>
-          
-          <PermissionGuard 
+          {/* Student Import Button - Only show for student management */}
+          {(allowedRoles.includes('Student') && (userRole === 'IT' || can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT))) && (
+            <PermissionGuard
+              condition={() => can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT)}
+              fallback={null}
+            >
+              <Button
+                onClick={() => setShowImportModal(true)}
+                variant="outline"
+                className="flex items-center gap-2 text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                <Upload className="h-4 w-4" />
+                Import Students
+              </Button>
+            </PermissionGuard>
+          )}
+
+          <PermissionGuard
             condition={() => {
               const canCreateUser = can(PERMISSIONS.USER_MANAGEMENT.ADD_ANY_USER) ||
-                                   can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
-                                   can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
-                                   can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
+                can(PERMISSIONS.USER_MANAGEMENT.ADD_STUDENT) ||
+                can(PERMISSIONS.USER_MANAGEMENT.ADD_TEACHER) ||
+                can(PERMISSIONS.USER_MANAGEMENT.ADD_STAFF);
               return allowedActions.includes('create') && canCreateUser;
             }}
             fallback={null}
@@ -492,8 +505,8 @@ const UserList = ({
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {user.role === 'Student' ? 
-                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim() : 
+                          {user.role === 'Student' ?
+                            `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim() :
                             `${user.fullName?.firstName || user.firstName || ''} ${user.fullName?.lastName || user.lastName || ''}`.trim()
                           }
                         </p>
@@ -503,7 +516,7 @@ const UserList = ({
                       </div>
                     </div>
                   </td>
-                  
+
                   {allowedRoles.includes('Student') && allowedRoles.length === 1 ? (
                     // Student-specific columns
                     <>
@@ -558,8 +571,8 @@ const UserList = ({
                       >
                         <Eye className="h-4 w-4" />
                       </button>
-                      
-                      <PermissionGuard 
+
+                      <PermissionGuard
                         condition={() => allowedActions.includes('edit') && can(PERMISSIONS.USER_MANAGEMENT.EDIT_USERS)}
                         fallback={null}
                       >
@@ -571,8 +584,8 @@ const UserList = ({
                           <Edit className="h-4 w-4" />
                         </button>
                       </PermissionGuard>
-                      
-                      <PermissionGuard 
+
+                      <PermissionGuard
                         condition={() => allowedActions.includes('delete') && can(PERMISSIONS.USER_MANAGEMENT.DELETE_USERS)}
                         fallback={null}
                       >
@@ -628,6 +641,19 @@ const UserList = ({
           onClose={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
           loading={deleteLoading}
+        />
+      )}
+
+      {/* Student Import Modal */}
+      {showImportModal && (
+        <StudentImport
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            setShowImportModal(false);
+            loadUsers(); // Refresh the user list after import
+            toast.success('Students imported successfully!');
+          }}
         />
       )}
     </div>

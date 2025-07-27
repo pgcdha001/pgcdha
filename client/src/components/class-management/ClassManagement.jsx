@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Users, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Users,
+  Edit,
+  Trash2,
   Eye,
   Building,
   BookOpen,
   UserCheck,
   GraduationCap,
   MapPin,
-  ChevronDown,
   X
 } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -61,7 +60,7 @@ const ClassManagement = () => {
         setLoading(false);
       }
     };
-    
+
     loadData();
 
     // Set up periodic refresh for classes to update student counts
@@ -172,14 +171,14 @@ const ClassManagement = () => {
     const campusMatch = !filterCampus || cls.campus === filterCampus;
     const gradeMatch = !filterGrade || cls.grade === filterGrade;
     const programMatch = !filterProgram || cls.program === filterProgram;
-    
+
     return nameMatch && campusMatch && gradeMatch && programMatch;
   });
 
   const getFloorName = (floor) => {
     const floorNames = {
       1: '11th Boys Floor',
-      2: '12th Boys Floor', 
+      2: '12th Boys Floor',
       3: '11th Girls Floor',
       4: '12th Girls Floor'
     };
@@ -234,7 +233,7 @@ const ClassManagement = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              
+
               <div className="flex gap-2">
                 <select
                   value={filterCampus}
@@ -245,7 +244,7 @@ const ClassManagement = () => {
                   <option value="Boys">Boys Campus</option>
                   <option value="Girls">Girls Campus</option>
                 </select>
-                
+
                 <select
                   value={filterGrade}
                   onChange={(e) => setFilterGrade(e.target.value)}
@@ -255,17 +254,21 @@ const ClassManagement = () => {
                   <option value="11th">11th Grade</option>
                   <option value="12th">12th Grade</option>
                 </select>
-                
+
                 <select
                   value={filterProgram}
                   onChange={(e) => setFilterProgram(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Programs</option>
-                  <option value="ICS">ICS</option>
+                  <option value="ICS-PHY">ICS-PHY</option>
+                  <option value="ICS-STAT">ICS-STAT</option>
                   <option value="ICOM">ICOM</option>
                   <option value="Pre Engineering">Pre Engineering</option>
                   <option value="Pre Medical">Pre Medical</option>
+                  <option value="F.A">F.A</option>
+                  <option value="FA IT">FA IT</option>
+                  <option value="General Science">General Science</option>
                 </select>
               </div>
             </div>
@@ -298,13 +301,12 @@ const ClassManagement = () => {
                 <div className={`p-4 ${cls.campus === 'Boys' ? 'bg-blue-50' : 'bg-pink-50'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-semibold text-gray-900">{cls.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      cls.campus === 'Boys' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${cls.campus === 'Boys' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                      }`}>
                       {cls.campus}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-1">
                       <GraduationCap className="h-4 w-4" />
@@ -337,11 +339,10 @@ const ClassManagement = () => {
 
                     {/* Progress Bar */}
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          (cls.currentStudents / cls.maxStudents) > 0.8 ? 'bg-red-500' :
-                          (cls.currentStudents / cls.maxStudents) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${(cls.currentStudents / cls.maxStudents) > 0.8 ? 'bg-red-500' :
+                            (cls.currentStudents / cls.maxStudents) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
+                          }`}
                         style={{ width: `${Math.min(100, (cls.currentStudents / cls.maxStudents) * 100)}%` }}
                       ></div>
                     </div>
@@ -368,14 +369,14 @@ const ClassManagement = () => {
                         View Details
                       </button>
                     </PermissionGuard>
-                    
+
                     <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.EDIT_CLASS}>
                       <button className="flex items-center justify-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                         <Edit className="h-4 w-4" />
                         Edit
                       </button>
                     </PermissionGuard>
-                    
+
                     <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.DELETE_CLASS}>
                       <button
                         onClick={() => handleDeleteClass(cls._id)}
@@ -424,7 +425,7 @@ const ClassManagement = () => {
                       type="text"
                       required
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g., Computer Science A, Biology Advanced"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -438,7 +439,7 @@ const ClassManagement = () => {
                     <select
                       required
                       value={formData.campus}
-                      onChange={(e) => setFormData({...formData, campus: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, campus: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select Campus</option>
@@ -455,7 +456,7 @@ const ClassManagement = () => {
                     <select
                       required
                       value={formData.grade}
-                      onChange={(e) => setFormData({...formData, grade: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select Grade</option>
@@ -472,14 +473,18 @@ const ClassManagement = () => {
                     <select
                       required
                       value={formData.program}
-                      onChange={(e) => setFormData({...formData, program: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, program: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select Program</option>
-                      <option value="ICS">ICS</option>
+                      <option value="ICS-PHY">ICS-PHY</option>
+                      <option value="ICS-STAT">ICS-STAT</option>
                       <option value="ICOM">ICOM</option>
                       <option value="Pre Engineering">Pre Engineering</option>
                       <option value="Pre Medical">Pre Medical</option>
+                      <option value="F.A">F.A</option>
+                      <option value="FA IT">FA IT</option>
+                      <option value="General Science">General Science</option>
                     </select>
                   </div>
 
@@ -493,7 +498,7 @@ const ClassManagement = () => {
                       min="1"
                       max="50"
                       value={formData.maxStudents}
-                      onChange={(e) => setFormData({...formData, maxStudents: parseInt(e.target.value)})}
+                      onChange={(e) => setFormData({ ...formData, maxStudents: parseInt(e.target.value) })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -505,7 +510,7 @@ const ClassManagement = () => {
                     </label>
                     <select
                       value={formData.classIncharge}
-                      onChange={(e) => setFormData({...formData, classIncharge: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, classIncharge: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select Teacher</option>
@@ -529,7 +534,7 @@ const ClassManagement = () => {
                     </label>
                     <select
                       value={formData.assignedCoordinator}
-                      onChange={(e) => setFormData({...formData, assignedCoordinator: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, assignedCoordinator: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select Coordinator</option>
@@ -549,7 +554,7 @@ const ClassManagement = () => {
                     <input
                       type="text"
                       value={formData.academicYear}
-                      onChange={(e) => setFormData({...formData, academicYear: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
                       placeholder="2024-2025"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -585,9 +590,8 @@ const ClassManagement = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               {/* Modal Header */}
-              <div className={`p-6 rounded-t-2xl text-white ${
-                selectedClass.campus === 'Boys' ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gradient-to-r from-pink-500 to-pink-600'
-              }`}>
+              <div className={`p-6 rounded-t-2xl text-white ${selectedClass.campus === 'Boys' ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gradient-to-r from-pink-500 to-pink-600'
+                }`}>
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-xl font-bold">{selectedClass.name}</h3>
@@ -616,7 +620,7 @@ const ClassManagement = () => {
                     <p className="text-2xl font-bold">{classStudents.length}</p>
                     <p className="text-sm text-gray-500">out of {selectedClass.maxStudents}</p>
                   </div>
-                  
+
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <MapPin className="h-5 w-5 text-green-500" />
@@ -625,7 +629,7 @@ const ClassManagement = () => {
                     <p className="text-2xl font-bold">{selectedClass.floor}</p>
                     <p className="text-sm text-gray-500">{getFloorName(selectedClass.floor)}</p>
                   </div>
-                  
+
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <UserCheck className="h-5 w-5 text-purple-500" />
@@ -638,7 +642,7 @@ const ClassManagement = () => {
                 {/* Students List */}
                 <div>
                   <h4 className="text-lg font-semibold mb-4">Students in Class</h4>
-                  
+
                   {classStudents.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />

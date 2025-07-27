@@ -19,7 +19,7 @@ const UserStatistics = ({ allowedRoles = ['all'] }) => {
     it: 0
   });
   const [loading, setLoading] = useState(true);
-
+  
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
