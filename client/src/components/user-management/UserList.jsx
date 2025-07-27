@@ -14,7 +14,8 @@ import {
   Mail,
   User,
   Download,
-  Upload
+  Upload,
+  Loader2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
@@ -55,7 +56,9 @@ const UserList = ({
   const [error, setError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const debouncedSearchTerm = useDebounce(searchTerm, 400);
+  const debouncedSearchTerm = useDebounce(searchTerm, 4000);
+  // Track if search is pending (user typed but debounce hasn't fired yet)
+  const isSearchPending = searchTerm !== debouncedSearchTerm;
 
   // Filter role options based on permissions
   const getRoleOptions = () => {
@@ -404,7 +407,9 @@ const UserList = ({
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-            <span className="text-primary font-medium">Loading users...</span>
+            <span className="text-primary font-medium">
+              {userType === 'student' ? 'Loading students...' : 'Loading users...'}
+            </span>
           </div>
         </div>
       </div>
@@ -471,12 +476,15 @@ const UserList = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          {isSearchPending && (
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-primary h-4 w-4 animate-spin" />
+          )}
           <input
             type="text"
-            placeholder={userType === 'student' ? 'Search students...' : 'Search users...'}
+            placeholder={userType === 'student' ? 'Search by name, father name, email...' : 'Search by name, father name, email...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className={`w-full pl-10 ${isSearchPending ? 'pr-10' : 'pr-4'} py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent`}
           />
         </div>
 
@@ -509,8 +517,18 @@ const UserList = ({
       )}
 
       {/* Users Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="overflow-x-auto relative">
+        {(loading && users.length > 0) && (
+          <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-sm text-gray-600">
+                {userType === 'student' ? 'Updating students...' : 'Updating users...'}
+              </span>
+            </div>
+          </div>
+        )}
+        <table className="w-full">{/* ... */}
           <thead>
             <tr className="border-b border-gray-200">
               <th className="text-left py-3 px-4 font-semibold text-gray-700">

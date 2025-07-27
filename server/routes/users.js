@@ -42,6 +42,8 @@ router.get('/',
       filter.$or = [
         { 'fullName.firstName': new RegExp(search, 'i') },
         { 'fullName.lastName': new RegExp(search, 'i') },
+        { fatherName: new RegExp(search, 'i') },
+        { 'familyInfo.fatherName': new RegExp(search, 'i') },
         { email: new RegExp(search, 'i') },
         { username: new RegExp(search, 'i') }
       ];
