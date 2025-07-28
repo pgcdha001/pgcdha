@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '../../components/ui/button';
 import Card from '../../components/ui/card';
 import { default as api } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
-import { FileDown, FileSpreadsheet, FileText } from 'lucide-react';
+import { FileDown, FileSpreadsheet, FileText, CalendarDays, AlertTriangle } from 'lucide-react';
+import DateFilter from '../../components/enquiry/DateFilter';
+import CustomDateRange from '../../components/enquiry/CustomDateRange';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -39,16 +41,55 @@ const StudentReport = () => {
   const [nameFilter, setNameFilter] = useState('');
   const [cnicFilter, setCnicFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
+  
+  // Date filter states
+  const [selectedDate, setSelectedDate] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [customDatesApplied, setCustomDatesApplied] = useState(false);
+  const [isCustomDateLoading, setIsCustomDateLoading] = useState(false);
+  
+  // Non-progression filter states
+  const [showNonProgression, setShowNonProgression] = useState(false);
+  const [progressionLevel, setProgressionLevel] = useState('');
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
+  const dateFilters = [
+    { value: 'all', label: 'All Time' },
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'year', label: 'This Year' },
+    { value: 'custom', label: 'Custom Range' }
+  ];
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/users?role=Student&limit=1000');
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('role', 'Student');
+      params.append('limit', '1000');
+      
+      // Add date filter parameters (only if not custom, or if custom and dates are applied)
+      if (selectedDate !== 'all' && selectedDate !== 'custom') {
+        params.append('dateFilter', selectedDate);
+      } else if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
+        params.append('dateFilter', 'custom');
+        params.append('startDate', customStartDate);
+        params.append('endDate', customEndDate);
+      }
+      
+      // Add non-progression filter parameters
+      if (showNonProgression && progressionLevel) {
+        params.append('nonProgression', 'true');
+        params.append('progressionLevel', progressionLevel);
+      }
+      
+      const queryString = params.toString();
+      const url = `/users?${queryString}`;
+      
+      const res = await api.get(url);
       setStudents(res.data?.data?.users || []);
     } catch (err) {
       console.error('Failed to fetch students:', err);
@@ -56,6 +97,60 @@ const StudentReport = () => {
     } finally {
       setLoading(false);
     }
+  }, [selectedDate, customStartDate, customEndDate, customDatesApplied, showNonProgression, progressionLevel]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  // Date filter handlers
+  const handleDateChange = (dateValue) => {
+    setSelectedDate(dateValue);
+    if (dateValue !== 'custom') {
+      setCustomDatesApplied(false);
+      // Reset custom dates when switching away from custom
+      setCustomStartDate('');
+      setCustomEndDate('');
+    }
+  };
+
+  const handleStartDateChange = (date) => {
+    setCustomStartDate(date);
+    // Don't trigger API call on date input changes
+  };
+
+  const handleEndDateChange = (date) => {
+    setCustomEndDate(date);
+    // Don't trigger API call on date input changes
+  };
+
+  const handleApplyCustomDates = async () => {
+    if (customStartDate && customEndDate) {
+      setIsCustomDateLoading(true);
+      setCustomDatesApplied(true);
+      // The useEffect will trigger fetchStudents when customDatesApplied changes
+      setTimeout(() => {
+        setIsCustomDateLoading(false);
+      }, 500);
+    }
+  };
+
+  // Non-progression filter handlers
+  const handleNonProgressionToggle = () => {
+    const newShowNonProgression = !showNonProgression;
+    setShowNonProgression(newShowNonProgression);
+    
+    if (newShowNonProgression) {
+      // When enabling non-progression filter, reset stage filter to "All Stages"
+      setStageFilter('');
+      if (!progressionLevel) {
+        setProgressionLevel('2'); // Default to Level 2
+      }
+    }
+  };
+
+  const handleProgressionLevelChange = (level) => {
+    setProgressionLevel(level);
   };
 
   // Filtered students (cumulative approach)
@@ -447,13 +542,43 @@ const StudentReport = () => {
           <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
           Filters
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        {/* Custom Date Range */}
+        {selectedDate === 'custom' && (
+          <CustomDateRange 
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            customDatesApplied={customDatesApplied}
+            isCustomDateLoading={isCustomDateLoading}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+            onApplyFilters={handleApplyCustomDates}
+            loading={loading}
+          />
+        )}
+        
+        {/* Main Filter Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+          {/* Date Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-primary/80 mb-2">Date Range</label>
+            <DateFilter 
+              selectedDate={selectedDate}
+              dateFilters={dateFilters}
+              onDateChange={handleDateChange}
+              loading={loading}
+            />
+          </div>
+          
           <div>
             <label className="block text-sm font-semibold text-primary/80 mb-2">Stage</label>
             <select
-              className="w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90"
-              value={stageFilter}
+              className={`w-full px-4 py-3 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-3 focus:ring-primary/30 focus:border-primary bg-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/90 ${
+                showNonProgression ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
+              }`}
+              value={showNonProgression ? '' : stageFilter}
               onChange={e => setStageFilter(e.target.value)}
+              disabled={showNonProgression}
             >
               <option value="">All Stages</option>
               {STAGE_LABELS.map((label, idx) => (
@@ -462,6 +587,9 @@ const StudentReport = () => {
                 </option>
               ))}
             </select>
+            {showNonProgression && (
+              <div className="text-xs text-gray-500 mt-1">Auto-set to All</div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-semibold text-primary/80 mb-2">Name</label>
@@ -496,6 +624,49 @@ const StudentReport = () => {
               <option value="Not specified">Not Specified</option>
             </select>
           </div>
+        </div>
+        
+        {/* Non-Progression Filter Row */}
+        <div className="pt-4 border-t border-border/20">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="nonProgressionReport"
+                checked={showNonProgression}
+                onChange={handleNonProgressionToggle}
+                className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+              />
+              <label htmlFor="nonProgressionReport" className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <AlertTriangle className="w-4 h-4 text-orange-500" />
+                <span>Show Non-Progressed Students</span>
+              </label>
+            </div>
+            
+            {showNonProgression && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">From Stage:</span>
+                <select
+                  value={progressionLevel}
+                  onChange={(e) => handleProgressionLevelChange(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">Select Stage</option>
+                  <option value="2">Stage 2 (didn't progress from Stage 1)</option>
+                  <option value="3">Stage 3 (didn't progress from Stage 2)</option>
+                  <option value="4">Stage 4 (didn't progress from Stage 3)</option>
+                  <option value="5">Stage 5 (didn't progress from Stage 4)</option>
+                </select>
+              </div>
+            )}
+          </div>
+          
+          {showNonProgression && progressionLevel && (
+            <div className="mt-2 text-sm text-orange-600 bg-orange-50 p-2 rounded-lg">
+              <AlertTriangle className="w-4 h-4 inline mr-1" />
+              Showing students who did not progress to Stage {progressionLevel}
+            </div>
+          )}
         </div>
       </div>
 

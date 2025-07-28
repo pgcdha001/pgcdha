@@ -28,7 +28,12 @@ router.get('/',
       grade = '',
       campus = '',
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      dateFilter = '',
+      startDate = '',
+      endDate = '',
+      nonProgression = '',
+      progressionLevel = ''
     } = req.query;
 
     // Build filter object
@@ -36,6 +41,57 @@ router.get('/',
       // By default, exclude deleted users
       status: { $ne: 3 }
     };
+
+    // Apply date filter
+    if (dateFilter && dateFilter !== 'all') {
+      if (dateFilter === 'custom' && startDate && endDate) {
+        // Handle custom date range
+        const customStartDate = new Date(startDate);
+        const customEndDate = new Date(endDate);
+        customEndDate.setHours(23, 59, 59, 999); // Include the entire end date
+        
+        filter.createdOn = { 
+          $gte: customStartDate,
+          $lte: customEndDate
+        };
+      } else {
+        // Handle predefined date filters
+        const now = new Date();
+        let filterStartDate;
+
+        switch (dateFilter) {
+          case 'today':
+            filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+          case 'week':
+            filterStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case 'month':
+            filterStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case 'year':
+            filterStartDate = new Date(now.getFullYear(), 0, 1);
+            break;
+          default:
+            filterStartDate = null;
+        }
+
+        if (filterStartDate) {
+          filter.createdOn = { $gte: filterStartDate };
+        }
+      }
+    }
+
+    // Handle non-progression filter
+    if (nonProgression === 'true' && progressionLevel) {
+      const level = parseInt(progressionLevel);
+      
+      // For non-progression filtering, we need to find students who:
+      // Are currently at (level - 1) and should have progressed to level but didn't
+      if (level > 1 && level <= 5) {
+        filter.prospectusStage = level - 1;
+      }
+    }
 
     // Search filter
     if (search) {

@@ -14,7 +14,70 @@ function requireIT(req, res, next) {
 // Get all students/enquiries (authenticated users)
 router.get('/', authenticate, async (req, res) => {
   try {
-    const students = await User.find({ role: 'Student' }).select('-password');
+    const { dateFilter, startDate, endDate, nonProgression, progressionLevel } = req.query;
+    
+    // Build query for students
+    let query = { role: 'Student' };
+    
+    // Apply date filter
+    if (dateFilter && dateFilter !== 'all') {
+      if (dateFilter === 'custom' && startDate && endDate) {
+        // Handle custom date range
+        const customStartDate = new Date(startDate);
+        const customEndDate = new Date(endDate);
+        customEndDate.setHours(23, 59, 59, 999); // Include the entire end date
+        
+        query.createdOn = { 
+          $gte: customStartDate,
+          $lte: customEndDate
+        };
+      } else {
+        // Handle predefined date filters
+        const now = new Date();
+        let filterStartDate;
+
+        switch (dateFilter) {
+          case 'today':
+            filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+          case 'week':
+            filterStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case 'month':
+            filterStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case 'year':
+            filterStartDate = new Date(now.getFullYear(), 0, 1);
+            break;
+          default:
+            filterStartDate = null;
+        }
+
+        if (filterStartDate) {
+          query.createdOn = { $gte: filterStartDate };
+        }
+      }
+    }
+    
+    // Handle non-progression filter
+    if (nonProgression === 'true' && progressionLevel) {
+      const level = parseInt(progressionLevel);
+      
+      // For non-progression filtering, we need to find students who:
+      // 1. Are currently at (level - 1) 
+      // 2. And should have progressed to level but didn't
+      
+      if (level > 1 && level <= 5) {
+        // Students who didn't progress from (level-1) to level
+        query.prospectusStage = level - 1;
+        
+        // Additional logic could be added here to check time-based progression
+        // For now, we assume students at level-1 who have been there for a certain time
+        // didn't progress to the target level
+      }
+    }
+    
+    const students = await User.find(query).select('-password');
     
     // Log potential duplicates for debugging
     const nameGroups = {};

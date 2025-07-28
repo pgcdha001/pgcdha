@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, User, Mail, Phone, Clock, XCircle, CheckCircle, Eye, Settings } from 'lucide-react';
+import { Search, Filter, User, Mail, Phone, Clock, XCircle, CheckCircle, Eye, Settings, CalendarDays, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
 import PermissionGuard from '../PermissionGuard';
 import EnquiryLevelManager from './EnquiryLevelManager';
+import DateFilter from './DateFilter';
+import CustomDateRange from './CustomDateRange';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/rolePermissions';
-import { ENQUIRY_LEVELS, getLevelInfo, getStatusIcon } from '../../constants/enquiryLevels';
+import { ENQUIRY_LEVELS, getLevelInfo } from '../../constants/enquiryLevels';
 import { useDebounce } from '../../hooks/usePerformance';
 
 const EnquiryList = ({ config }) => {
@@ -18,11 +20,52 @@ const EnquiryList = ({ config }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  
+  // Date filter states
+  const [selectedDate, setSelectedDate] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [customDatesApplied, setCustomDatesApplied] = useState(false);
+  const [isCustomDateLoading, setIsCustomDateLoading] = useState(false);
+  
+  // Non-progression filter states
+  const [showNonProgression, setShowNonProgression] = useState(false);
+  const [progressionLevel, setProgressionLevel] = useState('');
+
+  const dateFilters = [
+    { value: 'all', label: 'All Time' },
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'year', label: 'This Year' },
+    { value: 'custom', label: 'Custom Range' }
+  ];
 
   const fetchEnquiries = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get('/students');
+      // Build query parameters
+      const params = new URLSearchParams();
+      
+      // Add date filter parameters (only if not custom, or if custom and dates are applied)
+      if (selectedDate !== 'all' && selectedDate !== 'custom') {
+        params.append('dateFilter', selectedDate);
+      } else if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
+        params.append('dateFilter', 'custom');
+        params.append('startDate', customStartDate);
+        params.append('endDate', customEndDate);
+      }
+      
+      // Add non-progression filter parameters
+      if (showNonProgression && progressionLevel) {
+        params.append('nonProgression', 'true');
+        params.append('progressionLevel', progressionLevel);
+      }
+      
+      const queryString = params.toString();
+      const url = queryString ? `/students?${queryString}` : '/students';
+      
+      const response = await api.get(url);
       // Extract the actual data array from the API response
       const enquiriesData = response.data?.data || response.data || [];
       
@@ -41,13 +84,70 @@ const EnquiryList = ({ config }) => {
     } finally {
       setLoading(false);
     }
-  }, [config]);
+  }, [config, selectedDate, customStartDate, customEndDate, customDatesApplied, showNonProgression, progressionLevel]);
 
   useEffect(() => {
     fetchEnquiries();
-  }, [config, fetchEnquiries]);
+  }, [fetchEnquiries]);
+
+  // Only trigger refetch when custom dates are applied (not on date input changes)
+  useEffect(() => {
+    if (selectedDate === 'custom' && customDatesApplied) {
+      // This will trigger fetchEnquiries through the dependency in the useCallback
+    }
+  }, [customDatesApplied, selectedDate]);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
+
+  // Date filter handlers
+  const handleDateChange = (dateValue) => {
+    setSelectedDate(dateValue);
+    if (dateValue !== 'custom') {
+      setCustomDatesApplied(false);
+      // Reset custom dates when switching away from custom
+      setCustomStartDate('');
+      setCustomEndDate('');
+    }
+  };
+
+  const handleStartDateChange = (date) => {
+    setCustomStartDate(date);
+    // Don't set customDatesApplied to false here - user needs to click Apply
+  };
+
+  const handleEndDateChange = (date) => {
+    setCustomEndDate(date);
+    // Don't set customDatesApplied to false here - user needs to click Apply
+  };
+
+  const handleApplyCustomDates = async () => {
+    if (customStartDate && customEndDate) {
+      setIsCustomDateLoading(true);
+      setCustomDatesApplied(true);
+      // The useEffect will trigger fetchEnquiries when customDatesApplied changes
+      setTimeout(() => {
+        setIsCustomDateLoading(false);
+      }, 500);
+    }
+  };
+
+  // Non-progression filter handlers
+  const handleNonProgressionToggle = () => {
+    const newShowNonProgression = !showNonProgression;
+    setShowNonProgression(newShowNonProgression);
+    
+    if (newShowNonProgression) {
+      // When enabling non-progression filter, reset level filter to "All Levels"
+      setFilterLevel('');
+      if (!progressionLevel) {
+        setProgressionLevel('2'); // Default to Level 2
+      }
+    }
+  };
+
+  const handleProgressionLevelChange = (level) => {
+    setProgressionLevel(level);
+  };
 
   useEffect(() => {
     let filtered = enquiries;
@@ -136,6 +236,22 @@ const EnquiryList = ({ config }) => {
       {/* Filters and Search */}
       <div className="relative bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-6 mb-6 transition-all duration-300 hover:shadow-[0_20px_64px_0_rgba(26,35,126,0.18)] group">
         <span className="absolute top-0 left-8 right-8 h-1 rounded-b-xl bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
+        
+        {/* Custom Date Range */}
+        {selectedDate === 'custom' && (
+          <CustomDateRange 
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            customDatesApplied={customDatesApplied}
+            isCustomDateLoading={isCustomDateLoading}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+            onApplyFilters={handleApplyCustomDates}
+            loading={loading}
+          />
+        )}
+        
+        {/* Main Filter Row */}
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative group">
@@ -149,13 +265,27 @@ const EnquiryList = ({ config }) => {
               />
             </div>
           </div>
+          
+          {/* Date Filter */}
+          <div className="lg:w-48">
+            <DateFilter 
+              selectedDate={selectedDate}
+              dateFilters={dateFilters}
+              onDateChange={handleDateChange}
+              loading={loading}
+            />
+          </div>
+          
           <div className="lg:w-48">
             <div className="relative group">
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200 group-focus-within:text-primary" />
               <select
-                value={filterLevel}
+                value={showNonProgression ? '' : filterLevel}
                 onChange={(e) => setFilterLevel(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/80 shadow-inner focus:shadow-lg focus:bg-white rounded-xl font-[Inter,sans-serif] focus:ring-2 focus:ring-primary/40 focus:outline-none appearance-none transition-all duration-200"
+                disabled={showNonProgression}
+                className={`w-full pl-10 pr-4 py-3 bg-white/80 shadow-inner focus:shadow-lg focus:bg-white rounded-xl font-[Inter,sans-serif] focus:ring-2 focus:ring-primary/40 focus:outline-none appearance-none transition-all duration-200 ${
+                  showNonProgression ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
+                }`}
               >
                 <option value="">All Levels</option>
                 {getAvailableLevels().map((level) => (
@@ -164,6 +294,11 @@ const EnquiryList = ({ config }) => {
                   </option>
                 ))}
               </select>
+              {showNonProgression && (
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                  Auto-set to All
+                </div>
+              )}
             </div>
           </div>
           <div className="lg:w-48">
@@ -195,6 +330,49 @@ const EnquiryList = ({ config }) => {
               {loading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
+        </div>
+        
+        {/* Non-Progression Filter Row */}
+        <div className="mt-4 pt-4 border-t border-border/20">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="nonProgression"
+                checked={showNonProgression}
+                onChange={handleNonProgressionToggle}
+                className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+              />
+              <label htmlFor="nonProgression" className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <AlertTriangle className="w-4 h-4 text-orange-500" />
+                <span>Show Non-Progressed Students</span>
+              </label>
+            </div>
+            
+            {showNonProgression && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">From Level:</span>
+                <select
+                  value={progressionLevel}
+                  onChange={(e) => handleProgressionLevelChange(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">Select Level</option>
+                  <option value="2">Level 2 (didn't progress from Level 1)</option>
+                  <option value="3">Level 3 (didn't progress from Level 2)</option>
+                  <option value="4">Level 4 (didn't progress from Level 3)</option>
+                  <option value="5">Level 5 (didn't progress from Level 4)</option>
+                </select>
+              </div>
+            )}
+          </div>
+          
+          {showNonProgression && progressionLevel && (
+            <div className="mt-2 text-sm text-orange-600 bg-orange-50 p-2 rounded-lg">
+              <AlertTriangle className="w-4 h-4 inline mr-1" />
+              Showing students who did not progress to Level {progressionLevel}
+            </div>
+          )}
         </div>
       </div>
 
