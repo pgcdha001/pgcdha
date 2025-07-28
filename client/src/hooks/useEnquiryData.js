@@ -79,6 +79,9 @@ const useEnquiryData = () => {
       
       const data = response.data.data;
       console.log('Data fetched successfully');
+      console.log('Backend response structure:', data);
+      console.log('Has allTime.levelProgression?', data?.allTime?.levelProgression ? 'YES' : 'NO');
+      console.log('Has allTime.genderLevelProgression?', data?.allTime?.genderLevelProgression ? 'YES' : 'NO');
 
       // Update cache
       setCache({
@@ -190,11 +193,28 @@ const useEnquiryData = () => {
 
     const level = parseInt(selectedLevel);
     
+    let levelData, progressionData, genderProgressionData;
+    
     if (selectedDate === 'all') {
-      return cache.data.allTime?.levelData?.[level] || null;
+      levelData = cache.data.allTime?.levelData?.[level] || null;
+      progressionData = cache.data.allTime?.levelProgression || null;
+      genderProgressionData = cache.data.allTime?.genderLevelProgression || null;
     } else {
-      return cache.data.dateRanges?.[selectedDate]?.levelData?.[level] || null;
+      levelData = cache.data.dateRanges?.[selectedDate]?.levelData?.[level] || null;
+      progressionData = cache.data.dateRanges?.[selectedDate]?.levelProgression || null;
+      genderProgressionData = cache.data.dateRanges?.[selectedDate]?.genderLevelProgression || null;
     }
+    
+    // Combine level data with progression data for the component
+    if (levelData) {
+      return {
+        ...levelData,
+        levelProgression: progressionData,
+        genderLevelProgression: genderProgressionData
+      };
+    }
+    
+    return levelData;
   }, [cache.data]);
 
   /**

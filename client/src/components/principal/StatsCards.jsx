@@ -6,13 +6,34 @@ const StatsCards = ({
   percentages, 
   currentView, 
   selectedGender, 
+  selectedLevel,
   onCardClick, 
   loading 
 }) => {
+  // Get non-progression data for the selected level
+  const getNonProgressionData = () => {
+    if (!currentData?.levelProgression || !currentData?.genderLevelProgression || parseInt(selectedLevel) === 1) {
+      return { total: 0, boys: 0, girls: 0 };
+    }
+
+    const level = parseInt(selectedLevel);
+    const levelData = currentData.levelProgression[level];
+    const boysData = currentData.genderLevelProgression?.boys?.[level];
+    const girlsData = currentData.genderLevelProgression?.girls?.[level];
+
+    return {
+      total: levelData?.notProgressed || 0,
+      boys: boysData?.notProgressed || 0,
+      girls: girlsData?.notProgressed || 0
+    };
+  };
+
+  const nonProgressionData = getNonProgressionData();
   const cards = [
     {
       title: 'Total Students',
       value: currentData.total,
+      nonProgressed: nonProgressionData.total,
       icon: Users,
       color: 'from-blue-500 to-blue-600',
       view: 'total',
@@ -21,6 +42,7 @@ const StatsCards = ({
     {
       title: 'Boys',
       value: currentData.boys,
+      nonProgressed: nonProgressionData.boys,
       percentage: percentages.boysPercentage,
       icon: UserCheck,
       color: 'from-green-500 to-green-600',
@@ -31,6 +53,7 @@ const StatsCards = ({
     {
       title: 'Girls',
       value: currentData.girls,
+      nonProgressed: nonProgressionData.girls,
       percentage: percentages.girlsPercentage,
       icon: GraduationCap,
       color: 'from-pink-500 to-red-500',
@@ -63,6 +86,11 @@ const StatsCards = ({
                   {card.percentage !== undefined && (
                     <p className="text-sm opacity-90 mt-1">
                       {card.percentage.toFixed(1)}% of total
+                    </p>
+                  )}
+                  {card.nonProgressed > 0 && parseInt(selectedLevel) > 1 && (
+                    <p className="text-sm opacity-90 mt-1 bg-red-500 bg-opacity-20 px-2 py-1 rounded">
+                      {card.nonProgressed.toLocaleString()} did not progress
                     </p>
                   )}
                 </div>

@@ -78,11 +78,19 @@ const PrincipalEnquiryManagement = () => {
     const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
     const level = parseInt(selectedLevel);
     
+    let currentData;
     if (dateFilter === 'custom' && customData) {
-      return getFilteredData(level, dateFilter, customData);
+      currentData = getFilteredData(level, dateFilter, customData);
     } else {
-      return getFilteredData(level, dateFilter);
+      currentData = getFilteredData(level, dateFilter);
     }
+    
+    // Debug: Log the data structure to understand what we're getting
+    console.log('getCurrentData - dateFilter:', dateFilter, 'level:', level);
+    console.log('getCurrentData - currentData:', currentData);
+    console.log('getCurrentData - has levelProgression?', currentData?.levelProgression ? 'YES' : 'NO');
+    
+    return currentData;
   }, [selectedLevel, selectedDate, customDatesApplied, customData, getFilteredData]);
 
   // Get current level statistics
@@ -271,6 +279,7 @@ const PrincipalEnquiryManagement = () => {
             percentages={percentages}
             currentView={currentView}
             selectedGender={selectedGender}
+            selectedLevel={selectedLevel}
             onCardClick={handleCardClick}
             loading={loading}
           />

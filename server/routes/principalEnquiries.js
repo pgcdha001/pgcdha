@@ -689,8 +689,89 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
       });
     }
 
+    // Calculate progression data for all levels
+    console.log('Calculating progression data...');
+    
+    // All-time progression
+    data.allTime.levelProgression = {};
+    data.allTime.genderLevelProgression = { boys: {}, girls: {} };
+    
+    for (let level = 1; level <= 5; level++) {
+      const currentTotal = data.allTime.levelData[level].total;
+      const currentBoys = data.allTime.levelData[level].boys;
+      const currentGirls = data.allTime.levelData[level].girls;
+      
+      // For level 1, previous = current (100% progression)
+      // For other levels, previous = data from level-1
+      const previousTotal = level === 1 ? currentTotal : data.allTime.levelData[level - 1].total;
+      const previousBoys = level === 1 ? currentBoys : data.allTime.levelData[level - 1].boys;
+      const previousGirls = level === 1 ? currentGirls : data.allTime.levelData[level - 1].girls;
+      
+      // Calculate non-progression (students who didn't advance to next level)
+      const notProgressedTotal = previousTotal - currentTotal;
+      const notProgressedBoys = previousBoys - currentBoys;
+      const notProgressedGirls = previousGirls - currentGirls;
+      
+      data.allTime.levelProgression[level] = {
+        current: currentTotal,
+        previous: previousTotal,
+        notProgressed: Math.max(0, notProgressedTotal)
+      };
+      
+      data.allTime.genderLevelProgression.boys[level] = {
+        current: currentBoys,
+        previous: previousBoys,
+        notProgressed: Math.max(0, notProgressedBoys)
+      };
+      
+      data.allTime.genderLevelProgression.girls[level] = {
+        current: currentGirls,
+        previous: previousGirls,
+        notProgressed: Math.max(0, notProgressedGirls)
+      };
+    }
+    
+    // Add progression data to date ranges as well
+    Object.keys(data.dateRanges).forEach(dateRange => {
+      data.dateRanges[dateRange].levelProgression = {};
+      data.dateRanges[dateRange].genderLevelProgression = { boys: {}, girls: {} };
+      
+      for (let level = 1; level <= 5; level++) {
+        const currentTotal = data.dateRanges[dateRange].levelData[level].total;
+        const currentBoys = data.dateRanges[dateRange].levelData[level].boys;
+        const currentGirls = data.dateRanges[dateRange].levelData[level].girls;
+        
+        const previousTotal = level === 1 ? currentTotal : data.dateRanges[dateRange].levelData[level - 1].total;
+        const previousBoys = level === 1 ? currentBoys : data.dateRanges[dateRange].levelData[level - 1].boys;
+        const previousGirls = level === 1 ? currentGirls : data.dateRanges[dateRange].levelData[level - 1].girls;
+        
+        const notProgressedTotal = previousTotal - currentTotal;
+        const notProgressedBoys = previousBoys - currentBoys;
+        const notProgressedGirls = previousGirls - currentGirls;
+        
+        data.dateRanges[dateRange].levelProgression[level] = {
+          current: currentTotal,
+          previous: previousTotal,
+          notProgressed: Math.max(0, notProgressedTotal)
+        };
+        
+        data.dateRanges[dateRange].genderLevelProgression.boys[level] = {
+          current: currentBoys,
+          previous: previousBoys,
+          notProgressed: Math.max(0, notProgressedBoys)
+        };
+        
+        data.dateRanges[dateRange].genderLevelProgression.girls[level] = {
+          current: currentGirls,
+          previous: previousGirls,
+          notProgressed: Math.max(0, notProgressedGirls)
+        };
+      }
+    });
+
     console.log('Data processing completed successfully');
     console.log('All-time level 1 total:', data.allTime.levelData[1].total);
+    console.log('Progression data added for all levels');
 
     res.json({
       success: true,
