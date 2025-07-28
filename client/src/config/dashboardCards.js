@@ -69,30 +69,6 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
     },
     {
-      id: 'correspondence-management',
-      title: 'Correspondence Management',
-      href: '/correspondence/manage',
-      icon: 'MessageSquare',
-      bgGradient: 'from-green-500 to-green-600',
-      type: 'normal',
-      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE,
-      // Dynamic data will be populated by dashboard
-      recentActivity: null, // Will be set dynamically
-      todayCount: null // Will be set dynamically
-    },
-    {
-      id: 'correspondence',
-      title: 'Correspondence Reports',
-      href: '/reports?section=correspondence',
-      icon: 'Mail',
-      bgGradient: 'from-indigo-500 to-indigo-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS,
-      // Dynamic data will be populated by dashboard
-      recentActivity: null, // Will be set dynamically
-      todayCount: null // Will be set dynamically
-    },
-    {
       id: 'appointments',
       title: 'Principal Appointments',
       href: '/reports?section=appointments',
@@ -160,15 +136,6 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
     },
     {
-      id: 'communication-stats',
-      title: 'Communication Analytics',
-      href: '/reports?section=correspondence',
-      icon: 'MessageSquare',
-      bgGradient: 'from-indigo-500 to-indigo-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
-    },
-    {
       id: 'institutional-reports',
       title: 'Institutional Reports',
       href: '/reports',
@@ -216,24 +183,6 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_ENQUIRY_REPORTS
-    },
-    {
-      id: 'correspondence-management',
-      title: 'Correspondence Management',
-      href: '/correspondence/manage',
-      icon: 'MessageSquare',
-      bgGradient: 'from-green-500 to-green-600',
-      type: 'normal',
-      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
-    },
-    {
-      id: 'correspondence',
-      title: 'Correspondence Reports',
-      href: '/reports?section=correspondence',
-      icon: 'Mail',
-      bgGradient: 'from-indigo-500 to-indigo-600',
-      type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
     },
     {
       id: 'class-management',
@@ -325,24 +274,6 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT
     },
     {
-      id: 'correspondence-management',
-      title: 'Correspondence Management',
-      href: '/correspondence/manage',
-      icon: 'MessageSquare',
-      bgGradient: 'from-green-500 to-green-600',
-      type: 'normal',
-      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
-    },
-    {
-      id: 'correspondence',
-      title: 'Correspondence Reports',
-      href: '/reports?section=correspondence',
-      icon: 'Mail',
-      bgGradient: 'from-indigo-500 to-indigo-600',
-      type: 'normal',
-      permission: PERMISSIONS.CORRESPONDENCE.VIEW_ENQUIRY_CORRESPONDENCE
-    },
-    {
       id: 'enquiry-reports',
       title: 'Enquiry Reports',
       href: '/reports?section=enquiries',
@@ -381,15 +312,6 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
-    },
-    {
-      id: 'correspondence-management',
-      title: 'Student Correspondence',
-      href: '/correspondence/manage',
-      icon: 'MessageSquare',
-      bgGradient: 'from-purple-500 to-purple-600',
-      type: 'normal',
-      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
     },
     {
       id: 'enquiry-management',
@@ -491,13 +413,6 @@ export const QUICK_MANAGEMENT_ACCESS = {
       permission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT
     },
     {
-      title: 'Correspondence Reports',
-      href: '/reports?section=correspondence',
-      icon: 'Mail',
-      description: 'View communication records',
-      permission: PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS
-    },
-    {
       title: 'Enquiry Reports',
       href: '/reports?section=enquiries',
       icon: 'BarChart3',
@@ -527,13 +442,6 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'BarChart3',
       description: 'View enquiry statistics and analytics',
       permission: null
-    },
-    {
-      title: 'Enquiry Correspondence Stats',
-      href: '/principal/enquiry-correspondence',
-      icon: 'Mail',
-      description: 'View enquiry correspondence analytics',
-      permission: null
     }
   ],
 
@@ -551,13 +459,6 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'MessageSquare',
       description: 'Handle enquiries (Level 3 access)',
       permission: PERMISSIONS.MANAGEMENT.ENQUIRY_MANAGEMENT
-    },
-    {
-      title: 'Add Correspondence',
-      href: '/correspondence/add',
-      icon: 'Mail',
-      description: 'Add student communication records',
-      permission: PERMISSIONS.CORRESPONDENCE.ADD_ENQUIRY_CORRESPONDENCE
     }
   ],
 
@@ -575,13 +476,6 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'UserCheck',
       description: 'Monitor student attendance and punctuality',
       permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
-    },
-    {
-      title: 'Student Correspondence',
-      href: '/correspondence/manage',
-      icon: 'MessageSquare',
-      description: 'Manage student communication records',
-      permission: PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
     },
     {
       title: 'Enquiry Support',

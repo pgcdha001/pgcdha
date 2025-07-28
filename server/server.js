@@ -64,7 +64,6 @@ const remarksRoutes = require('./routes/remarks');
 const classRoutes = require('./routes/classes');
 const attendanceRoutes = require('./routes/attendance');
 const principalEnquiriesRoutes = require('./routes/principalEnquiries');
-const correspondenceRoutes = require('./routes/correspondence');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -75,7 +74,6 @@ app.use('/api/remarks', remarksRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/enquiries', principalEnquiriesRoutes);
-app.use('/api/correspondence', correspondenceRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

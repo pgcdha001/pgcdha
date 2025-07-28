@@ -152,11 +152,6 @@ export const REPORTS_COMPONENTS = {
     description: 'Attendance reports (Institute Admin only)'
   },
 
-  'CorrespondenceReports': {
-    path: '/components/reports/CorrespondenceReports.jsx', 
-    description: 'Correspondence reports with filtered data'
-  },
-
   // Shared Components
   'ReportFilters': {
     path: '/components/reports/ReportFilters.jsx',
@@ -193,7 +188,7 @@ export const ROLE_COMPONENT_CONFIG = {
     reports: {
       title: 'Reports & Analytics',
       description: 'Comprehensive reporting and data analytics dashboard',
-      allowedReports: ['enquiries', 'correspondence', 'student-attendance', 'lecture-attendance', 'examinations', 'appointments'],
+      allowedReports: ['enquiries', 'student-attendance', 'lecture-attendance', 'examinations', 'appointments'],
       canExport: true
     }
   },
@@ -217,7 +212,7 @@ export const ROLE_COMPONENT_CONFIG = {
     reports: {
       title: 'Technical Reports',
       description: 'System and technical performance reports',
-      allowedReports: ['enquiries', 'correspondence'],
+      allowedReports: ['enquiries'],
       canExport: true
     }
   },
@@ -304,7 +299,6 @@ export const IMPLEMENTATION_PHASES = {
       'ReportsContainer ✓',
       'ReportsNavigation ✓',
       'EnquiryReports ✓',
-      'CorrespondenceReports ✓',
       'StudentAttendanceReports ✓',
       'LectureAttendanceReports ✓', 
       'ExaminationReports ✓',

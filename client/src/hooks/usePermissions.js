@@ -55,21 +55,11 @@ export const usePermissions = () => {
     canChangeAllLevels: () => hasPermission(userRole, PERMISSIONS.ENQUIRY_MANAGEMENT.CHANGE_ALL_LEVELS),
     canExportEnquiries: () => hasPermission(userRole, PERMISSIONS.ENQUIRY_MANAGEMENT.EXPORT_ENQUIRIES),
     
-    // Correspondence permissions
-    canViewEnquiryCorrespondence: () => hasPermission(userRole, PERMISSIONS.CORRESPONDENCE.VIEW_ENQUIRY_CORRESPONDENCE),
-    canViewStudentCorrespondence: () => hasPermission(userRole, PERMISSIONS.CORRESPONDENCE.VIEW_STUDENT_CORRESPONDENCE),
-    canAddEnquiryCorrespondence: () => hasPermission(userRole, PERMISSIONS.CORRESPONDENCE.ADD_ENQUIRY_CORRESPONDENCE),
-    canAddStudentCorrespondence: () => hasPermission(userRole, PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE),
-    canEditCorrespondence: () => hasPermission(userRole, PERMISSIONS.CORRESPONDENCE.EDIT_CORRESPONDENCE),
-    canDeleteCorrespondence: () => hasPermission(userRole, PERMISSIONS.CORRESPONDENCE.DELETE_CORRESPONDENCE),
-    canExportCorrespondence: () => hasPermission(userRole, PERMISSIONS.CORRESPONDENCE.EXPORT_CORRESPONDENCE),
-    
     // Reports permissions
     canViewEnquiryReports: () => canAccessReports(userRole, 'VIEW_ENQUIRY_REPORTS'),
     canViewStudentReports: () => canAccessReports(userRole, 'VIEW_STUDENT_REPORTS'),
     canViewAttendanceReports: () => canAccessReports(userRole, 'VIEW_ATTENDANCE_REPORTS'),
     canViewExaminationReports: () => canAccessReports(userRole, 'VIEW_EXAMINATION_REPORTS'),
-    canViewCorrespondenceReports: () => canAccessReports(userRole, 'VIEW_CORRESPONDENCE_REPORTS'),
     canViewAppointmentReports: () => canAccessReports(userRole, 'VIEW_APPOINTMENT_REPORTS'),
     canExportReports: () => canAccessReports(userRole, 'EXPORT_REPORTS'),
     

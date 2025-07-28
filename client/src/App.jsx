@@ -27,11 +27,9 @@ import UserManagementContainer from './components/user-management/UserManagement
 
 // Institute Admin pages
 import EnquiryManagementContainer from './components/enquiry/EnquiryManagementContainer';
-import CorrespondenceManagement from './components/correspondence/CorrespondenceManagement';
 import ClassManagement from './components/class-management/ClassManagement';
 import StudentAssignment from './components/class-management/StudentAssignment';
 import PrincipalEnquiryManagement from './components/principal/PrincipalEnquiryManagement';
-import PrincipalCorrespondenceManagement from './components/principal/PrincipalCorrespondenceManagement';
 
 // Attendance Management
 import AttendanceManagement from './components/attendance/AttendanceManagement';
@@ -81,19 +79,6 @@ const App = () => {
                       allowedRoles={['Principal']}
                     >
                       <PrincipalEnquiryManagement />
-                    </ProtectedRoute>
-                  </Layout>
-                </AuthenticatedRoute>
-              } />
-
-              {/* Principal Enquiry Correspondence Management */}
-              <Route path="/principal/enquiry-correspondence" element={
-                <AuthenticatedRoute>
-                  <Layout>
-                    <ProtectedRoute
-                      allowedRoles={['Principal']}
-                    >
-                      <PrincipalCorrespondenceManagement />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>
@@ -220,20 +205,6 @@ const App = () => {
                 </AuthenticatedRoute>
               } />
 
-              {/* Correspondence Management routes */}
-              <Route path="/correspondence/manage" element={
-                <AuthenticatedRoute>
-                  <Layout>
-                    <ProtectedRoute
-                      requiredPermission={PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE}
-                      allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
-                    >
-                      <CorrespondenceManagement />
-                    </ProtectedRoute>
-                  </Layout>
-                </AuthenticatedRoute>
-              } />
-
               {/* Reports with proper permission checking */}
               <Route path="/reports" element={
                 <AuthenticatedRoute>
@@ -244,7 +215,6 @@ const App = () => {
                         PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS,
                         PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS,
                         PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS,
-                        PERMISSIONS.REPORTS.VIEW_CORRESPONDENCE_REPORTS,
                         PERMISSIONS.REPORTS.VIEW_APPOINTMENT_REPORTS
                       ]}
                       requireAll={false}
@@ -303,41 +273,6 @@ const App = () => {
                       allowedRoles={['InstituteAdmin']}
                     >
                       <UserManagementContainer />
-                    </ProtectedRoute>
-                  </Layout>
-                </AuthenticatedRoute>
-              } />
-
-              {/* Correspondence routes */}
-              <Route path="/correspondence" element={
-                <AuthenticatedRoute>
-                  <Layout>
-                    <ProtectedRoute
-                      requiredPermissions={[
-                        PERMISSIONS.CORRESPONDENCE.VIEW_ENQUIRY_CORRESPONDENCE,
-                        PERMISSIONS.CORRESPONDENCE.VIEW_STUDENT_CORRESPONDENCE
-                      ]}
-                      requireAll={false}
-                      allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
-                    >
-                      <CorrespondenceManagement />
-                    </ProtectedRoute>
-                  </Layout>
-                </AuthenticatedRoute>
-              } />
-
-              <Route path="/correspondence/add" element={
-                <AuthenticatedRoute>
-                  <Layout>
-                    <ProtectedRoute
-                      requiredPermissions={[
-                        PERMISSIONS.CORRESPONDENCE.ADD_ENQUIRY_CORRESPONDENCE,
-                        PERMISSIONS.CORRESPONDENCE.ADD_STUDENT_CORRESPONDENCE
-                      ]}
-                      requireAll={false}
-                      allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
-                    >
-                      <CorrespondenceManagement />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

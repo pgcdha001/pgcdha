@@ -11,7 +11,6 @@ import {
 const ReportsNavigation = ({ config, activeSection, onSectionChange }) => {
   const allReportSections = [
     { id: 'enquiries', name: 'Enquiry Reports', icon: MessageSquare, color: 'from-blue-500 to-blue-600' },
-    { id: 'correspondence', name: 'Correspondence Reports', icon: Mail, color: 'from-indigo-500 to-indigo-600' },
     { id: 'student-attendance', name: 'Student Attendance Reports', icon: UserX, color: 'from-red-500 to-red-600' },
     { id: 'lecture-attendance', name: 'Lecture Attendance Reports', icon: BookOpen, color: 'from-orange-500 to-orange-600' },
     { id: 'examinations', name: 'Examination Reports', icon: ClipboardList, color: 'from-purple-500 to-purple-600' },

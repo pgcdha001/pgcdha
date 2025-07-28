@@ -38,41 +38,6 @@ router.get('/today-stats', asyncHandler(async (req, res) => {
     ]
   });
 
-  // Get students with correspondence
-  const studentsWithCorrespondence = await User.find({
-    role: 'Student',
-    receptionistRemarks: { $exists: true, $ne: [] }
-  }).select('receptionistRemarks fullName');
-
-  // Calculate today's correspondence
-  let todayCorrespondence = 0;
-  let recentCorrespondence = null;
-  let latestTimestamp = 0;
-
-  studentsWithCorrespondence.forEach(student => {
-    if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
-      // Count today's remarks
-      const todayRemarks = student.receptionistRemarks.filter(remark => {
-        const remarkDate = new Date(remark.timestamp);
-        return remarkDate >= today && remarkDate < tomorrow;
-      });
-      todayCorrespondence += todayRemarks.length;
-
-      // Find most recent correspondence
-      const latestRemark = student.receptionistRemarks[student.receptionistRemarks.length - 1];
-      const timestamp = new Date(latestRemark.timestamp).getTime();
-      if (timestamp > latestTimestamp) {
-        latestTimestamp = timestamp;
-        recentCorrespondence = {
-          studentName: `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
-          remark: latestRemark.remark,
-          receptionistName: latestRemark.receptionistName,
-          timestamp: latestRemark.timestamp
-        };
-      }
-    }
-  });
-
   // Get most recent enquiry
   const recentEnquiry = await User.findOne({
     role: 'Student'
@@ -82,8 +47,6 @@ router.get('/today-stats', asyncHandler(async (req, res) => {
     success: true,
     data: {
       todayEnquiries,
-      todayCorrespondence,
-      recentCorrespondence,
       recentEnquiry,
       lastUpdated: new Date()
     }

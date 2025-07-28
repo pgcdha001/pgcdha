@@ -52,11 +52,6 @@ const UnifiedDashboard = () => {
   const enhancedCards = dashboardCards.map(card => {
     const enhancedCard = { ...card };
 
-    // Add dynamic recent activity for correspondence
-    if (card.id === 'correspondence' && dashboardData.recentCorrespondence) {
-      enhancedCard.recentActivity = `Latest: ${dashboardData.recentCorrespondence.studentName} - ${dashboardData.recentCorrespondence.remark?.substring(0, 30) || 'No remark'}...`;
-    }
-
     // Add dynamic recent activity for enquiry reports
     if (card.id === 'enquiry-reports' && dashboardData.recentEnquiry) {
       enhancedCard.recentActivity = `Latest: ${dashboardData.recentEnquiry.fullName?.firstName || ''} ${dashboardData.recentEnquiry.fullName?.lastName || ''}`;

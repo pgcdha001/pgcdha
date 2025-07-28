@@ -20,27 +20,6 @@ const PrincipalDashboard = () => {
       description: 'View student enquiry statistics and analytics'
     },
     {
-      id: 'enquiry-correspondence-stats',
-      title: 'Enquiry Correspondence Stats', 
-      href: '/principal/enquiry-correspondence', 
-      icon: 'Mail', 
-      bgGradient: 'from-green-500 to-green-600',
-      type: 'normal',
-      permission: null,
-      description: 'View correspondence statistics related to enquiries'
-    },
-    {
-      id: 'student-correspondence-stats',
-      title: 'Student Correspondence Stats', 
-      href: '/principal/student-correspondence', 
-      icon: 'Users', 
-      bgGradient: 'from-purple-500 to-purple-600',
-      type: 'normal',
-      permission: null,
-      description: 'View general student correspondence statistics (Coming Soon)',
-      disabled: true // Since we haven't created this yet
-    },
-    {
       id: 'student-reports',
       title: 'Student Reports', 
       href: '/reports?section=students', 

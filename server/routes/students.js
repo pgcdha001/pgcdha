@@ -168,7 +168,7 @@ router.patch('/:id/progress', authenticate, requireIT, async (req, res) => {
   }
 });
 
-// Get students with their remarks/correspondence (authenticated users)
+// Get students with their remarks (authenticated users)
 router.get('/remarks', authenticate, async (req, res) => {
   try {
     const students = await User.find({ 
@@ -277,7 +277,7 @@ router.put('/:id/level', authenticate, async (req, res) => {
           student.processedYear = new Date().getFullYear().toString();
         }
         // Mark as officially admitted when reaching level 5
-        // This enables access to student dashboard and student correspondence
+        // This enables access to student dashboard
         if (!student.isApproved) {
           student.isApproved = true;
           console.log(`Student ${student.fullName?.firstName} ${student.fullName?.lastName} has been officially admitted (level 5)`);
@@ -285,32 +285,6 @@ router.put('/:id/level', authenticate, async (req, res) => {
         break;
     }
 
-    // Add correspondence record for the level change
-    const isUpgrade = level > currentLevel;
-    const isDowngrade = level < currentLevel;
-    let remarkText = `Level ${isUpgrade ? 'upgraded' : isDowngrade ? 'downgraded' : 'changed'} from ${currentLevel} to ${level}. Notes: ${notes.trim()}`;
-    
-    // Add special note for official admission
-    if (level === 5) {
-      remarkText += ' - OFFICIALLY ADMITTED: Student now has access to dashboard and student correspondence.';
-    } else if (currentLevel === 5 && level < 5) {
-      remarkText += ' - ADMISSION STATUS REVOKED: Student admission has been cancelled.';
-    }
-    
-    const correspondenceData = {
-      remark: remarkText,
-      receptionistId: req.user.id,
-      receptionistName: `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || req.user.userName,
-      timestamp: new Date()
-    };
-
-    // Initialize remarks array if it doesn't exist
-    if (!student.receptionistRemarks) {
-      student.receptionistRemarks = [];
-    }
-
-    student.receptionistRemarks.push(correspondenceData);
-    
     console.log(`About to save student with level: ${student.prospectusStage}`);
     await student.save();
     
@@ -322,10 +296,9 @@ router.put('/:id/level', authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Enquiry level updated successfully and correspondence recorded',
+      message: 'Enquiry level updated successfully',
       data: {
-        student: savedStudent.toObject(),
-        correspondence: correspondenceData
+        student: savedStudent.toObject()
       }
     });
 
