@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, UserCheck, GraduationCap, Filter, BarChart3, X, Move } from 'lucide-react';
 import api from '../../services/api';
+import {
+  ENQUIRY_LEVELS,
+  DATE_FILTERS,
+  CARD_COLORS,
+  API_ENDPOINTS,
+  DEFAULT_SETTINGS,
+  LOADING_STATES
+} from '../../config/correspondenceConfig';
 
 /**
  * Principal Correspondence Management Component
@@ -13,8 +21,8 @@ import api from '../../services/api';
  */
 const PrincipalCorrespondenceManagement = () => {
   // State management
-  const [selectedLevel, setSelectedLevel] = useState('1');
-  const [selectedDate, setSelectedDate] = useState('all');
+  const [selectedLevel, setSelectedLevel] = useState(DEFAULT_SETTINGS.SELECTED_LEVEL);
+  const [selectedDate, setSelectedDate] = useState(DEFAULT_SETTINGS.SELECTED_DATE);
   const [currentView, setCurrentView] = useState('total');
   const [selectedGender, setSelectedGender] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -42,14 +50,8 @@ const PrincipalCorrespondenceManagement = () => {
     programs: { boys: {}, girls: {} }
   });
 
-  // Level tabs configuration (removed "All Levels" as requested)
-  const levelTabs = [
-    { value: '1', label: 'Level 1+', color: 'bg-green-500', count: 0 },
-    { value: '2', label: 'Level 2+', color: 'bg-yellow-500', count: 0 },
-    { value: '3', label: 'Level 3+', color: 'bg-orange-500', count: 0 },
-    { value: '4', label: 'Level 4+', color: 'bg-red-500', count: 0 },
-    { value: '5', label: 'Level 5+', color: 'bg-purple-500', count: 0 }
-  ];
+  // Level tabs configuration - using configurable values
+  const levelTabs = ENQUIRY_LEVELS;
   
   const [levelStats, setLevelStats] = useState({});
   const [levelProgression, setLevelProgression] = useState({});
@@ -58,15 +60,8 @@ const PrincipalCorrespondenceManagement = () => {
     girls: {}
   });
 
-  // Date filter options
-  const dateFilters = [
-    { value: 'all', label: 'All Time' },
-    { value: 'today', label: 'Today' },
-    { value: 'week', label: 'This Week' },
-    { value: 'month', label: 'This Month' },
-    { value: 'year', label: 'This Year' },
-    { value: 'custom', label: 'Custom Range' }
-  ];
+  // Date filter options - using configurable values  
+  const dateFilters = DATE_FILTERS;
 
   // State for percentage calculations
   const [percentages, setPercentages] = useState({
@@ -110,8 +105,8 @@ const PrincipalCorrespondenceManagement = () => {
       }
 
       console.log('Loading level statistics with params:', params);
-      // Use dedicated correspondence API endpoints
-      const response = await api.get('/correspondence/principal-overview', { params });
+      // Use configurable API endpoints
+      const response = await api.get(API_ENDPOINTS.PRINCIPAL_OVERVIEW, { params });
       console.log('Level statistics response:', response.data);
       
       if (response.data && response.data.success) {
@@ -166,8 +161,8 @@ const PrincipalCorrespondenceManagement = () => {
       }
 
       console.log('API call params:', params);
-      // Use dedicated correspondence API endpoints  
-      const response = await api.get('/correspondence/principal-stats', { params });
+      // Use configurable API endpoints  
+      const response = await api.get(API_ENDPOINTS.PRINCIPAL_STATS, { params });
       console.log('Principal stats response:', response.data);
       
       if (response.data && response.data.success) {
@@ -270,8 +265,8 @@ const PrincipalCorrespondenceManagement = () => {
   };
 
   const handleClearFilters = () => {
-    setSelectedLevel('1');
-    setSelectedDate('all');
+    setSelectedLevel(DEFAULT_SETTINGS.SELECTED_LEVEL);
+    setSelectedDate(DEFAULT_SETTINGS.SELECTED_DATE);
     setCustomStartDate('');
     setCustomEndDate('');
     setCustomDatesApplied(false);
@@ -682,56 +677,8 @@ const PrincipalCorrespondenceManagement = () => {
   // Correspondence Card Component
   // eslint-disable-next-line no-unused-vars
   const CorrespondenceCard = ({ title, count, icon: Icon, color, onClick, subtitle, levelData }) => {
-    const colorClasses = {
-      blue: {
-        bg: 'bg-gradient-to-br from-blue-50 to-blue-100',
-        border: 'border-blue-200',
-        icon: 'bg-blue-500',
-        text: 'text-blue-900',
-        subtitle: 'text-blue-700',
-        hover: 'hover:from-blue-100 hover:to-blue-150'
-      },
-      green: {
-        bg: 'bg-gradient-to-br from-green-50 to-green-100',
-        border: 'border-green-200',
-        icon: 'bg-green-500',
-        text: 'text-green-900',
-        subtitle: 'text-green-700',
-        hover: 'hover:from-green-100 hover:to-green-150'
-      },
-      pink: {
-        bg: 'bg-gradient-to-br from-pink-50 to-pink-100',
-        border: 'border-pink-200',
-        icon: 'bg-pink-500',
-        text: 'text-pink-900',
-        subtitle: 'text-pink-700',
-        hover: 'hover:from-pink-100 hover:to-pink-150'
-      },
-      purple: {
-        bg: 'bg-gradient-to-br from-purple-50 to-purple-100',
-        border: 'border-purple-200',
-        icon: 'bg-purple-500',
-        text: 'text-purple-900',
-        subtitle: 'text-purple-700',
-        hover: 'hover:from-purple-100 hover:to-purple-150'
-      },
-      orange: {
-        bg: 'bg-gradient-to-br from-orange-50 to-orange-100',
-        border: 'border-orange-200',
-        icon: 'bg-orange-500',
-        text: 'text-orange-900',
-        subtitle: 'text-orange-700',
-        hover: 'hover:from-orange-100 hover:to-orange-150'
-      },
-      cyan: {
-        bg: 'bg-gradient-to-br from-cyan-50 to-cyan-100',
-        border: 'border-cyan-200',
-        icon: 'bg-cyan-500',
-        text: 'text-cyan-900',
-        subtitle: 'text-cyan-700',
-        hover: 'hover:from-cyan-100 hover:to-cyan-150'
-      }
-    };
+    // Card Colors for different views - using configurable values
+    const colorClasses = CARD_COLORS;
 
     const classes = colorClasses[color];
 
