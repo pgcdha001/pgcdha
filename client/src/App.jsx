@@ -39,6 +39,9 @@ import TeacherDashboard from './components/dashboard/TeacherDashboard';
 // Reports
 import ReportsContainer from './components/reports/ReportsContainer';
 
+// Correspondence Management
+import { CorrespondenceManagement } from './components/correspondence';
+
 const App = () => {
   return (
     <Router>
@@ -93,6 +96,20 @@ const App = () => {
                       allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                     >
                       <EnquiryManagementContainer />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Correspondence Management */}
+              <Route path="/correspondence" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      requiredPermission={PERMISSIONS.CORRESPONDENCE.VIEW_CORRESPONDENCE}
+                      allowedRoles={['InstituteAdmin', 'IT', 'Principal', 'Teacher', 'Receptionist', 'Coordinator']}
+                    >
+                      <CorrespondenceManagement />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

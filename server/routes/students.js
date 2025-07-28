@@ -288,6 +288,33 @@ router.put('/:id/level', authenticate, async (req, res) => {
     console.log(`About to save student with level: ${student.prospectusStage}`);
     await student.save();
     
+    // Create correspondence record for level change
+    try {
+      const Correspondence = require('../models/Correspondence');
+      
+      // Determine correspondence type based on new level
+      const correspondenceType = level <= 4 ? 'enquiry' : 'student';
+      
+      const levelChangeCorrespondence = new Correspondence({
+        studentId: student._id,
+        type: correspondenceType,
+        subject: `Level Changed from ${currentLevel} to ${level}`,
+        message: `Student level updated from Level ${currentLevel} to Level ${level}. Notes: ${notes}`,
+        studentLevel: level,
+        staffMember: {
+          id: req.user.id,
+          name: `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || 'Staff Member'
+        },
+        timestamp: new Date()
+      });
+      
+      await levelChangeCorrespondence.save();
+      console.log(`Created correspondence record for level change: ${currentLevel} -> ${level}`);
+    } catch (correspondenceError) {
+      console.error('Error creating correspondence record for level change:', correspondenceError);
+      // Don't fail the main operation if correspondence creation fails
+    }
+    
     // Verify the save worked
     const savedStudent = await User.findById(req.params.id);
     console.log(`After save - student level in DB: ${savedStudent.prospectusStage}`);

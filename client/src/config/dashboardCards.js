@@ -21,6 +21,17 @@ export const DASHBOARD_CARDS = {
       todayCount: null // Will be set dynamically
     },
     {
+      id: 'correspondence-management',
+      title: 'Correspondence Management',
+      href: '/correspondence',
+      icon: 'Mail',
+      bgGradient: 'from-green-500 to-green-600',
+      type: 'normal',
+      permission: PERMISSIONS.CORRESPONDENCE.VIEW_CORRESPONDENCE,
+      recentActivity: null,
+      todayCount: null
+    },
+    {
       id: 'enquiry-reports',
       title: 'Enquiry Reports',
       href: '/reports?section=enquiries',
