@@ -503,4 +503,209 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
   }
 }));
 
+/**
+ * @route   GET /api/enquiries/comprehensive-data
+ * @desc    Get comprehensive enquiry data using single optimized aggregation
+ * @access  Private (Principal only)
+ */
+router.get('/comprehensive-data', asyncHandler(async (req, res) => {
+  console.log('Comprehensive data requested by user:', req.user.email, 'Role:', req.user.role);
+  
+  // Check if user is Principal or InstituteAdmin
+  if (req.user.role !== 'Principal' && req.user.role !== 'InstituteAdmin') {
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. Principal privileges required. Your role: ${req.user.role}`
+    });
+  }
+
+  try {
+    const now = new Date();
+    
+    // Single aggregation pipeline to get all data at once
+    const pipeline = [
+      {
+        $match: {
+          role: 'Student',
+          prospectusStage: { $gte: 1, $lte: 5 }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            level: '$prospectusStage',
+            gender: '$gender',
+            program: '$program',
+            dateCategory: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $gte: ['$createdOn', new Date(now.getFullYear(), now.getMonth(), now.getDate())] },
+                    then: 'today'
+                  },
+                  {
+                    case: { $gte: ['$createdOn', new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)] },
+                    then: 'week'
+                  },
+                  {
+                    case: { $gte: ['$createdOn', new Date(now.getFullYear(), now.getMonth(), 1)] },
+                    then: 'month'
+                  },
+                  {
+                    case: { $gte: ['$createdOn', new Date(now.getFullYear(), 0, 1)] },
+                    then: 'year'
+                  }
+                ],
+                default: 'older'
+              }
+            }
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ];
+
+    console.log('Executing optimized aggregation pipeline...');
+    const results = await User.aggregate(pipeline);
+    console.log(`Aggregation returned ${results.length} result groups`);
+
+    // Process results into the expected format
+    const data = {
+      allTime: { levelData: {}, levelProgression: {}, genderLevelProgression: { boys: {}, girls: {} } },
+      dateRanges: {
+        today: { levelData: {}, progression: {} },
+        week: { levelData: {}, progression: {} },
+        month: { levelData: {}, progression: {} },
+        year: { levelData: {}, progression: {} }
+      }
+    };
+
+    // Initialize level data structures
+    for (let level = 1; level <= 5; level++) {
+      data.allTime.levelData[level] = { total: 0, boys: 0, girls: 0, programs: { boys: {}, girls: {} } };
+      data.allTime.levelProgression[level] = { current: 0, previous: 0, change: 0 };
+      data.allTime.genderLevelProgression.boys[level] = { current: 0, previous: 0, change: 0 };
+      data.allTime.genderLevelProgression.girls[level] = { current: 0, previous: 0, change: 0 };
+      
+      Object.keys(data.dateRanges).forEach(dateRange => {
+        data.dateRanges[dateRange].levelData[level] = { total: 0, boys: 0, girls: 0, programs: { boys: {}, girls: {} } };
+      });
+    }
+
+    // Process aggregation results
+    results.forEach(result => {
+      const { level, gender, program, dateCategory } = result._id;
+      const count = result.count;
+      
+      if (level < 1 || level > 5) return; // Skip invalid levels
+      
+      const isGenderMale = gender === 'Male' || gender === 'male' || gender === 'M';
+      const isGenderFemale = gender === 'Female' || gender === 'female' || gender === 'F';
+      
+      // Update all-time data (includes all date categories)
+      data.allTime.levelData[level].total += count;
+      if (isGenderMale) data.allTime.levelData[level].boys += count;
+      if (isGenderFemale) data.allTime.levelData[level].girls += count;
+      
+      // Update program data
+      if (program) {
+        if (isGenderMale) {
+          data.allTime.levelData[level].programs.boys[program] = (data.allTime.levelData[level].programs.boys[program] || 0) + count;
+        }
+        if (isGenderFemale) {
+          data.allTime.levelData[level].programs.girls[program] = (data.allTime.levelData[level].programs.girls[program] || 0) + count;
+        }
+      }
+      
+      // Update date range specific data
+      if (dateCategory !== 'older') {
+        data.dateRanges[dateCategory].levelData[level].total += count;
+        if (isGenderMale) data.dateRanges[dateCategory].levelData[level].boys += count;
+        if (isGenderFemale) data.dateRanges[dateCategory].levelData[level].girls += count;
+        
+        if (program) {
+          if (isGenderMale) {
+            data.dateRanges[dateCategory].levelData[level].programs.boys[program] = (data.dateRanges[dateCategory].levelData[level].programs.boys[program] || 0) + count;
+          }
+          if (isGenderFemale) {
+            data.dateRanges[dateCategory].levelData[level].programs.girls[program] = (data.dateRanges[dateCategory].levelData[level].programs.girls[program] || 0) + count;
+          }
+        }
+      }
+    });
+
+    // Calculate cumulative counts for levels (level 1+ includes all levels 1-5, level 2+ includes 2-5, etc.)
+    for (let level = 1; level <= 5; level++) {
+      let cumulativeTotal = 0, cumulativeBoys = 0, cumulativeGirls = 0;
+      const cumulativePrograms = { boys: {}, girls: {} };
+      
+      // Sum up all levels from current level to 5
+      for (let l = level; l <= 5; l++) {
+        cumulativeTotal += data.allTime.levelData[l].total;
+        cumulativeBoys += data.allTime.levelData[l].boys;
+        cumulativeGirls += data.allTime.levelData[l].girls;
+        
+        // Aggregate programs
+        Object.entries(data.allTime.levelData[l].programs.boys).forEach(([prog, count]) => {
+          cumulativePrograms.boys[prog] = (cumulativePrograms.boys[prog] || 0) + count;
+        });
+        Object.entries(data.allTime.levelData[l].programs.girls).forEach(([prog, count]) => {
+          cumulativePrograms.girls[prog] = (cumulativePrograms.girls[prog] || 0) + count;
+        });
+      }
+      
+      // Update with cumulative data
+      data.allTime.levelData[level] = {
+        total: cumulativeTotal,
+        boys: cumulativeBoys,
+        girls: cumulativeGirls,
+        programs: cumulativePrograms
+      };
+      
+      // Do the same for date ranges
+      Object.keys(data.dateRanges).forEach(dateRange => {
+        let cumulativeTotal = 0, cumulativeBoys = 0, cumulativeGirls = 0;
+        const cumulativePrograms = { boys: {}, girls: {} };
+        
+        for (let l = level; l <= 5; l++) {
+          cumulativeTotal += data.dateRanges[dateRange].levelData[l].total;
+          cumulativeBoys += data.dateRanges[dateRange].levelData[l].boys;
+          cumulativeGirls += data.dateRanges[dateRange].levelData[l].girls;
+          
+          Object.entries(data.dateRanges[dateRange].levelData[l].programs.boys).forEach(([prog, count]) => {
+            cumulativePrograms.boys[prog] = (cumulativePrograms.boys[prog] || 0) + count;
+          });
+          Object.entries(data.dateRanges[dateRange].levelData[l].programs.girls).forEach(([prog, count]) => {
+            cumulativePrograms.girls[prog] = (cumulativePrograms.girls[prog] || 0) + count;
+          });
+        }
+        
+        data.dateRanges[dateRange].levelData[level] = {
+          total: cumulativeTotal,
+          boys: cumulativeBoys,
+          girls: cumulativeGirls,
+          programs: cumulativePrograms
+        };
+      });
+    }
+
+    console.log('Data processing completed successfully');
+    console.log('All-time level 1 total:', data.allTime.levelData[1].total);
+
+    res.json({
+      success: true,
+      data: data,
+      message: 'Comprehensive enquiry data retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('Error fetching comprehensive enquiry data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching comprehensive enquiry data',
+      error: error.message
+    });
+  }
+}));
+
 module.exports = router;

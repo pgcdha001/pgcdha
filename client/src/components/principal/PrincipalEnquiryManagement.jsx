@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronDown, Users, UserCheck, GraduationCap, Calendar, Filter, BarChart3, X, Move } from 'lucide-react';
 import { usePermissions } from '../../hooks/usePermissions';
-import api from '../../services/api';
+import useEnquiryData from '../../hooks/useEnquiryData';
+
+// Import all the smaller components
+import ErrorDisplay from './ErrorDisplay';
+import Header from './Header';
+import LevelTabs from './LevelTabs';
+import StatsCards from './StatsCards';
+import ProgramBreakdownCards from './ProgramBreakdownCards';
+import FloatingStatsPill from './FloatingStatsPill';
+import StatsModal from './StatsModal';
 
 /**
  * Principal Enquiry Management Component
@@ -10,17 +18,31 @@ import api from '../../services/api';
 const PrincipalEnquiryManagement = () => {
   const { userRole } = usePermissions();
 
+  // Use the simple enquiry data hook
+  const {
+    fetchComprehensiveData,
+    fetchCustomDateRange,
+    refreshData,
+    getFilteredData,
+    getLevelStatistics,
+    isInitialLoading,
+    isRefreshing,
+    isCustomDateLoading,
+    error,
+    lastUpdated
+  } = useEnquiryData();
+
   // State management
   const [selectedLevel, setSelectedLevel] = useState('1');
   const [selectedDate, setSelectedDate] = useState('all');
-  const [currentView, setCurrentView] = useState('total');
+  const [currentView, setCurrentView] = useState('default');
   const [selectedGender, setSelectedGender] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   // State for custom date filter
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [customDatesApplied, setCustomDatesApplied] = useState(false);
+  const [customData, setCustomData] = useState(null);
   
   // State for floating stats pill
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -32,14 +54,6 @@ const PrincipalEnquiryManagement = () => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const pillRef = useRef(null);
 
-  // Data states
-  const [enquiryData, setEnquiryData] = useState({
-    total: 0,
-    boys: 0,
-    girls: 0,
-    programs: { boys: {}, girls: {} }
-  });
-
   // Level tabs configuration (removed "All Levels" as requested)
   const levelTabs = [
     { value: '1', label: 'Level 1+', color: 'bg-green-500', count: 0 },
@@ -48,13 +62,6 @@ const PrincipalEnquiryManagement = () => {
     { value: '4', label: 'Level 4+', color: 'bg-red-500', count: 0 },
     { value: '5', label: 'Level 5+', color: 'bg-purple-500', count: 0 }
   ];
-  
-  const [levelStats, setLevelStats] = useState({});
-  const [levelProgression, setLevelProgression] = useState({});
-  const [genderLevelProgression, setGenderLevelProgression] = useState({
-    boys: {},
-    girls: {}
-  });
 
   // Date filter options
   const dateFilters = [
@@ -66,1029 +73,248 @@ const PrincipalEnquiryManagement = () => {
     { value: 'custom', label: 'Custom Range' }
   ];
 
-  // State for percentage calculations
-  const [percentages, setPercentages] = useState({
-    boys: { value: 0, text: '0%' },
-    girls: { value: 0, text: '0%' },
-    programs: {
-      boys: {},
-      girls: {}
+  // Get current data based on selected filters
+  const getCurrentData = useCallback(() => {
+    const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
+    const level = parseInt(selectedLevel);
+    
+    if (dateFilter === 'custom' && customData) {
+      return getFilteredData(level, dateFilter, customData);
+    } else {
+      return getFilteredData(level, dateFilter);
     }
-  });
+  }, [selectedLevel, selectedDate, customDatesApplied, customData, getFilteredData]);
 
-  // Load data when level or date changes
-  useEffect(() => {
-    loadLevelStatistics();
-    loadEnquiryData();
-  }, [selectedLevel, selectedDate, customDatesApplied]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset custom dates applied state when date filter changes away from custom
-  useEffect(() => {
-    if (selectedDate !== 'custom') {
-      setCustomDatesApplied(false);
+  // Get current level statistics
+  const getCurrentLevelStats = useCallback(() => {
+    const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
+    
+    if (dateFilter === 'custom' && customData) {
+      return getLevelStatistics(dateFilter, customData);
+    } else {
+      return getLevelStatistics(dateFilter);
     }
-  }, [selectedDate]);
+  }, [selectedDate, customDatesApplied, customData, getLevelStatistics]);
 
-  const loadLevelStatistics = async () => {
-    try {
-      // Skip loading if custom date is selected but not applied
-      if (selectedDate === 'custom' && !customDatesApplied) {
-        return;
-      }
-
-      // Prepare query parameters to match the main data loading
-      const params = {
-        dateFilter: selectedDate
-      };
-
-      // Add custom date parameters if needed
-      if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
-        params.startDate = customStartDate;
-        params.endDate = customEndDate;
-      }
-
-      console.log('Loading level statistics with params:', params);
-      const response = await api.get('/enquiries/principal-overview', { params });
-      console.log('Level statistics response:', response.data);
-      
-      if (response.data && response.data.success) {
-        setLevelStats(response.data.data.levelBreakdown);
-        console.log('Level breakdown set to:', response.data.data.levelBreakdown);
-        if (response.data.data.levelProgression) {
-          setLevelProgression(response.data.data.levelProgression);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading level statistics:', error);
-    }
-  };
-
-  const loadEnquiryData = async () => {
-    try {
-      setLoading(true);
-
-      // Skip loading if custom date is selected but not applied
-      if (selectedDate === 'custom' && !customDatesApplied) {
-        // Set empty/zero data for custom date that hasn't been applied
-        setEnquiryData({
-          total: 0,
-          boys: 0,
-          girls: 0,
-          programs: { boys: {}, girls: {} }
-        });
-        setLevelStats({});
-        setLevelProgression({});
-        setGenderLevelProgression({ boys: {}, girls: {} });
-        setPercentages({
-          boys: { value: 0, text: '0%' },
-          girls: { value: 0, text: '0%' },
-          programs: { boys: {}, girls: {} }
-        });
-        setLoading(false);
-        return;
-      }
-
-      console.log('Loading data with filters:', { selectedLevel, selectedDate, customStartDate, customEndDate });
-
-      // Prepare query parameters
-      const params = {
-        minLevel: selectedLevel,
-        dateFilter: selectedDate
-      };
-
-      // Add custom date parameters if needed
-      if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
-        params.startDate = customStartDate;
-        params.endDate = customEndDate;
-      }
-
-      console.log('API call params:', params);
-      // Fetch data from API
-      const response = await api.get('/enquiries/principal-stats', { params });
-      console.log('Principal stats response:', response.data);
-      
-      if (response.data && response.data.success) {
-        const { data } = response.data;
-        
-        // Update state with real data
-        setEnquiryData(data);
-        
-        // Update level progression if available
-        if (data.levelProgression) {
-          setLevelProgression(data.levelProgression);
-        }
-        
-        // Update gender level progression if available
-        if (data.genderLevelProgression) {
-          setGenderLevelProgression(data.genderLevelProgression);
-        }
-        
-        // Calculate percentages
-        const calculatedPercentages = calculatePercentages(data);
-        setPercentages(calculatedPercentages);
-      } else {
-        console.error('API returned error:', response.data?.message || 'Unknown error');
-        throw new Error(response.data?.message || 'Failed to load data');
-      }
-    } catch (error) {
-      console.error('Error loading enquiry data:', error);
-      // Show error but don't reset data
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculatePercentages = (data) => {
-    const total = data.boys + data.girls;
-    const boysPercentage = total > 0 ? (data.boys / total) * 100 : 0;
-    const girlsPercentage = total > 0 ? (data.girls / total) * 100 : 0;
+  // Calculate percentages from current data
+  const calculatePercentages = useCallback((data) => {
+    const total = (data?.boys || 0) + (data?.girls || 0);
+    const boysPercentage = total > 0 ? ((data?.boys || 0) / total) * 100 : 0;
+    const girlsPercentage = total > 0 ? ((data?.girls || 0) / total) * 100 : 0;
     
     // Calculate program percentages for boys
     const boysProgramPercentages = {};
-    if (data.boys > 0) {
-      Object.entries(data.programs.boys).forEach(([program, count]) => {
-        boysProgramPercentages[program] = {
-          value: (count / data.boys) * 100,
-          text: `${Math.round((count / data.boys) * 100)}%`
-        };
+    if (data?.boys > 0) {
+      Object.entries(data?.programs?.boys || {}).forEach(([program, count]) => {
+        boysProgramPercentages[program] = (count / data.boys) * 100;
       });
     }
     
     // Calculate program percentages for girls
     const girlsProgramPercentages = {};
-    if (data.girls > 0) {
-      Object.entries(data.programs.girls).forEach(([program, count]) => {
-        girlsProgramPercentages[program] = {
-          value: (count / data.girls) * 100,
-          text: `${Math.round((count / data.girls) * 100)}%`
-        };
+    if (data?.girls > 0) {
+      Object.entries(data?.programs?.girls || {}).forEach(([program, count]) => {
+        girlsProgramPercentages[program] = (count / data.girls) * 100;
       });
     }
     
     return {
-      boys: { 
-        value: boysPercentage, 
-        text: `${Math.round(boysPercentage)}%` 
-      },
-      girls: { 
-        value: girlsPercentage, 
-        text: `${Math.round(girlsPercentage)}%` 
-      },
-      programs: {
-        boys: boysProgramPercentages,
-        girls: girlsProgramPercentages
-      }
+      boysPercentage,
+      girlsPercentage,
+      boysProgramPercentages,
+      girlsProgramPercentages
     };
-  };
+  }, []);
 
+  // Event handlers
   const handleCardClick = (view, gender = null) => {
     if (view === 'total') {
       setCurrentView('total');
       setSelectedGender(null);
     } else if (view === 'gender') {
       setCurrentView('gender');
-      setSelectedGender(null);
-    } else if (view === 'programs') {
-      setCurrentView('programs');
       setSelectedGender(gender);
-    } else if (view === 'boys' || view === 'girls') {
-      setCurrentView('programs');
-      setSelectedGender(view === 'boys' ? 'Boys' : 'Girls');
     }
   };
 
   const handleBackClick = () => {
-    if (currentView === 'programs') {
-      setCurrentView('gender');
-      setSelectedGender(null);
-    } else if (currentView === 'gender') {
-      setCurrentView('total');
-    }
+    setCurrentView('default');
+    setSelectedGender(null);
   };
 
-  const handleClearFilters = () => {
-    setSelectedLevel('1');
-    setSelectedDate('all');
-    setCustomStartDate('');
-    setCustomEndDate('');
-    setCustomDatesApplied(false);
-  };
-
-  const handleApplyFilters = () => {
-    // Validate custom date range if selected
-    if (selectedDate === 'custom') {
-      if (!customStartDate || !customEndDate) {
-        alert('Please select both start and end dates for custom range');
-        return;
-      }
-      if (new Date(customStartDate) > new Date(customEndDate)) {
-        alert('Start date cannot be later than end date');
-        return;
-      }
-      // Mark custom dates as applied
-      setCustomDatesApplied(true);
-    }
+  const handleApplyFilters = async () => {
+    if (!customStartDate || !customEndDate) return;
     
-    // Reload data with current filters
-    loadLevelStatistics();
-    loadEnquiryData();
+    try {
+      const response = await fetchCustomDateRange(customStartDate, customEndDate, selectedLevel);
+      setCustomData(response);
+      setCustomDatesApplied(true);
+    } catch (error) {
+      console.error('Failed to apply custom date range:', error);
+    }
+  };
+
+  const handleRefreshData = async () => {
+    try {
+      await refreshData();
+      // Reset custom data if we have any
+      if (customDatesApplied) {
+        setCustomData(null);
+        setCustomDatesApplied(false);
+      }
+    } catch (error) {
+      console.error('Failed to refresh data:', error);
+    }
   };
 
   // Drag functionality for floating pill
   const handleMouseDown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (pillRef.current) {
-      setIsDragging(true);
-      const rect = pillRef.current.getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
-    }
+    setIsDragging(true);
+    const rect = pillRef.current.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
   };
 
   const handleMouseMove = useCallback((e) => {
     if (isDragging) {
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
+      const newX = Math.max(0, Math.min(window.innerWidth - 300, e.clientX - dragOffset.x));
+      const newY = Math.max(0, Math.min(window.innerHeight - 100, e.clientY - dragOffset.y));
       
-      // Keep pill within viewport bounds (updated for much bigger pill)
-      const maxX = window.innerWidth - 220; // Increased for much bigger pill
-      const maxY = window.innerHeight - 100; // Increased for much bigger pill
-      
-      setPillPosition({
-        x: Math.max(0, Math.min(newX, maxX)),
-        y: Math.max(0, Math.min(newY, maxY))
-      });
+      setPillPosition({ x: newX, y: newY });
     }
   }, [isDragging, dragOffset]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
-  };
+  }, []);
+
+  // Effects
+  useEffect(() => {
+    fetchComprehensiveData();
+  }, [fetchComprehensiveData]);
+
+  useEffect(() => {
+    if (selectedDate !== 'custom') {
+      setCustomDatesApplied(false);
+      setCustomData(null);
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragOffset, handleMouseMove]);
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Calculate comprehensive stats for modal
-  const getComprehensiveStats = () => {
-    // Calculate total boys and girls from level 1+ (all students)
-    const totalBoys = genderLevelProgression.boys[1]?.current || 0;
-    const totalGirls = genderLevelProgression.girls[1]?.current || 0;
-    
-    const stats = {
-      boys: {
-        total: totalBoys,
-        levels: {}
-      },
-      girls: {
-        total: totalGirls,
-        levels: {}
-      },
-      programs: enquiryData.programs
-    };
+  // Compute current state
+  const currentData = getCurrentData() || { total: 0, boys: 0, girls: 0, programs: { boys: {}, girls: {} } };
+  const levelStats = getCurrentLevelStats();
+  const percentages = calculatePercentages(currentData);
+  const loading = isInitialLoading || (selectedDate === 'custom' && isCustomDateLoading);
 
-    // Calculate level breakdown for boys and girls using gender level progression
-    for (let level = 1; level <= 5; level++) {
-      const boysAtLevel = genderLevelProgression.boys[level]?.current || 0;
-      const girlsAtLevel = genderLevelProgression.girls[level]?.current || 0;
-      
-      stats.boys.levels[level] = boysAtLevel;
-      stats.girls.levels[level] = girlsAtLevel;
-    }
-
-    return stats;
-  };
-
-  // Floating Stats Pill Component
-  const FloatingStatsPill = () => (
-    <div
-      ref={pillRef}
-      className="fixed z-50 transition-all duration-200"
-      style={{
-        left: `${pillPosition.x}px`,
-        top: `${pillPosition.y}px`
-      }}
-    >
-      {/* Gradient border wrapper */}
-      <div className={`p-1 rounded-full bg-gradient-to-r from-blue-500 to-red-500 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
-        <div className="bg-white bg-opacity-95 backdrop-blur-md rounded-full flex items-center overflow-hidden">
-          {/* Main clickable area */}
-          <div
-            className={`px-8 py-4 flex items-center space-x-4 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-red-50 transition-all duration-200 flex-1 text-gray-800 ${loading ? 'cursor-not-allowed' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!loading) {
-                setShowStatsModal(true);
-              }
-            }}
-          >
-            <BarChart3 className="w-6 h-6 text-blue-600" />
-            <span className="text-lg font-semibold text-gray-800">
-              {loading ? 'Loading...' : 'Glimpse'}
-            </span>
-          </div>
-          
-          {/* Draggable handle area */}
-          <div
-            className={`px-4 py-4 border-l border-gray-200 cursor-grab hover:bg-gradient-to-r hover:from-blue-50 hover:to-red-50 transition-all duration-200 ${isDragging ? 'cursor-grabbing bg-gradient-to-r from-blue-50 to-red-50' : ''} ${loading ? 'cursor-not-allowed' : ''}`}
-            onMouseDown={loading ? undefined : handleMouseDown}
-            title={loading ? 'Loading data...' : 'Drag to move'}
-          >
-            <Move className="w-5 h-5 text-gray-600" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Comprehensive Stats Modal Component
-  const StatsModal = () => {
-    const stats = getComprehensiveStats();
-    
+  // Show simple error state if data fetch fails and no cached data
+  if (error && loading) {
     return (
-      <div className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
-        showStatsModal ? 'opacity-100 visible' : 'opacity-0 invisible'
-      }`}>
-        {/* Backdrop */}
-        <div 
-          className="absolute inset-0 bg-white bg-opacity-10 backdrop-blur-md transition-opacity duration-300"
-          onClick={() => setShowStatsModal(false)}
-        />
-        
-        {/* Modal */}
-        <div className={`relative bg-white rounded-2xl shadow-2xl w-[90%] h-[90%] max-w-7xl transform transition-all duration-500 flex flex-col ${
-          showStatsModal ? 'scale-100 rotate-0' : 'scale-95 rotate-3'
-        }`}>
-          {/* Header */}
-          <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-2xl flex-shrink-0">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                  <BarChart3 className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Comprehensive Statistics</h2>
-                  <p className="text-gray-600">Complete overview of enquiry data</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowStatsModal(false)}
-                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6 text-gray-500" />
-              </button>
-            </div>
-            
-            {/* Time Filter */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <span className="text-sm font-medium text-gray-700">Time Filter:</span>
-                <div className="flex flex-wrap gap-2">
-                  {dateFilters.map(filter => (
-                    <button
-                      key={filter.value}
-                      onClick={() => {
-                        setSelectedDate(filter.value);
-                        // Auto-reload data when filter changes
-                        setTimeout(() => {
-                          loadLevelStatistics();
-                          loadEnquiryData();
-                        }, 100);
-                      }}
-                      disabled={loading}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        selectedDate === filter.value
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                      }`}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Loading indicator */}
-              {loading && (
-                <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm font-medium">Updating data...</span>
-                </div>
-              )}
-            </div>
-            
-            {/* Custom Date Range in Modal */}
-            {selectedDate === 'custom' && (
-              <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={customStartDate}
-                      onChange={(e) => {
-                        setCustomStartDate(e.target.value);
-                        setCustomDatesApplied(false); // Reset applied state when date changes
-                      }}
-                      disabled={loading}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={customEndDate}
-                      onChange={(e) => {
-                        setCustomEndDate(e.target.value);
-                        setCustomDatesApplied(false); // Reset applied state when date changes
-                      }}
-                      disabled={loading}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-                
-                {/* Status indicator */}
-                {selectedDate === 'custom' && customStartDate && customEndDate && !customDatesApplied && (
-                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-xs text-yellow-800 text-center">
-                      📅 Custom dates selected but not applied. Click "Apply Custom Range" to load data.
-                    </p>
-                    <p className="text-xs text-yellow-600 text-center mt-1">
-                      Selected range: {Math.ceil((new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)) + 1} days
-                    </p>
-                  </div>
-                )}
-                
-                {/* Apply Filter Button for Custom Range */}
-                <div className="mt-3 flex justify-center">
-                  <button
-                    onClick={() => {
-                      if (customStartDate && customEndDate) {
-                        setCustomDatesApplied(true);
-                        loadLevelStatistics();
-                        loadEnquiryData();
-                      }
-                    }}
-                    disabled={loading || !customStartDate || !customEndDate}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Loading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Filter className="w-3 h-3" />
-                        <span>Apply Custom Range</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-                
-                {loading && (
-                  <div className="mt-2 text-center">
-                    <span className="text-xs text-blue-600">Updating data with custom date range...</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Content */}
-          <div className="flex-1 overflow-hidden relative">
-            {/* Loading Overlay */}
-            {loading && (
-              <div className="absolute inset-0 bg-white bg-opacity-80 z-10 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-lg font-semibold text-blue-600">Updating Statistics...</p>
-                  <p className="text-sm text-gray-600">Please wait while we fetch the latest data</p>
-                </div>
-              </div>
-            )}
-            
-            <div className="p-6 h-full overflow-y-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                {/* Boys Statistics */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
-                  <div className="flex items-center space-x-3 mb-6">
-                    <div className="p-3 bg-blue-500 rounded-lg">
-                      <UserCheck className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-blue-900">Boys Statistics</h3>
-                      <p className="text-blue-700">Total: {stats.boys.total} students</p>
-                    </div>
-                  </div>
-                  
-                  {/* Boys Level Breakdown */}
-                  <div className="space-y-3 mb-6">
-                    <h4 className="font-semibold text-blue-800 mb-3">Level Distribution</h4>
-                    {[1, 2, 3, 4, 5].map(level => (
-                      <div key={level} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${
-                            level === 1 ? 'bg-green-500' :
-                            level === 2 ? 'bg-yellow-500' :
-                            level === 3 ? 'bg-orange-500' :
-                            level === 4 ? 'bg-red-500' : 'bg-purple-500'
-                          }`} />
-                          <span className="font-medium text-gray-700">Level {level}+</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-lg font-bold text-blue-600">
-                            {stats.boys.levels[level] || 0}
-                          </span>
-                          <div className="text-xs text-gray-500">
-                            {stats.boys.total > 0 ? Math.round((stats.boys.levels[level] || 0) / stats.boys.total * 100) : 0}%
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Boys Programs */}
-                  <div>
-                    <h4 className="font-semibold text-blue-800 mb-3">Program Distribution</h4>
-                    <div className="space-y-2">
-                      {Object.entries(stats.programs.boys || {}).map(([program, count]) => (
-                        <div key={program} className="flex items-center justify-between p-2 bg-white rounded-lg shadow-sm">
-                          <span className="text-sm font-medium text-gray-700">{program}</span>
-                          <span className="text-sm font-bold text-blue-600">{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Girls Statistics */}
-                <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-6">
-                  <div className="flex items-center space-x-3 mb-6">
-                    <div className="p-3 bg-pink-500 rounded-lg">
-                      <GraduationCap className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-pink-900">Girls Statistics</h3>
-                      <p className="text-pink-700">Total: {stats.girls.total} students</p>
-                    </div>
-                  </div>
-                  
-                  {/* Girls Level Breakdown */}
-                  <div className="space-y-3 mb-6">
-                    <h4 className="font-semibold text-pink-800 mb-3">Level Distribution</h4>
-                    {[1, 2, 3, 4, 5].map(level => (
-                      <div key={level} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${
-                            level === 1 ? 'bg-green-500' :
-                            level === 2 ? 'bg-yellow-500' :
-                            level === 3 ? 'bg-orange-500' :
-                            level === 4 ? 'bg-red-500' : 'bg-purple-500'
-                          }`} />
-                          <span className="font-medium text-gray-700">Level {level}+</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-lg font-bold text-pink-600">
-                            {stats.girls.levels[level] || 0}
-                          </span>
-                          <div className="text-xs text-gray-500">
-                            {stats.girls.total > 0 ? Math.round((stats.girls.levels[level] || 0) / stats.girls.total * 100) : 0}%
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Girls Programs */}
-                  <div>
-                    <h4 className="font-semibold text-pink-800 mb-3">Program Distribution</h4>
-                    <div className="space-y-2">
-                      {Object.entries(stats.programs.girls || {}).map(([program, count]) => (
-                        <div key={program} className="flex items-center justify-between p-2 bg-white rounded-lg shadow-sm">
-                          <span className="text-sm font-medium text-gray-700">{program}</span>
-                          <span className="text-sm font-bold text-pink-600">{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Summary Footer */}
-              <div className="mt-8 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-                  <div className="p-3">
-                    <div className="text-2xl font-bold text-gray-800">{stats.boys.total + stats.girls.total}</div>
-                    <div className="text-sm text-gray-600">Total Students</div>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-2xl font-bold text-blue-600">{stats.boys.total}</div>
-                    <div className="text-sm text-gray-600">Boys</div>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-2xl font-bold text-pink-600">{stats.girls.total}</div>
-                    <div className="text-sm text-gray-600">Girls</div>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-2xl font-bold text-purple-600">{levelStats[5] || 0}</div>
-                    <div className="text-sm text-gray-600">Admitted (Level 5)</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ErrorDisplay 
+        error={error}
+        isRefreshing={isRefreshing}
+        onRetry={refreshData}
+      />
     );
-  };
+  }
 
-  const EnquiryCard = ({ title, count, icon: IconComponent, color, onClick, subtitle = null, levelData = null }) => {
-    const colorClasses = {
-      blue: 'from-blue-500 to-blue-600',
-      green: 'from-green-500 to-green-600',
-      pink: 'from-pink-500 to-pink-600',
-      purple: 'from-purple-500 to-purple-600',
-      orange: 'from-orange-500 to-orange-600',
-      cyan: 'from-cyan-500 to-cyan-600'
-    };
-
-    // Format the count based on whether we have level progression data
-    const formattedCount = loading ? '...' : (levelData ? 
-      `${levelData.current}/${levelData.previous}` : 
-      count);
-    
-    // Calculate percentage for level progression (should be current/previous * 100)
-    const progressPercentage = levelData && levelData.previous > 0 ? 
-      Math.round((levelData.current / levelData.previous) * 100) : 
-      null;
-    
-    // Format students who didn't progress
-    const notProgressedText = levelData && levelData.notProgressed > 0 ? 
-      `${levelData.notProgressed} did not progress` : 
-      null;
-
+  // Early return for unauthorized access
+  if (userRole !== 'Principal' && userRole !== 'InstituteAdmin') {
     return (
-      <div 
-        onClick={loading ? undefined : onClick}
-        className={`bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${
-          loading ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'
-        } ${onClick && !loading ? 'hover:border-blue-300' : ''}`}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className={`p-3 rounded-lg bg-gradient-to-r ${colorClasses[color]}`}>
-            {IconComponent && <IconComponent className="w-8 h-8 text-white" />}
-          </div>
-          {onClick && <ChevronDown className="w-5 h-5 text-gray-400" />}
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-          <p className="text-3xl font-bold text-gray-800 mb-2">{loading ? '...' : formattedCount}</p>
-          {progressPercentage !== null && (
-            <div className="mb-2">
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className={`h-2.5 rounded-full bg-gradient-to-r ${colorClasses[color]}`} 
-                  style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-                ></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">{progressPercentage}% progression</p>
-              {notProgressedText && (
-                <p className="text-xs text-red-500 mt-1">{notProgressedText}</p>
-              )}
-            </div>
-          )}
-          {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
-        </div>
-      </div>
-    );
-  };
-
-  if (userRole !== 'Principal') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">Access Denied</h2>
-          <p className="text-gray-500">This page is only accessible to Principal users.</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-red-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h2>
+          <p className="text-gray-600">You don't have permission to view this page.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Floating Stats Pill */}
-      <FloatingStatsPill />
-      
-      {/* Comprehensive Stats Modal */}
-      <StatsModal />
-      
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-red-50 p-6">
       <div className="max-w-7xl mx-auto">
+        
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 font-[Sora,Inter,sans-serif]">
-                Enquiry Management
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Hierarchical view of student enquiries by level and demographics
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Welcome</p>
-              <p className="font-semibold text-gray-900">
-                Syed Awais Bukhari
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 mb-8">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Filter className="w-5 h-5 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900">Filters</h3>
-          </div>
-
-          <div className="flex flex-wrap items-end gap-6">
-            {/* Date Filter */}
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Date Range
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  disabled={loading}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 appearance-none cursor-pointer text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
-                >
-                  {dateFilters.map(filter => (
-                    <option key={filter.value} value={filter.value}>
-                      {filter.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleApplyFilters}
-                disabled={loading}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <Filter className="w-4 h-4" />
-                    <span>Apply Filters</span>
-                  </>
-                )}
-              </button>
-              
-              <button
-                onClick={handleClearFilters}
-                disabled={loading}
-                className="px-4 py-3 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-700 font-medium rounded-xl transition-all duration-200 border border-gray-300 hover:border-gray-400 disabled:cursor-not-allowed"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          {/* Custom Date Range */}
-          {selectedDate === 'custom' && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => {
-                      setCustomStartDate(e.target.value);
-                      setCustomDatesApplied(false); // Reset applied state when date changes
-                    }}
-                    disabled={loading}
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => {
-                      setCustomEndDate(e.target.value);
-                      setCustomDatesApplied(false); // Reset applied state when date changes
-                    }}
-                    disabled={loading}
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
-                  />
-                </div>
-              </div>
-              
-              {/* Status indicator */}
-              {customStartDate && customEndDate && !customDatesApplied && (
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800 text-center">
-                    📅 Custom dates selected but not applied. Click "Apply Filters" to load data.
-                  </p>
-                  <p className="text-xs text-yellow-600 text-center mt-1">
-                    Selected range: {Math.ceil((new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)) + 1} days
-                  </p>
-                </div>
-              )}
-              
-              {loading && (
-                <div className="mt-3 text-center">
-                  <span className="text-sm text-blue-600">Applying custom date range...</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Filter Summary */}
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <span className="text-sm text-gray-500">Active filters:</span>
-            <div className="flex flex-wrap gap-2">
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                Level {selectedLevel}+
-              </span>
-              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                {dateFilters.find(f => f.value === selectedDate)?.label || 'All Time'}
-              </span>
-              {selectedDate === 'custom' && customStartDate && customEndDate && (
-                <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full">
-                  {Math.ceil((new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)) + 1} days selected
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+        <Header 
+          error={error}
+          isRefreshing={isRefreshing}
+          isInitialLoading={isInitialLoading}
+          onRefresh={handleRefreshData}
+          lastUpdated={lastUpdated}
+        />
 
         {/* Level Tabs */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex items-center space-x-2 mb-6">
-            <span className="font-medium text-gray-700">Level Filter:</span>
-          </div>
-          <div className="grid grid-cols-5 gap-6">
-            {levelTabs.map(tab => {
-              const count = levelStats[tab.value] || 0;
-              const isActive = selectedLevel === tab.value;
-              
-              return (
-                <button
-                  key={tab.value}
-                  onClick={() => setSelectedLevel(tab.value)}
-                  disabled={loading}
-                  className={`flex flex-col items-center justify-center p-8 h-32 rounded-xl transition-all duration-200 border-2 ${
-                    isActive 
-                      ? `${tab.color} text-white shadow-lg transform scale-105 border-transparent` 
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
-                  } ${loading ? 'opacity-50 cursor-not-allowed hover:bg-gray-50 hover:border-gray-200 transform-none' : ''}`}
-                >
-                  <span className={`text-6xl font-bold mb-3 ${
-                    isActive ? 'text-white' : 'text-gray-800'
-                  }`}>
-                    {loading ? '...' : count}
-                  </span>
-                  <span className={`text-lg font-medium ${
-                    isActive ? 'text-white text-opacity-90' : 'text-gray-500'
-                  }`}>
-                    {tab.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <LevelTabs 
+          levelTabs={levelTabs}
+          selectedLevel={selectedLevel}
+          onLevelChange={setSelectedLevel}
+          levelStats={levelStats}
+          loading={loading}
+        />
 
-        {/* Main Content Area */}
-        <div className="space-y-8">
-          {/* Total Enquiries Level */}
-          {currentView === 'total' && (
-            <div className="max-w-2xl mx-auto">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-semibold text-gray-900">Total Enquiries</h2>
-                <p className="text-gray-600">Overall statistics for selected level and date range</p>
-              </div>
-              <div className="grid grid-cols-1 gap-6">
-                <EnquiryCard
-                  title={`Level ${selectedLevel}+ Enquiries`}
-                  count={enquiryData.total}
-                  icon={Users}
-                  color="blue"
-                  onClick={() => handleCardClick('gender')}
-                  subtitle={`Students at level ${selectedLevel} and above`}
-                  levelData={levelProgression[selectedLevel] ? 
-                    levelProgression[selectedLevel] : 
-                    (levelProgression[1] ? levelProgression[1] : null)}
-                />
-              </div>
-            </div>
-          )}
+        {/* Stats Cards OR Program Breakdown Cards */}
+        {currentView === 'default' ? (
+          <StatsCards 
+            currentData={currentData}
+            percentages={percentages}
+            currentView={currentView}
+            selectedGender={selectedGender}
+            onCardClick={handleCardClick}
+            loading={loading}
+          />
+        ) : (
+          <ProgramBreakdownCards 
+            currentView={currentView}
+            selectedGender={selectedGender}
+            currentData={currentData}
+            onBackClick={handleBackClick}
+            loading={loading}
+          />
+        )}
 
-          {/* Gender Breakdown Level */}
-          {currentView === 'gender' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              <EnquiryCard
-                title={`Boys (Level ${selectedLevel}+)`}
-                count={`${enquiryData.boys} (${percentages.boys.text})`}
-                icon={UserCheck}
-                color="green"
-                onClick={() => handleCardClick('programs', 'Boys')}
-                subtitle={`${enquiryData.boys} male students at level ${selectedLevel}`}
-                levelData={genderLevelProgression.boys[selectedLevel] ? 
-                  genderLevelProgression.boys[selectedLevel] : 
-                  (genderLevelProgression.boys[1] ? genderLevelProgression.boys[1] : null)}
-              />
-              <EnquiryCard
-                title={`Girls (Level ${selectedLevel}+)`}
-                count={`${enquiryData.girls} (${percentages.girls.text})`}
-                icon={GraduationCap}
-                color="pink"
-                onClick={() => handleCardClick('programs', 'Girls')}
-                subtitle={`${enquiryData.girls} female students at level ${selectedLevel}`}
-                levelData={genderLevelProgression.girls[selectedLevel] ? 
-                  genderLevelProgression.girls[selectedLevel] : 
-                  (genderLevelProgression.girls[1] ? genderLevelProgression.girls[1] : null)}
-              />
-            </div>
-          )}
+        {/* Floating Stats Pill */}
+        <FloatingStatsPill 
+          position={pillPosition}
+          loading={loading}
+          isDragging={isDragging}
+          onShowStats={() => setShowStatsModal(true)}
+          onMouseDown={handleMouseDown}
+          pillRef={pillRef}
+        />
 
-          {/* Programs Breakdown Level */}
-          {currentView === 'programs' && selectedGender && (
-            <div className="space-y-4">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-semibold text-gray-900">{selectedGender} Programs</h2>
-                <p className="text-gray-600">Program-wise breakdown for {selectedGender.toLowerCase()}</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                {Object.entries(enquiryData.programs[selectedGender.toLowerCase()] || {}).length > 0 ? (
-                  Object.entries(enquiryData.programs[selectedGender.toLowerCase()] || {}).map(([program, count], index) => (
-                    <EnquiryCard
-                      key={program}
-                      title={program}
-                      count={count}
-                      icon={GraduationCap}
-                      color={['purple', 'orange', 'cyan'][index % 3]}
-                      subtitle={`${percentages.programs[selectedGender.toLowerCase()][program]?.text || '0%'} of ${selectedGender.toLowerCase()}`}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-8">
-                    <p className="text-gray-500 text-lg">No program data available for {selectedGender.toLowerCase()} at Level {selectedLevel}+</p>
-                    <p className="text-gray-400 text-sm mt-2">Try adjusting the date filter or level selection</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Back Navigation */}
-          {(currentView === 'gender' || currentView === 'programs') && (
-            <div className="text-center">
-              <button
-                onClick={handleBackClick}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                ← Back
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Stats Modal */}
+        <StatsModal 
+          showStatsModal={showStatsModal}
+          onCloseModal={() => setShowStatsModal(false)}
+          selectedDate={selectedDate}
+          dateFilters={dateFilters}
+          onDateChange={setSelectedDate}
+          customStartDate={customStartDate}
+          customEndDate={customEndDate}
+          customDatesApplied={customDatesApplied}
+          isCustomDateLoading={isCustomDateLoading}
+          onStartDateChange={setCustomStartDate}
+          onEndDateChange={setCustomEndDate}
+          onApplyFilters={handleApplyFilters}
+          loading={loading}
+          currentData={currentData}
+          percentages={percentages}
+          levelStats={levelStats}
+          levelTabs={levelTabs}
+          lastUpdated={lastUpdated}
+        />
       </div>
     </div>
   );
