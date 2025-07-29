@@ -4,16 +4,24 @@ const LevelTabs = ({
   levelTabs, 
   selectedLevel, 
   onLevelChange, 
-  levelStats, 
+  levelStats,
   loading 
 }) => {
+  // Update tab counts with levelStats if available
+  const tabsWithUpdatedCounts = levelTabs.map(tab => {
+    if (levelStats && levelStats[tab.value] !== undefined) {
+      return { ...tab, count: levelStats[tab.value] };
+    }
+    return tab;
+  });
+
   return (
     <div className="bg-white rounded-xl shadow-lg mb-8 overflow-hidden">
       <div className="p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Student Level Filter</h2>
         <div className="grid grid-cols-5 gap-4">
-          {levelTabs.map((tab) => {
-            const count = levelStats[tab.value] || 0;
+          {tabsWithUpdatedCounts.map((tab) => {
+            const count = tab.count || 0;
             const isSelected = selectedLevel === tab.value;
             
             return (

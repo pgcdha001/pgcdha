@@ -3,11 +3,9 @@ import { MessageSquare, TrendingUp, Calendar, Filter, Plus, Download, RefreshCw 
 import { Button } from '../ui/button';
 import CorrespondenceList from './CorrespondenceList';
 import CorrespondenceFormPage from './CorrespondenceFormPage';
-import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
 
 const CorrespondenceManagement = () => {
-  const { user } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingCorrespondence, setEditingCorrespondence] = useState(null);
@@ -90,45 +88,6 @@ const CorrespondenceManagement = () => {
     }
   };
 
-  // Stats cards configuration
-  const statsCards = [
-    {
-      title: 'Total Correspondence',
-      value: stats.total,
-      icon: MessageSquare,
-      color: 'blue',
-      bgColor: 'bg-blue-50',
-      iconColor: 'text-blue-600',
-      borderColor: 'border-blue-200'
-    },
-    {
-      title: 'Enquiry Correspondence',
-      value: stats.enquiry,
-      icon: Users,
-      color: 'orange',
-      bgColor: 'bg-orange-50',
-      iconColor: 'text-orange-600',
-      borderColor: 'border-orange-200'
-    },
-    {
-      title: 'Student Correspondence',
-      value: stats.student,
-      icon: Users,
-      color: 'green',
-      bgColor: 'bg-green-50',
-      iconColor: 'text-green-600',
-      borderColor: 'border-green-200'
-    },
-    {
-      title: 'This Month',
-      value: stats.thisMonth,
-      icon: Calendar,
-      color: 'purple',
-      bgColor: 'bg-purple-50',
-      iconColor: 'text-purple-600',
-      borderColor: 'border-purple-200'
-    }
-  ];
 
   return (
     <div className="space-y-6">
@@ -184,34 +143,6 @@ const CorrespondenceManagement = () => {
                 </Button>
               </div>
             </div>
-          </div>
-
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">{statsCards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={index}
-                className={`bg-white rounded-lg shadow-sm border ${card.borderColor} p-6 hover:shadow-md transition-shadow`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                    <div className="text-3xl font-bold text-gray-900 mt-1">
-                      {loading ? (
-                        <div className="animate-pulse bg-gray-200 h-8 w-16 rounded"></div>
-                      ) : (
-                        card.value
-                      )}
-                    </div>
-                  </div>
-                  <div className={`p-3 rounded-lg ${card.bgColor}`}>
-                    <Icon className={`w-6 h-6 ${card.iconColor}`} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
           </div>
 
           {/* Main Correspondence List */}

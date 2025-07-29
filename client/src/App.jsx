@@ -30,6 +30,7 @@ import EnquiryManagementContainer from './components/enquiry/EnquiryManagementCo
 import ClassManagement from './components/class-management/ClassManagement';
 import StudentAssignment from './components/class-management/StudentAssignment';
 import PrincipalEnquiryManagement from './components/principal/PrincipalEnquiryManagement';
+import PrincipalCorrespondenceManagement from './components/principal/PrincipalCorrespondenceManagement';
 
 // Attendance Management
 import AttendanceManagement from './components/attendance/AttendanceManagement';
@@ -82,6 +83,19 @@ const App = () => {
                       allowedRoles={['Principal']}
                     >
                       <PrincipalEnquiryManagement />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Principal Correspondence Management - Separate from InstituteAdmin */}
+              <Route path="/principal/correspondence" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      allowedRoles={['Principal']}
+                    >
+                      <PrincipalCorrespondenceManagement />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

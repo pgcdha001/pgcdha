@@ -453,6 +453,13 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'BarChart3',
       description: 'View enquiry statistics and analytics',
       permission: null
+    },
+    {
+      title: 'Correspondence Management',
+      href: '/principal/correspondence',
+      icon: 'Mail',
+      description: 'Manage student correspondence and communications',
+      permission: null
     }
   ],
 
