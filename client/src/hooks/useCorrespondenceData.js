@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import api from '../services/api';
 
 /**
@@ -21,10 +21,19 @@ const useCorrespondenceData = () => {
 
   // Cache validity (5 minutes)
   const CACHE_DURATION = 5 * 60 * 1000;
-  const REQUEST_TIMEOUT = 10000; // 10 seconds
+  const REQUEST_TIMEOUT = 15000; // 15 seconds (increased from 10)
   
   // Abort controller
   const abortControllerRef = useRef(null);
+
+  // Cleanup function to abort ongoing requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   /**
    * Filter correspondence by date range
@@ -182,20 +191,22 @@ const useCorrespondenceData = () => {
     loadingState(true);
     setError(null);
 
+    let timeoutId;
+    
     try {
-      // Create new abort controller
+      // Create new abort controller with timeout
       abortControllerRef.current = new AbortController();
+      timeoutId = setTimeout(() => {
+        abortControllerRef.current?.abort();
+      }, REQUEST_TIMEOUT);
       
       // Fetch all correspondence data with statistics
-      const response = await Promise.race([
-        api.get('/correspondence', {
-          signal: abortControllerRef.current.signal
-        }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT)
-        )
-      ]);
+      const response = await api.get('/correspondence', {
+        signal: abortControllerRef.current.signal
+      });
 
+      clearTimeout(timeoutId);
+      
       const correspondenceData = response.data?.data || [];
       const stats = response.data?.stats || {};
 
@@ -210,11 +221,34 @@ const useCorrespondenceData = () => {
       });
 
       console.log('Correspondence data fetched and cached:', processedData);
+      console.log('Cache updated with data structure:', { 
+        hasStats: !!processedData.stats, 
+        hasDateRanges: !!processedData.dateRanges,
+        statsKeys: Object.keys(processedData.stats || {}),
+        dateRangeKeys: Object.keys(processedData.dateRanges || {}),
+        cacheIsValid: true,
+        cacheTimestamp: Date.now()
+      });
+      console.log('Cache state after update will be:', {
+        hasData: true,
+        isValid: true,
+        statsTotal: processedData.stats?.total
+      });
       return processedData;
 
     } catch (error) {
+      clearTimeout(timeoutId);
+      
+      // Don't set error state for canceled requests
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        console.log('Correspondence data request was canceled:', error.message);
+        return cache.data; // Return cached data if available
+      }
+      
       if (error.name === 'AbortError') {
-        console.log('Correspondence data fetch was aborted');
+        const errorMsg = 'Correspondence data request timed out';
+        console.log(errorMsg);
+        setError(errorMsg);
         return cache.data;
       }
 
@@ -282,6 +316,29 @@ const useCorrespondenceData = () => {
       return processedData;
 
     } catch (error) {
+      // Don't set error state for canceled requests
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        console.log('Custom date range correspondence request was canceled:', error.message);
+        // Return safe empty data structure for canceled requests
+        return {
+          raw: [],
+          stats: {
+            total: 0,
+            uniqueStudents: 0,
+            levelChanges: 0,
+            generalCorrespondence: 0,
+            recent: 0,
+            activeStaff: 0
+          },
+          dateRanges: {
+            today: { total: 0, uniqueStudents: 0 },
+            week: { total: 0, uniqueStudents: 0 },
+            month: { total: 0, uniqueStudents: 0 },
+            year: { total: 0, uniqueStudents: 0 }
+          }
+        };
+      }
+      
       console.error('Error fetching custom date range correspondence data:', error);
       setError(error.message || 'Failed to fetch custom date range data');
       
@@ -321,7 +378,12 @@ const useCorrespondenceData = () => {
    */
   const getFilteredData = useCallback((level, dateFilter, customData = null) => {
     const sourceData = customData || cache.data;
-    if (!sourceData) return null;
+    console.log('getFilteredData called:', { level, dateFilter, hasCustomData: !!customData, hasSourceData: !!sourceData, cacheData: cache.data });
+    
+    if (!sourceData) {
+      console.log('No source data available, returning null');
+      return null;
+    }
 
     if (dateFilter === 'custom' && customData) {
       return customData;

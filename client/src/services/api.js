@@ -56,6 +56,15 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Don't log canceled requests as errors
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      console.log('API Request canceled:', { 
+        url: error.config?.url,
+        error: error.message
+      });
+      return Promise.reject(error);
+    }
+
     console.error('API Response error:', { 
       url: error.config?.url,
       status: error.response?.status,
@@ -142,6 +151,27 @@ export const getUserData = () => {
   } catch (error) {
     console.error('Error parsing user data:', error);
     return null;
+  }
+};
+
+// Refresh token function (defined before interceptor to avoid circular dependency)
+const refreshAccessToken = async () => {
+  try {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await axios.post(`${getApiUrl()}/auth/refresh`, { refreshToken });
+    
+    if (response.data.success) {
+      setAccessToken(response.data.data.accessToken);
+    }
+    
+    return response.data;
+  } catch (error) {
+    clearTokens();
+    throw error.response?.data || { message: 'Token refresh failed' };
   }
 };
 
@@ -508,20 +538,6 @@ export const userAPI = {
       throw error.response?.data || { message: `Failed to fetch ${endpoint}` };
     }
   }
-};
-
-// Helper function for refresh token
-const refreshAccessToken = async () => {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    throw new Error('No refresh token available');
-  }
-
-  const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
-    refreshToken
-  });
-
-  return response.data;
 };
 
 // Dashboard API

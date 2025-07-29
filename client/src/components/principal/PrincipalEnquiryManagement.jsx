@@ -158,7 +158,10 @@ const PrincipalEnquiryManagement = () => {
       setCustomData(response);
       setCustomDatesApplied(true);
     } catch (error) {
-      console.error('Failed to apply custom date range:', error);
+      // Don't log errors for canceled requests
+      if (error.name !== 'CanceledError' && error.code !== 'ERR_CANCELED') {
+        console.error('Failed to apply custom date range:', error);
+      }
     }
   };
 
@@ -200,8 +203,10 @@ const PrincipalEnquiryManagement = () => {
 
   // Effects
   useEffect(() => {
+    // Only fetch data on component mount
     fetchComprehensiveData();
-  }, [fetchComprehensiveData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run on mount
 
   useEffect(() => {
     if (selectedDate !== 'custom') {

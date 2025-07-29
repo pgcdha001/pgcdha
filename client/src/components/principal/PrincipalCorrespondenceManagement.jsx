@@ -207,8 +207,7 @@ const PrincipalCorrespondenceManagement = () => {
     if (userRole === 'Principal' || userRole === 'Admin') {
       fetchComprehensiveData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userRole]); // Intentionally excluding fetchComprehensiveData to prevent infinite loops
+  }, []); // Only run on mount, regardless of userRole changes
 
   useEffect(() => {
     if (selectedDate !== 'custom') {
@@ -233,8 +232,17 @@ const PrincipalCorrespondenceManagement = () => {
     stats: { total: 0, uniqueStudents: 0, levelChanges: 0, generalCorrespondence: 0 },
     breakdown: { byLevel: {}, byType: {}, byGender: {} }
   };
+  console.log('Component render - currentData after fallback:', currentData);
+  
   const levelStats = getCurrentLevelStats();
   const loading = isInitialLoading || (selectedDate === 'custom' && isCustomDateLoading);
+
+  console.log('Component render state:', { 
+    hasCurrentData: !!getCurrentData(), 
+    loading, 
+    isInitialLoading, 
+    isCustomDateLoading 
+  });
 
   // Calculate percentages for StatsModal
   const percentages = calculateCorrespondencePercentages(currentData);

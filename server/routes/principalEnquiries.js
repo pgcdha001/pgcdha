@@ -789,4 +789,84 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
   }
 }));
 
+/**
+ * @route   GET /api/enquiries/monthly-stats
+ * @desc    Get monthly level progression statistics for the current year
+ * @access  Private (Principal only)
+ */
+router.get('/monthly-stats', asyncHandler(async (req, res) => {
+  console.log('Monthly stats requested by user:', req.user.email, 'Role:', req.user.role);
+  
+  // Check if user is Principal or InstituteAdmin
+  if (req.user.role !== 'Principal' && req.user.role !== 'InstituteAdmin') {
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. Principal privileges required. Your role: ${req.user.role}`
+    });
+  }
+
+  try {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth(); // 0-based index
+    
+    // Generate months array
+    const months = [];
+    for (let i = 0; i <= currentMonth; i++) {
+      const monthStart = new Date(currentYear, i, 1);
+      const monthEnd = new Date(currentYear, i + 1, 0, 23, 59, 59, 999);
+      
+      months.push({
+        month: i + 1,
+        name: new Date(currentYear, i, 1).toLocaleString('default', { month: 'long' }),
+        start: monthStart,
+        end: monthEnd
+      });
+    }
+
+    // Aggregate data for each month and level
+    const monthlyData = {};
+    
+    for (const month of months) {
+      const monthData = {};
+      
+      // Get statistics for each level (1-5)
+      for (let level = 1; level <= 5; level++) {
+        const count = await User.countDocuments({
+          role: 'Student',
+          prospectusStage: level,
+          createdOn: {
+            $gte: month.start,
+            $lte: month.end
+          }
+        });
+        
+        monthData[`level${level}`] = count;
+      }
+      
+      monthlyData[month.name] = monthData;
+      console.log(`${month.name} data:`, monthData);
+    }
+
+    console.log('Final monthly data structure:', JSON.stringify(monthlyData, null, 2));
+
+    res.json({
+      success: true,
+      data: {
+        year: currentYear,
+        monthlyData,
+        months: months.map(m => m.name)
+      },
+      message: 'Monthly statistics retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('Error fetching monthly stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch monthly statistics',
+      error: error.message
+    });
+  }
+}));
+
 module.exports = router;

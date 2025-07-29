@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import api from '../services/api';
 
 /**
@@ -25,6 +25,15 @@ const useEnquiryData = () => {
   
   // Abort controller
   const abortControllerRef = useRef(null);
+
+  // Cleanup function to abort ongoing requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   /**
    * Check if cache is valid
@@ -95,6 +104,12 @@ const useEnquiryData = () => {
     } catch (error) {
       clearTimeout(timeoutId);
       
+      // Don't set error state for canceled requests
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        console.log('Request was canceled:', error.message);
+        return cache.data; // Return cached data if available
+      }
+      
       if (error.name === 'AbortError') {
         const errorMsg = 'Request timed out after 10 seconds';
         console.log(errorMsg);
@@ -152,6 +167,12 @@ const useEnquiryData = () => {
 
     } catch (error) {
       clearTimeout(timeoutId);
+      
+      // Don't set error state for canceled requests
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        console.log('Custom date request was canceled:', error.message);
+        throw error; // Re-throw to let caller handle
+      }
       
       if (error.name === 'AbortError') {
         const errorMsg = 'Custom date request timed out';

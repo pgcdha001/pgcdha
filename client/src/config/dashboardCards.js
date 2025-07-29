@@ -105,6 +105,15 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-emerald-500 to-emerald-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
+    },
+    {
+      id: 'timetable-management',
+      title: 'Timetable Management',
+      href: '/timetable',
+      icon: 'Calendar',
+      bgGradient: 'from-amber-500 to-amber-600',
+      type: 'normal',
+      permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
     }
   ],
 
@@ -223,6 +232,15 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-emerald-500 to-emerald-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
+    },
+    {
+      id: 'timetable-management',
+      title: 'Timetable Management',
+      href: '/timetable',
+      icon: 'Calendar',
+      bgGradient: 'from-amber-500 to-amber-600',
+      type: 'normal',
+      permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
     }
   ],
 
@@ -272,6 +290,15 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: null
+    },
+    {
+      id: 'timetable-view',
+      title: 'View Timetables',
+      href: '/timetable/view',
+      icon: 'CalendarDays',
+      bgGradient: 'from-amber-500 to-amber-600',
+      type: 'normal',
+      permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
     }
   ],
 
@@ -454,6 +481,13 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'UserPlus',
       description: 'Assign students to classes',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
+    },
+    {
+      title: 'Timetable Management',
+      href: '/timetable',
+      icon: 'Calendar',
+      description: 'Manage timetables and schedules',
+      permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
     }
   ],
 

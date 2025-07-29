@@ -43,6 +43,9 @@ import ReportsContainer from './components/reports/ReportsContainer';
 // Correspondence Management
 import { CorrespondenceManagement } from './components/correspondence';
 
+// Timetable Management
+import TimetableManagement from './pages/timetable/TimetableManagement';
+
 const App = () => {
   return (
     <Router>
@@ -231,6 +234,34 @@ const App = () => {
                       }}
                     >
                       <AttendanceManagement />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Timetable Management */}
+              <Route path="/timetable" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      requiredPermission={PERMISSIONS.TIMETABLE.VIEW_TIMETABLE}
+                      allowedRoles={['InstituteAdmin', 'IT', 'Teacher']}
+                    >
+                      <TimetableManagement />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Timetable View (Read-only for Teachers) */}
+              <Route path="/timetable/view" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      requiredPermission={PERMISSIONS.TIMETABLE.VIEW_TIMETABLE}
+                      allowedRoles={['Teacher']}
+                    >
+                      <TimetableManagement />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>
