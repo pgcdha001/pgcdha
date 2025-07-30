@@ -24,7 +24,8 @@ const corsOptions = {
     'http://localhost:5173',
     'http://localhost:3000',
     'https://pgc-blond.vercel.app',
-    'https://pgc.vercel.app'
+    'https://pgc.vercel.app',
+    "https://pgcdha.vercel.app"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
