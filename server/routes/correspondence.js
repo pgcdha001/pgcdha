@@ -15,14 +15,16 @@ router.get('/', authenticate, async (req, res) => {
       level,
       staffMember,
       nonProgression,
-      progressionLevel 
+      progressionLevel,
+      campus,
+      program 
     } = req.query;
 
     // Build base query for correspondence
     let query = {};
 
     // Filter by correspondence type
-    if (type && ['enquiry', 'student'].includes(type)) {
+    if (type && ['enquiry', 'student', 'call', 'meeting', 'follow-up'].includes(type)) {
       query.type = type;
     }
 
@@ -34,6 +36,33 @@ router.get('/', authenticate, async (req, res) => {
     // Filter by staff member
     if (staffMember && staffMember !== 'all') {
       query['staffMember.id'] = staffMember;
+    }
+
+    // Get correspondence with populated student data first for campus/program filtering
+    let correspondenceQuery = { ...query };
+    
+    // Get correspondence with populated student data
+    let correspondenceData = await Correspondence.find(correspondenceQuery)
+      .populate('studentId', 'fullName email prospectusStage gender campus program')
+      .sort({ timestamp: -1 })
+      .lean();
+
+    // Apply campus filter on populated data
+    if (campus && campus !== 'all') {
+      correspondenceData = correspondenceData.filter(item => {
+        const studentCampus = item.studentId?.campus?.toLowerCase();
+        const filterCampus = campus.toLowerCase();
+        return studentCampus === filterCampus || 
+               (filterCampus === 'boys' && item.studentId?.gender?.toLowerCase() === 'male') ||
+               (filterCampus === 'girls' && item.studentId?.gender?.toLowerCase() === 'female');
+      });
+    }
+
+    // Apply program filter on populated data
+    if (program && program !== 'all') {
+      correspondenceData = correspondenceData.filter(item => {
+        return item.studentId?.program?.toLowerCase().includes(program.toLowerCase());
+      });
     }
 
     // Apply date filter for correspondence
@@ -104,10 +133,7 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     // Get correspondence with populated student data
-    const correspondence = await Correspondence.find(query)
-      .populate('studentId', 'fullName email prospectusStage gender')
-      .sort({ timestamp: -1 })
-      .lean();
+    const correspondence = correspondenceData;
 
     console.log('Correspondence data fetched:', {
       correspondenceRecords: correspondence.length,
@@ -162,14 +188,33 @@ router.get('/', authenticate, async (req, res) => {
 
     // Get students with level change remarks
     const studentsWithRemarks = await User.find(levelChangeQuery)
-      .select('fullName email prospectusStage gender receptionistRemarks')
+      .select('fullName email prospectusStage gender campus program receptionistRemarks')
       .lean();
+
+    // Apply campus and program filters for level changes
+    let filteredStudentsWithRemarks = studentsWithRemarks;
+    
+    if (campus && campus !== 'all') {
+      filteredStudentsWithRemarks = filteredStudentsWithRemarks.filter(student => {
+        const studentCampus = student.campus?.toLowerCase();
+        const filterCampus = campus.toLowerCase();
+        return studentCampus === filterCampus || 
+               (filterCampus === 'boys' && student.gender?.toLowerCase() === 'male') ||
+               (filterCampus === 'girls' && student.gender?.toLowerCase() === 'female');
+      });
+    }
+
+    if (program && program !== 'all') {
+      filteredStudentsWithRemarks = filteredStudentsWithRemarks.filter(student => {
+        return student.program?.toLowerCase().includes(program.toLowerCase());
+      });
+    }
 
     // Convert remarks to correspondence format (individual entries for each level change)
     const levelChangeEntries = [];
     const uniqueStudentsContacted = new Set();
     
-    studentsWithRemarks.forEach(student => {
+    filteredStudentsWithRemarks.forEach(student => {
       if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
         // Filter remarks by date
         const filteredRemarks = student.receptionistRemarks.filter(remark => {
@@ -232,7 +277,9 @@ router.get('/', authenticate, async (req, res) => {
                     fullName: student.fullName,
                     email: student.email,
                     prospectusStage: student.prospectusStage,
-                    gender: student.gender
+                    gender: student.gender,
+                    campus: student.campus,
+                    program: student.program
                   },
                   type: correspondenceType,
                   subject: 'Level Change / Communication',
@@ -255,7 +302,7 @@ router.get('/', authenticate, async (req, res) => {
     });
 
     console.log('Level change data processed:', {
-      studentsWithRemarks: studentsWithRemarks.length,
+      studentsWithRemarks: filteredStudentsWithRemarks.length,
       levelChangeEntries: levelChangeEntries.length,
       sampleLevelChange: levelChangeEntries[0] || 'No level changes found'
     });
@@ -507,17 +554,20 @@ router.post('/', authenticate, async (req, res) => {
 
     // Validate correspondence type based on student level
     const studentLevel = student.prospectusStage || 1;
-    if (type === 'enquiry' && studentLevel >= 5) {
+    
+    // Allow all correspondence types for any level, but with logical constraints
+    const validTypes = ['student', 'call', 'meeting', 'follow-up', 'enquiry'];
+    if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot create enquiry correspondence for admitted students (Level 5+)'
+        message: 'Invalid correspondence type. Must be one of: student, call, meeting, follow-up, enquiry'
       });
     }
+
+    // 'student' type is primarily for admitted students (Level 5+)
+    // 'enquiry', 'call', 'meeting', 'follow-up' are for all levels
     if (type === 'student' && studentLevel < 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot create student correspondence for non-admitted students (Level < 5)'
-      });
+      console.warn(`Student correspondence created for non-admitted student (Level ${studentLevel})`);
     }
 
     // Create correspondence
@@ -569,10 +619,11 @@ router.put('/:id', async (req, res) => {
     }
 
     // Validate correspondence type
-    if (!['enquiry', 'student'].includes(type)) {
+    const validTypes = ['student', 'call', 'meeting', 'follow-up', 'enquiry'];
+    if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: 'Type must be either "enquiry" or "student"'
+        message: 'Invalid correspondence type. Must be one of: student, call, meeting, follow-up, enquiry'
       });
     }
 
@@ -596,19 +647,18 @@ router.put('/:id', async (req, res) => {
 
     const studentLevel = student.enquiryLevel || 1;
 
-    // Validate type constraints
-    if (type === 'enquiry' && studentLevel > 4) {
+    // Validate type constraints (more flexible now)
+    const allowedTypes = ['student', 'call', 'meeting', 'follow-up', 'enquiry'];
+    if (!allowedTypes.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: 'Enquiry correspondence is only available for students at levels 1-4'
+        message: 'Invalid correspondence type'
       });
     }
 
+    // Optional warnings for type usage
     if (type === 'student' && studentLevel < 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Student correspondence is only available for students at level 5 or admitted students'
-      });
+      console.warn(`Student correspondence updated for non-admitted student (Level ${studentLevel})`);
     }
 
     // Update correspondence
@@ -683,7 +733,9 @@ router.get('/stats/unique-students', authenticate, async (req, res) => {
       startDate, 
       endDate, 
       type,
-      level 
+      level,
+      campus,
+      program 
     } = req.query;
 
     // Build date query
@@ -730,7 +782,7 @@ router.get('/stats/unique-students', authenticate, async (req, res) => {
     if (Object.keys(dateQuery).length > 0) {
       correspondenceQuery.timestamp = dateQuery;
     }
-    if (type && ['enquiry', 'student'].includes(type)) {
+    if (type && ['enquiry', 'student', 'call', 'meeting', 'follow-up'].includes(type)) {
       correspondenceQuery.type = type;
     }
     if (level && level !== 'all') {
@@ -738,7 +790,36 @@ router.get('/stats/unique-students', authenticate, async (req, res) => {
     }
 
     const correspondenceStudents = await Correspondence.find(correspondenceQuery)
+      .populate('studentId', 'fullName email prospectusStage gender campus program')
       .distinct('studentId');
+
+    // Apply campus and program filters for correspondence students
+    let filteredCorrespondenceStudents = correspondenceStudents;
+    if (campus || program) {
+      const studentDetails = await User.find({
+        _id: { $in: correspondenceStudents }
+      }).select('_id campus program gender').lean();
+      
+      let filteredStudentIds = studentDetails;
+      
+      if (campus && campus !== 'all') {
+        filteredStudentIds = filteredStudentIds.filter(student => {
+          const studentCampus = student.campus?.toLowerCase();
+          const filterCampus = campus.toLowerCase();
+          return studentCampus === filterCampus || 
+                 (filterCampus === 'boys' && student.gender?.toLowerCase() === 'male') ||
+                 (filterCampus === 'girls' && student.gender?.toLowerCase() === 'female');
+        });
+      }
+      
+      if (program && program !== 'all') {
+        filteredStudentIds = filteredStudentIds.filter(student => {
+          return student.program?.toLowerCase().includes(program.toLowerCase());
+        });
+      }
+      
+      filteredCorrespondenceStudents = filteredStudentIds.map(s => s._id);
+    }
 
     // Get unique students from remarks
     let remarksQuery = {
@@ -751,10 +832,10 @@ router.get('/stats/unique-students', authenticate, async (req, res) => {
     }
 
     const studentsWithRemarks = await User.find(remarksQuery)
-      .select('_id prospectusStage receptionistRemarks')
+      .select('_id prospectusStage gender campus program receptionistRemarks')
       .lean();
 
-    // Filter students with remarks by type and level
+    // Filter students with remarks by type, level, campus, and program
     const filteredRemarksStudents = studentsWithRemarks.filter(student => {
       const studentLevel = student.prospectusStage || 1;
       const correspondenceType = studentLevel <= 4 ? 'enquiry' : 'student';
@@ -767,6 +848,25 @@ router.get('/stats/unique-students', authenticate, async (req, res) => {
       // Check level filter
       if (level && level !== 'all' && studentLevel !== parseInt(level)) {
         return false;
+      }
+
+      // Check campus filter
+      if (campus && campus !== 'all') {
+        const studentCampus = student.campus?.toLowerCase();
+        const filterCampus = campus.toLowerCase();
+        const campusMatch = studentCampus === filterCampus || 
+                           (filterCampus === 'boys' && student.gender?.toLowerCase() === 'male') ||
+                           (filterCampus === 'girls' && student.gender?.toLowerCase() === 'female');
+        if (!campusMatch) {
+          return false;
+        }
+      }
+
+      // Check program filter
+      if (program && program !== 'all') {
+        if (!student.program?.toLowerCase().includes(program.toLowerCase())) {
+          return false;
+        }
       }
 
       // Check if student has remarks in the date range
@@ -786,7 +886,7 @@ router.get('/stats/unique-students', authenticate, async (req, res) => {
     });
 
     const remarksStudentIds = filteredRemarksStudents.map(s => s._id.toString());
-    const correspondenceStudentIds = correspondenceStudents.map(s => s.toString());
+    const correspondenceStudentIds = filteredCorrespondenceStudents.map(s => s.toString());
     
     // Combine unique students
     const allUniqueStudents = new Set([...correspondenceStudentIds, ...remarksStudentIds]);
@@ -840,6 +940,533 @@ router.get('/stats/unique-students', authenticate, async (req, res) => {
       success: false,
       message: 'Failed to fetch unique students statistics',
       error: error.message
+    });
+  }
+});
+
+// Get detailed conversation history for a specific student
+router.get('/student/:studentId/history', authenticate, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { dateFilter, startDate, endDate } = req.query;
+
+    // Validate student exists
+    const student = await User.findById(studentId).select('fullName email prospectusStage gender campus program receptionistRemarks');
+    if (!student || student.role !== 'Student') {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    // Build date query
+    let dateQuery = {};
+    if (dateFilter && dateFilter !== 'all') {
+      if (dateFilter === 'custom' && startDate && endDate) {
+        const customStartDate = new Date(startDate);
+        const customEndDate = new Date(endDate);
+        customEndDate.setHours(23, 59, 59, 999);
+        dateQuery = { 
+          $gte: customStartDate,
+          $lte: customEndDate
+        };
+      } else {
+        const now = new Date();
+        let dateFrom = new Date();
+        
+        switch (dateFilter) {
+          case 'today':
+            dateFrom.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            dateFrom.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            dateFrom.setMonth(now.getMonth() - 1);
+            break;
+          case 'quarter':
+            dateFrom.setMonth(now.getMonth() - 3);
+            break;
+          case 'year':
+            dateFrom.setFullYear(now.getFullYear() - 1);
+            break;
+        }
+        
+        if (dateFilter !== 'all') {
+          dateQuery = { $gte: dateFrom };
+        }
+      }
+    }
+
+    // Get correspondence history
+    let correspondenceQuery = { studentId };
+    if (Object.keys(dateQuery).length > 0) {
+      correspondenceQuery.timestamp = dateQuery;
+    }
+
+    const correspondenceHistory = await Correspondence.find(correspondenceQuery)
+      .sort({ timestamp: -1 })
+      .lean();
+
+    // Get level change history from remarks
+    let levelChangeHistory = [];
+    if (student.receptionistRemarks && student.receptionistRemarks.length > 0) {
+      levelChangeHistory = student.receptionistRemarks
+        .filter(remark => {
+          if (Object.keys(dateQuery).length === 0) return true;
+          const remarkDate = new Date(remark.timestamp);
+          if (dateQuery.$gte && dateQuery.$lte) {
+            return remarkDate >= dateQuery.$gte && remarkDate <= dateQuery.$lte;
+          } else if (dateQuery.$gte) {
+            return remarkDate >= dateQuery.$gte;
+          }
+          return true;
+        })
+        .map(remark => ({
+          _id: `remark_${remark._id || remark.timestamp}`,
+          type: 'level-change',
+          subject: 'Level Change / Communication',
+          message: remark.remark,
+          staffMember: {
+            id: remark.receptionistId,
+            name: remark.receptionistName,
+            role: 'Receptionist'
+          },
+          timestamp: remark.timestamp,
+          isLevelChange: true
+        }));
+    }
+
+    // Combine and sort all history
+    const allHistory = [
+      ...correspondenceHistory.map(item => ({
+        ...item,
+        isLevelChange: false
+      })),
+      ...levelChangeHistory
+    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // Calculate statistics
+    const stats = {
+      totalCommunications: allHistory.length,
+      correspondences: correspondenceHistory.length,
+      levelChanges: levelChangeHistory.length,
+      communicationsByType: {},
+      communicationsByStaff: {},
+      timespan: {
+        firstContact: allHistory.length > 0 ? allHistory[allHistory.length - 1].timestamp : null,
+        lastContact: allHistory.length > 0 ? allHistory[0].timestamp : null
+      }
+    };
+
+    // Group by type
+    allHistory.forEach(item => {
+      const type = item.isLevelChange ? 'level-change' : item.type;
+      stats.communicationsByType[type] = (stats.communicationsByType[type] || 0) + 1;
+    });
+
+    // Group by staff member
+    allHistory.forEach(item => {
+      const staffName = item.staffMember?.name || 'Unknown';
+      if (!stats.communicationsByStaff[staffName]) {
+        stats.communicationsByStaff[staffName] = {
+          name: staffName,
+          role: item.staffMember?.role || 'Unknown',
+          count: 0,
+          types: {}
+        };
+      }
+      stats.communicationsByStaff[staffName].count++;
+      
+      const type = item.isLevelChange ? 'level-change' : item.type;
+      stats.communicationsByStaff[staffName].types[type] = 
+        (stats.communicationsByStaff[staffName].types[type] || 0) + 1;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        student: {
+          id: student._id,
+          fullName: student.fullName,
+          email: student.email,
+          currentLevel: student.prospectusStage,
+          gender: student.gender,
+          campus: student.campus,
+          program: student.program
+        },
+        history: allHistory,
+        stats
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching student conversation history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch student conversation history',
+      error: error.message
+    });
+  }
+});
+
+// Get employee correspondence performance statistics
+router.get('/stats/employee-performance', authenticate, async (req, res) => {
+  try {
+    const { 
+      dateFilter, 
+      startDate, 
+      endDate, 
+      type,
+      level,
+      campus,
+      program 
+    } = req.query;
+
+    // Build date query
+    let dateQuery = {};
+    if (dateFilter && dateFilter !== 'all') {
+      if (dateFilter === 'custom' && startDate && endDate) {
+        const customStartDate = new Date(startDate);
+        const customEndDate = new Date(endDate);
+        customEndDate.setHours(23, 59, 59, 999);
+        dateQuery = { 
+          $gte: customStartDate,
+          $lte: customEndDate
+        };
+      } else {
+        const now = new Date();
+        let dateFrom = new Date();
+        
+        switch (dateFilter) {
+          case 'today':
+            dateFrom.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            dateFrom.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            dateFrom.setMonth(now.getMonth() - 1);
+            break;
+          case 'quarter':
+            dateFrom.setMonth(now.getMonth() - 3);
+            break;
+          case 'year':
+            dateFrom.setFullYear(now.getFullYear() - 1);
+            break;
+        }
+        
+        if (dateFilter !== 'all') {
+          dateQuery = { $gte: dateFrom };
+        }
+      }
+    }
+
+    // Get correspondence statistics by employee
+    let correspondenceQuery = {};
+    if (Object.keys(dateQuery).length > 0) {
+      correspondenceQuery.timestamp = dateQuery;
+    }
+    if (type && ['student', 'call', 'meeting', 'follow-up', 'enquiry'].includes(type)) {
+      correspondenceQuery.type = type;
+    }
+    if (level && level !== 'all') {
+      correspondenceQuery.studentLevel = parseInt(level);
+    }
+
+    const correspondenceStats = await Correspondence.aggregate([
+      { $match: correspondenceQuery },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'studentId',
+          foreignField: '_id',
+          as: 'student'
+        }
+      },
+      { $unwind: '$student' },
+      // Apply campus filter
+      ...(campus && campus !== 'all' ? [{
+        $match: {
+          $or: [
+            { 'student.campus': new RegExp(campus, 'i') },
+            ...(campus.toLowerCase() === 'boys' ? [{ 'student.gender': 'Male' }] : []),
+            ...(campus.toLowerCase() === 'girls' ? [{ 'student.gender': 'Female' }] : [])
+          ]
+        }
+      }] : []),
+      // Apply program filter
+      ...(program && program !== 'all' ? [{
+        $match: {
+          'student.program': new RegExp(program, 'i')
+        }
+      }] : []),
+      {
+        $group: {
+          _id: '$staffMember.id',
+          employeeName: { $first: '$staffMember.name' },
+          employeeRole: { $first: '$staffMember.role' },
+          totalCorrespondences: { $sum: 1 },
+          uniqueStudents: { $addToSet: '$studentId' },
+          correspondencesByType: {
+            $push: {
+              type: '$type',
+              timestamp: '$timestamp',
+              studentLevel: '$studentLevel'
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          uniqueStudentsCount: { $size: '$uniqueStudents' }
+        }
+      },
+      {
+        $sort: { totalCorrespondences: -1 }
+      }
+    ]);
+
+    // Get level change statistics by employee (from remarks)
+    let remarksQuery = {
+      role: 'Student',
+      receptionistRemarks: { $exists: true, $ne: [] }
+    };
+    
+    if (Object.keys(dateQuery).length > 0) {
+      remarksQuery['receptionistRemarks.timestamp'] = dateQuery;
+    }
+
+    const remarksStats = await User.aggregate([
+      { $match: remarksQuery },
+      // Apply campus filter
+      ...(campus && campus !== 'all' ? [{
+        $match: {
+          $or: [
+            { campus: new RegExp(campus, 'i') },
+            ...(campus.toLowerCase() === 'boys' ? [{ gender: 'Male' }] : []),
+            ...(campus.toLowerCase() === 'girls' ? [{ gender: 'Female' }] : [])
+          ]
+        }
+      }] : []),
+      // Apply program filter
+      ...(program && program !== 'all' ? [{
+        $match: {
+          program: new RegExp(program, 'i')
+        }
+      }] : []),
+      // Apply level filter
+      ...(level && level !== 'all' ? [{
+        $match: {
+          prospectusStage: parseInt(level)
+        }
+      }] : []),
+      { $unwind: '$receptionistRemarks' },
+      // Apply date filter to individual remarks
+      ...(Object.keys(dateQuery).length > 0 ? [{
+        $match: {
+          'receptionistRemarks.timestamp': dateQuery
+        }
+      }] : []),
+      {
+        $group: {
+          _id: '$receptionistRemarks.receptionistId',
+          employeeName: { $first: '$receptionistRemarks.receptionistName' },
+          employeeRole: { $first: 'Receptionist' }, // Default role for remarks
+          totalLevelChanges: { $sum: 1 },
+          uniqueStudents: { $addToSet: '$_id' },
+          levelChangesByStudent: {
+            $push: {
+              studentId: '$_id',
+              studentName: '$fullName',
+              remark: '$receptionistRemarks.remark',
+              timestamp: '$receptionistRemarks.timestamp',
+              studentLevel: '$prospectusStage'
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          uniqueStudentsCount: { $size: '$uniqueStudents' }
+        }
+      },
+      {
+        $sort: { totalLevelChanges: -1 }
+      }
+    ]);
+
+    // Combine correspondence and level change statistics
+    const employeePerformance = {};
+
+    // Process correspondence stats
+    correspondenceStats.forEach(stat => {
+      const employeeId = stat._id?.toString() || 'unknown';
+      employeePerformance[employeeId] = {
+        employeeId,
+        employeeName: stat.employeeName || 'Unknown',
+        employeeRole: stat.employeeRole || 'Unknown',
+        correspondences: stat.totalCorrespondences,
+        levelChanges: 0,
+        totalCommunications: stat.totalCorrespondences,
+        uniqueStudentsFromCorrespondence: stat.uniqueStudentsCount,
+        uniqueStudentsFromLevelChanges: 0,
+        correspondenceDetails: stat.correspondencesByType
+      };
+    });
+
+    // Process level change stats
+    remarksStats.forEach(stat => {
+      const employeeId = stat._id?.toString() || 'unknown';
+      if (employeePerformance[employeeId]) {
+        employeePerformance[employeeId].levelChanges = stat.totalLevelChanges;
+        employeePerformance[employeeId].totalCommunications += stat.totalLevelChanges;
+        employeePerformance[employeeId].uniqueStudentsFromLevelChanges = stat.uniqueStudentsCount;
+        employeePerformance[employeeId].levelChangeDetails = stat.levelChangesByStudent;
+      } else {
+        employeePerformance[employeeId] = {
+          employeeId,
+          employeeName: stat.employeeName || 'Unknown',
+          employeeRole: stat.employeeRole || 'Receptionist',
+          correspondences: 0,
+          levelChanges: stat.totalLevelChanges,
+          totalCommunications: stat.totalLevelChanges,
+          uniqueStudentsFromCorrespondence: 0,
+          uniqueStudentsFromLevelChanges: stat.uniqueStudentsCount,
+          levelChangeDetails: stat.levelChangesByStudent
+        };
+      }
+    });
+
+    // Calculate total unique students per employee (combining both sources)
+    Object.values(employeePerformance).forEach(employee => {
+      // This is a simplified calculation - for exact unique count, 
+      // we'd need to check for overlapping students between correspondence and level changes
+      employee.totalUniqueStudents = Math.max(
+        employee.uniqueStudentsFromCorrespondence,
+        employee.uniqueStudentsFromLevelChanges
+      );
+    });
+
+    // Convert to array and sort by total communications
+    const performanceArray = Object.values(employeePerformance)
+      .sort((a, b) => b.totalCommunications - a.totalCommunications);
+
+    res.json({
+      success: true,
+      data: {
+        employeePerformance: performanceArray,
+        summary: {
+          totalEmployees: performanceArray.length,
+          totalCorrespondences: performanceArray.reduce((sum, emp) => sum + emp.correspondences, 0),
+          totalLevelChanges: performanceArray.reduce((sum, emp) => sum + emp.levelChanges, 0),
+          totalCommunications: performanceArray.reduce((sum, emp) => sum + emp.totalCommunications, 0)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching employee performance stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch employee performance statistics',
+      error: error.message
+    });
+  }
+});
+
+// Get available campuses for filtering
+router.get('/filters/campuses', authenticate, async (req, res) => {
+  try {
+    const campuses = await User.distinct('campus', { role: 'Student' });
+    const validCampuses = campuses.filter(campus => campus && campus.trim() !== '');
+    
+    // Add gender-based campus options
+    const campusOptions = [
+      { value: 'all', label: 'All Campuses' },
+      { value: 'boys', label: 'Boys Campus' },
+      { value: 'girls', label: 'Girls Campus' },
+      ...validCampuses.map(campus => ({
+        value: campus.toLowerCase(),
+        label: campus
+      }))
+    ];
+
+    res.json({
+      success: true,
+      data: campusOptions
+    });
+  } catch (error) {
+    console.error('Error fetching campuses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch campuses'
+    });
+  }
+});
+
+// Get available programs for filtering
+router.get('/filters/programs', authenticate, async (req, res) => {
+  try {
+    const programs = await User.distinct('program', { role: 'Student' });
+    const validPrograms = programs.filter(program => program && program.trim() !== '');
+    
+    const programOptions = [
+      { value: 'all', label: 'All Programs' },
+      ...validPrograms.map(program => ({
+        value: program.toLowerCase(),
+        label: program
+      }))
+    ];
+
+    res.json({
+      success: true,
+      data: programOptions
+    });
+  } catch (error) {
+    console.error('Error fetching programs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch programs'
+    });
+  }
+});
+
+// Get available staff members for filtering
+router.get('/filters/staff', authenticate, async (req, res) => {
+  try {
+    const staffMembers = await Correspondence.aggregate([
+      {
+        $group: {
+          _id: '$staffMember.id',
+          name: { $first: '$staffMember.name' },
+          role: { $first: '$staffMember.role' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      }
+    ]);
+
+    const staffOptions = [
+      { value: 'all', label: 'All Staff Members' },
+      ...staffMembers.map(staff => ({
+        value: staff._id.toString(),
+        label: `${staff.name} (${staff.role}) - ${staff.count} communications`,
+        count: staff.count
+      }))
+    ];
+
+    res.json({
+      success: true,
+      data: staffOptions
+    });
+  } catch (error) {
+    console.error('Error fetching staff members:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch staff members'
     });
   }
 });

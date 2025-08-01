@@ -22,7 +22,7 @@ const PrincipalDashboard = () => {
     {
       id: 'correspondence-management',
       title: 'Correspondence Management', 
-      href: '/principal/correspondence', 
+      href: '/correspondence', 
       icon: 'Mail', 
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',

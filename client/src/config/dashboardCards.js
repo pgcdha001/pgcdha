@@ -501,7 +501,7 @@ export const QUICK_MANAGEMENT_ACCESS = {
     },
     {
       title: 'Correspondence Management',
-      href: '/principal/correspondence',
+      href: '/correspondence',
       icon: 'Mail',
       description: 'Manage student correspondence and communications',
       permission: null
