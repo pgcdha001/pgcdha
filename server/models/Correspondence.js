@@ -8,7 +8,16 @@ const correspondenceSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['enquiry', 'student'],
+    enum: [
+      'enquiry',           // Initial enquiry
+      'student',           // Student-related communication
+      'call',              // Phone call
+      'meeting',           // In-person meeting
+      'follow-up',         // Follow-up communication
+      'information',       // Information request/sharing
+      'consultation',      // Parent/student consultation
+      'general'            // General communication
+    ],
     required: true
   },
   subject: {

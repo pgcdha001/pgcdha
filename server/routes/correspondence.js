@@ -109,6 +109,11 @@ router.get('/', authenticate, async (req, res) => {
       .sort({ timestamp: -1 })
       .lean();
 
+    console.log('Correspondence data fetched:', {
+      correspondenceRecords: correspondence.length,
+      sampleCorrespondence: correspondence[0] || 'No regular correspondence found'
+    });
+
     // Also get level changes from remarks as correspondence entries
     let levelChangeQuery = {
       role: 'Student',
@@ -249,29 +254,216 @@ router.get('/', authenticate, async (req, res) => {
       }
     });
 
+    console.log('Level change data processed:', {
+      studentsWithRemarks: studentsWithRemarks.length,
+      levelChangeEntries: levelChangeEntries.length,
+      sampleLevelChange: levelChangeEntries[0] || 'No level changes found'
+    });
+
     // Combine correspondence and level changes
-    const allEntries = [...correspondence, ...levelChangeEntries];
+    const allEntries = [
+      // Regular correspondence (mark as general communications)
+      ...correspondence.map(entry => ({
+        ...entry,
+        isLevelChange: false, // Explicitly mark regular correspondence as non-level change
+        type: entry.type || 'general', // Ensure type is set
+        isGeneralCommunication: true
+      })),
+      ...levelChangeEntries
+    ];
     
     // Sort by timestamp (newest first)
     allEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    // Count unique students from both correspondence and remarks
-    const correspondenceStudents = new Set(correspondence.map(c => c.studentId._id.toString()));
-    const allUniqueStudents = new Set([...correspondenceStudents, ...uniqueStudentsContacted]);
+    // Calculate comprehensive statistics
+    const calculateStats = (entries) => {
+      console.log('calculateStats called with:', entries.length, 'entries');
+      
+      // Initialize tracking structures
+      const totalCommunicationsBreakdown = {};
+      const uniqueStudentsByLevel = {};
+      const levelChangeBreakdown = {};
+      const allUniqueStudents = new Set();
+
+      // Initialize level breakdowns (1-5)
+      for (let i = 1; i <= 5; i++) {
+        totalCommunicationsBreakdown[i] = { total: 0, boys: 0, girls: 0 };
+        uniqueStudentsByLevel[i] = { 
+          students: new Set(), 
+          boys: new Set(), 
+          girls: new Set() 
+        };
+      }
+
+      // Initialize level change breakdown
+      const levelTransitions = ['1→2', '2→3', '3→4', '4→5', 'Other'];
+      levelTransitions.forEach(transition => {
+        levelChangeBreakdown[transition] = { total: 0, boys: 0, girls: 0 };
+      });
+
+      // Separate counters
+      let totalLevelChangeEntries = 0;
+      let generalCommunicationEntries = 0;
+
+      // Process each entry
+      entries.forEach((entry, index) => {
+        const level = entry.studentLevel || entry.studentId?.prospectusStage || 1;
+        const gender = entry.studentId?.gender?.toLowerCase().trim(); // Add trim() to remove spaces
+        const isLevelChange = entry.isLevelChange || false;
+        const studentId = entry.studentId?._id?.toString();
+
+        // Skip invalid entries
+        if (!studentId || !level || level < 1 || level > 5) {
+          return;
+        }
+
+        // 1. COUNT TOTAL COMMUNICATIONS (every entry counts)
+        totalCommunicationsBreakdown[level].total++;
+        if (gender === 'male') totalCommunicationsBreakdown[level].boys++;
+        if (gender === 'female') totalCommunicationsBreakdown[level].girls++;
+
+        // Debug: Track unmatched genders for Level 1
+        if (level === 1 && !['male', 'female'].includes(gender)) {
+          console.log(`Level 1 unmatched gender:`, {
+            studentId,
+            originalGender: entry.studentId?.gender,
+            processedGender: gender,
+            trimmedGender: entry.studentId?.gender?.toLowerCase().trim(),
+            genderType: typeof entry.studentId?.gender
+          });
+        }
+
+        // 2. TRACK UNIQUE STUDENTS (each student counted only once per level)
+        uniqueStudentsByLevel[level].students.add(studentId);
+        allUniqueStudents.add(studentId);
+        if (gender === 'male') uniqueStudentsByLevel[level].boys.add(studentId);
+        if (gender === 'female') uniqueStudentsByLevel[level].girls.add(studentId);
+
+        // 3. COUNT LEVEL CHANGES vs GENERAL COMMUNICATIONS
+        if (isLevelChange) {
+          totalLevelChangeEntries++;
+          
+          // Determine transition type
+          let transitionType = 'Other';
+          if (level === 1) transitionType = '1→2';
+          else if (level === 2) transitionType = '2→3';
+          else if (level === 3) transitionType = '3→4';
+          else if (level === 4) transitionType = '4→5';
+          
+          levelChangeBreakdown[transitionType].total++;
+          if (gender === 'male') levelChangeBreakdown[transitionType].boys++;
+          if (gender === 'female') levelChangeBreakdown[transitionType].girls++;
+        } else {
+          // This is a general communication (regular correspondence)
+          generalCommunicationEntries++;
+        }
+      });
+
+      // Convert unique student sets to counts
+      const uniqueStudentsBreakdown = {};
+      for (let i = 1; i <= 5; i++) {
+        uniqueStudentsBreakdown[i] = {
+          total: uniqueStudentsByLevel[i].students.size,
+          boys: uniqueStudentsByLevel[i].boys.size,
+          girls: uniqueStudentsByLevel[i].girls.size
+        };
+      }
+
+      console.log('calculateStats completed:', {
+        totalEntries: entries.length,
+        totalCommunications: entries.length,
+        uniqueStudents: allUniqueStudents.size,
+        levelChanges: totalLevelChangeEntries,
+        generalCommunications: generalCommunicationEntries
+      });
+
+      // Debug Level 1 inconsistency
+      const level1Stats = {
+        total: totalCommunicationsBreakdown[1].total,
+        boys: totalCommunicationsBreakdown[1].boys,
+        girls: totalCommunicationsBreakdown[1].girls,
+        uniqueStudents: uniqueStudentsByLevel[1].students.size,
+        uniqueBoys: uniqueStudentsByLevel[1].boys.size,
+        uniqueGirls: uniqueStudentsByLevel[1].girls.size
+      };
+      
+      if (level1Stats.total !== level1Stats.boys + level1Stats.girls) {
+        console.warn('⚠️ LEVEL 1 INCONSISTENCY DETECTED:', level1Stats);
+        
+        // Find entries that might have undefined/null gender for Level 1
+        const level1Entries = entries.filter(entry => {
+          const level = entry.studentLevel || entry.studentId?.prospectusStage || 1;
+          return level === 1;
+        });
+        
+        console.log('Level 1 entries gender breakdown:', level1Entries.map(entry => ({
+          studentId: entry.studentId?._id?.toString(),
+          gender: entry.studentId?.gender,
+          genderType: typeof entry.studentId?.gender,
+          genderLowercase: entry.studentId?.gender?.toLowerCase(),
+          genderTrimmed: entry.studentId?.gender?.toLowerCase().trim()
+        })));
+      }
+
+      return {
+        totalCommunications: {
+          total: entries.length,
+          breakdown: totalCommunicationsBreakdown
+        },
+        uniqueStudents: {
+          total: allUniqueStudents.size,
+          breakdown: uniqueStudentsBreakdown
+        },
+        levelChanges: {
+          total: totalLevelChangeEntries,
+          breakdown: levelChangeBreakdown
+        },
+        generalCommunications: {
+          total: generalCommunicationEntries
+        }
+      };
+    };
+
+    const stats = calculateStats(allEntries);
+
+    // Validation
+    const validation = {
+      totalEntriesMatch: allEntries.length === stats.totalCommunications.total,
+      levelChangesVsGeneral: stats.levelChanges.total + stats.generalCommunications.total === allEntries.length,
+      levelChangesVsUniqueStudents: stats.levelChanges.total >= stats.uniqueStudents.total ? 'OK' : 'ISSUE: More level changes than unique students'
+    };
+
+    console.log('Correspondence API Summary:', {
+      totalEntries: allEntries.length,
+      stats: {
+        totalCommunications: stats.totalCommunications.total,
+        uniqueStudents: stats.uniqueStudents.total,
+        levelChanges: stats.levelChanges.total,
+        generalCommunications: stats.generalCommunications.total
+      },
+      validation
+    });
 
     res.json({
       success: true,
       data: allEntries,
       stats: {
+        // Legacy fields for backward compatibility
         totalCorrespondence: correspondence.length,
         totalLevelChangeEntries: levelChangeEntries.length,
-        uniqueStudentsContacted: allUniqueStudents.size,
-        uniqueStudentsFromRemarks: uniqueStudentsContacted.size,
-        uniqueStudentsFromCorrespondence: correspondenceStudents.size,
-        breakdown: {
-          individualCorrespondenceRecords: correspondence.length,
-          individualLevelChangeRecords: levelChangeEntries.length,
-          totalIndividualRecords: allEntries.length
+        uniqueStudentsContacted: stats.uniqueStudents.total,
+        
+        // New comprehensive stats structure
+        ...stats,
+        
+        // Validation info
+        validation,
+        
+        // Raw counts for debugging
+        rawCounts: {
+          correspondenceRecords: correspondence.length,
+          levelChangeRecords: levelChangeEntries.length,
+          totalRecords: allEntries.length
         }
       },
       pagination: {
