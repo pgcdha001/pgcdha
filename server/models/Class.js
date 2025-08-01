@@ -43,7 +43,17 @@ const ClassSchema = new mongoose.Schema({
   // Program/Subject
   program: {
     type: String,
-    enum: ['ICS', 'ICOM', 'Pre Engineering', 'Pre Medical'],
+    enum: [
+      'ICS', 
+      'ICS-PHY',      // ICS with Physics
+      'ICS-STAT',     // ICS with Statistics  
+      'ICOM', 
+      'Pre Engineering', 
+      'Pre Medical',
+      'FA',           // Faculty of Arts
+      'FSc',          // Faculty of Science
+      'Commerce'      // Commerce
+    ],
     required: true
   },
   

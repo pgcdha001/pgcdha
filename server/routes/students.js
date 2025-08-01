@@ -14,10 +14,23 @@ function requireIT(req, res, next) {
 // Get all students/enquiries (authenticated users)
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { dateFilter, startDate, endDate, nonProgression, progressionLevel } = req.query;
+    const { dateFilter, startDate, endDate, nonProgression, progressionLevel, includeAssigned, assignmentFilter } = req.query;
     
     // Build query for students
     let query = { role: 'Student' };
+    
+    // Handle class assignment filtering
+    if (assignmentFilter === 'assigned') {
+      // Show only students WITH class assignments
+      query.classId = { $exists: true };
+    } else if (assignmentFilter === 'unassigned') {
+      // Show only students WITHOUT class assignments
+      query.classId = { $exists: false };
+    }
+    // If assignmentFilter is not specified or is 'all', show all students regardless of assignment
+    
+    // Legacy support: if includeAssigned=true but no assignmentFilter, show all students
+    // This allows the Student Assignment component to get all Level 5 students
     
     // Apply date filter
     if (dateFilter && dateFilter !== 'all') {
@@ -282,6 +295,16 @@ router.put('/:id/level', authenticate, async (req, res) => {
           student.isApproved = true;
           console.log(`Student ${student.fullName?.firstName} ${student.fullName?.lastName} has been officially admitted (level 5)`);
         }
+        
+        // Ensure admissionInfo.grade is set when promoting to level 5
+        if (!student.admissionInfo) {
+          student.admissionInfo = {};
+        }
+        if (!student.admissionInfo.grade) {
+          // Default to 11th grade if not specified - this can be updated later
+          student.admissionInfo.grade = '11th';
+          console.log(`Set default grade '11th' for admitted student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
+        }
         break;
     }
 
@@ -334,6 +357,168 @@ router.put('/:id/level', authenticate, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while updating enquiry level',
+      error: error.message
+    });
+  }
+});
+
+// Update student admission information (for level 5 students)
+router.patch('/:id/admission-info', authenticate, async (req, res) => {
+  try {
+    const { grade, className, program } = req.body;
+    
+    // Find the student
+    const student = await User.findById(req.params.id);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    // Check if student is at level 5 (admitted)
+    if (student.enquiryLevel !== 5 && student.prospectusStage !== 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student must be at admission level (Level 5) to update admission information'
+      });
+    }
+
+    // Initialize admissionInfo if it doesn't exist
+    if (!student.admissionInfo) {
+      student.admissionInfo = {};
+    }
+
+    // Update admission information
+    if (grade) {
+      if (!['11th', '12th'].includes(grade)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Grade must be either "11th" or "12th"'
+        });
+      }
+      student.admissionInfo.grade = grade;
+    }
+
+    if (className) {
+      student.admissionInfo.className = className;
+    }
+
+    if (program) {
+      student.admissionInfo.program = program;
+    }
+
+    student.updatedOn = new Date();
+    await student.save();
+
+    console.log(`Updated admission info for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
+
+    res.json({
+      success: true,
+      message: 'Student admission information updated successfully',
+      data: {
+        admissionInfo: student.admissionInfo
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating student admission info:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating admission information',
+      error: error.message
+    });
+  }
+});
+
+// Update student academic records (for academic performance tracking)
+router.patch('/:id/academic-records', authenticate, async (req, res) => {
+  try {
+    const { academicRecords } = req.body;
+    
+    // Find the student
+    const student = await User.findById(req.params.id);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    // Check if student is at level 5 (admitted)
+    if (student.enquiryLevel !== 5 && student.prospectusStage !== 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student must be at admission level (Level 5) to manage academic records'
+      });
+    }
+
+    // Validate academic records structure
+    if (academicRecords) {
+      // Validate matriculation records
+      if (academicRecords.matriculation) {
+        const { totalMarks, obtainedMarks, percentage, passingYear, board, subjects } = academicRecords.matriculation;
+        
+        if (totalMarks && obtainedMarks) {
+          const calculatedPercentage = (parseFloat(obtainedMarks) / parseFloat(totalMarks)) * 100;
+          academicRecords.matriculation.percentage = calculatedPercentage.toFixed(2);
+        }
+        
+        if (passingYear && (passingYear < 1990 || passingYear > new Date().getFullYear())) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid passing year'
+          });
+        }
+        
+        // Validate subjects if provided
+        if (subjects && Array.isArray(subjects)) {
+          for (const subject of subjects) {
+            if (subject.obtainedMarks > subject.totalMarks) {
+              return res.status(400).json({
+                success: false,
+                message: `Obtained marks cannot exceed total marks for subject: ${subject.name}`
+              });
+            }
+          }
+        }
+      }
+      
+      // Validate previous grade records
+      if (academicRecords.previousGrade) {
+        const { totalMarks, obtainedMarks } = academicRecords.previousGrade;
+        
+        if (totalMarks && obtainedMarks) {
+          const calculatedPercentage = (parseFloat(obtainedMarks) / parseFloat(totalMarks)) * 100;
+          academicRecords.previousGrade.percentage = calculatedPercentage.toFixed(2);
+        }
+      }
+    }
+
+    // Update academic records
+    student.academicRecords = {
+      ...student.academicRecords,
+      ...academicRecords
+    };
+
+    student.updatedOn = new Date();
+    await student.save();
+
+    console.log(`Updated academic records for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
+
+    res.json({
+      success: true,
+      message: 'Academic records updated successfully',
+      data: {
+        academicRecords: student.academicRecords
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating academic records:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating academic records',
       error: error.message
     });
   }
@@ -691,19 +876,33 @@ router.post('/bulk-assign', authenticate, async (req, res) => {
 
     // Validate all students match class criteria
     const errors = [];
+    console.log('Class criteria:', { 
+      campus: classDoc.campus, 
+      grade: classDoc.grade, 
+      program: classDoc.program 
+    });
+    
     for (const student of students) {
+      console.log('Student data:', {
+        name: `${student.fullName?.firstName} ${student.fullName?.lastName}`,
+        campus: student.campus,
+        grade: student.admissionInfo?.grade,
+        program: student.program
+      });
+      
       if (student.campus !== classDoc.campus) {
         errors.push(`${student.fullName?.firstName} ${student.fullName?.lastName}: Campus mismatch`);
       }
-      if (student.admissionInfo?.currentGrade !== classDoc.grade) {
+      if (student.admissionInfo?.grade !== classDoc.grade) {
         errors.push(`${student.fullName?.firstName} ${student.fullName?.lastName}: Grade mismatch`);
       }
-      if (student.admissionInfo?.program !== classDoc.program) {
+      if (student.program !== classDoc.program) {
         errors.push(`${student.fullName?.firstName} ${student.fullName?.lastName}: Program mismatch`);
       }
     }
 
     if (errors.length > 0) {
+      console.log('Student validation errors:', errors);
       return res.status(400).json({
         success: false,
         message: 'Student validation errors',

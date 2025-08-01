@@ -29,7 +29,7 @@ const StudentAssignment = () => {
   const [filterGrade, setFilterGrade] = useState('');
   const [filterProgram, setFilterProgram] = useState('');
   const [filterCampus, setFilterCampus] = useState('');
-  const [filterClassStatus, setFilterClassStatus] = useState('all');
+  const [filterClassStatus, setFilterClassStatus] = useState('unassigned');
   const [showBulkAssign, setShowBulkAssign] = useState(false);
   const [showIndividualAssign, setShowIndividualAssign] = useState(false);
   const [selectedStudentForAssignment, setSelectedStudentForAssignment] = useState(null);
@@ -47,18 +47,30 @@ const StudentAssignment = () => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      // Fetch students with level 5 or higher (admitted students)
-      const response = await api.get('/students');
+      // Fetch all Level 5 students (officially admitted), both assigned and unassigned
+      // Use assignmentFilter=all to explicitly get all students regardless of assignment status
+      const response = await api.get('/students?assignmentFilter=all');
       const allStudents = response.data?.data || [];
       
-      // Filter for level 5 students (officially admitted)
+      // Filter for level 5 students (officially admitted) - both assigned and unassigned
       const level5Students = allStudents.filter(student => 
         student.prospectusStage === 5 || student.enquiryLevel === 5
       );
       
-      console.log('All students:', allStudents.length);
-      console.log('Level 5 students:', level5Students.length);
-      console.log('Level 5 student data:', level5Students);
+      console.log('All students from API:', allStudents.length);
+      console.log('Level 5 students (assigned + unassigned):', level5Students.length);
+      console.log('Level 5 students breakdown:', {
+        assigned: level5Students.filter(s => s.classId).length,
+        unassigned: level5Students.filter(s => !s.classId).length
+      });
+      console.log('Level 5 students data:', level5Students.map(s => ({
+        id: s._id,
+        name: `${s.fullName?.firstName} ${s.fullName?.lastName}`,
+        prospectusStage: s.prospectusStage,
+        enquiryLevel: s.enquiryLevel,
+        classId: s.classId,
+        admissionInfo: s.admissionInfo
+      })));
       
       setStudents(level5Students);
     } catch (error) {
@@ -217,23 +229,6 @@ const StudentAssignment = () => {
     setShowIndividualAssign(true);
   };
 
-  const handleIndividualAssignment = async () => {
-    if (!assignmentData.classId || !assignmentData.grade || !assignmentData.program) {
-      alert('Please select grade, program, and class');
-      return;
-    }
-
-    await handleAssignStudent(
-      selectedStudentForAssignment._id, 
-      assignmentData.classId, 
-      assignmentData.grade,
-      assignmentData.program
-    );
-    
-    setShowIndividualAssign(false);
-    setSelectedStudentForAssignment(null);
-    setAssignmentData({ classId: '', grade: '', program: '' });
-  };
 
   const handleBulkAssign = async () => {
     if (!selectedClass || selectedStudents.length === 0) {
@@ -345,6 +340,22 @@ const StudentAssignment = () => {
           <p className="text-gray-600">Assign officially admitted students (Level 5) to their respective classes and grades</p>
           <div className="mt-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
             <strong>Note:</strong> Only students who have reached Level 5 (officially admitted) can be assigned to classes.
+          </div>
+          
+          {/* Statistics Summary */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="text-2xl font-bold text-blue-600">{students.length}</div>
+              <div className="text-sm text-blue-600">Total Level 5 Students</div>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="text-2xl font-bold text-green-600">{students.filter(s => s.classId).length}</div>
+              <div className="text-sm text-green-600">Assigned to Classes</div>
+            </div>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="text-2xl font-bold text-orange-600">{students.filter(s => !s.classId).length}</div>
+              <div className="text-sm text-orange-600">Awaiting Assignment</div>
+            </div>
           </div>
         </div>
 
@@ -496,12 +507,10 @@ const StudentAssignment = () => {
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Student Details</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Academic Info</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Current Class</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {filteredStudents.map((student) => {
-                    const availableClasses = getAvailableClasses(student);
                     return (
                       <tr key={student._id} className="hover:bg-gray-50">
                         <td className="px-4 py-4">
@@ -584,50 +593,6 @@ const StudentAssignment = () => {
                           )}
                         </td>
                         
-                        <td className="px-4 py-4">
-                          {student.classId ? (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                                ✓ Assigned
-                              </span>
-                              <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.ASSIGN_STUDENTS}>
-                                <Button
-                                  onClick={() => openEditClassModal(student)}
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                >
-                                  <Settings className="h-4 w-4 mr-1" />
-                                  Edit Class
-                                </Button>
-                              </PermissionGuard>
-                              <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.ASSIGN_STUDENTS}>
-                                <Button
-                                  onClick={() => handleUnassignStudent(student._id)}
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <UserMinus className="h-4 w-4 mr-1" />
-                                  Unassign
-                                </Button>
-                              </PermissionGuard>
-                            </div>
-                          ) : (
-                            <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.ASSIGN_STUDENTS}>
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={() => openIndividualAssignModal(student)}
-                                  size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                  <UserPlus className="h-4 w-4 mr-1" />
-                                  Assign Class
-                                </Button>
-                              </div>
-                            </PermissionGuard>
-                          )}
-                        </td>
                       </tr>
                     );
                   })}
@@ -909,14 +874,6 @@ const StudentAssignment = () => {
                     variant="outline"
                   >
                     Cancel
-                  </Button>
-                  <Button
-                    onClick={handleIndividualAssignment}
-                    disabled={!assignmentData.classId || !assignmentData.grade || !assignmentData.program}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Assign Student
                   </Button>
                 </div>
               </div>

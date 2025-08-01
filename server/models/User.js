@@ -166,6 +166,46 @@ const UserSchema = new mongoose.Schema({
   // Family Info (for all roles)
   familyInfo: FamilyInfoSchema,
 
+  // Academic Records (for students only)
+  academicRecords: {
+    // Matriculation/10th Grade Records
+    matriculation: {
+      totalMarks: { type: Number, min: 0 },
+      obtainedMarks: { type: Number, min: 0 },
+      percentage: { type: Number, min: 0, max: 100 },
+      passingYear: { type: Number },
+      board: { type: String, trim: true }, // e.g., "Federal Board", "Punjab Board"
+      subjects: [{
+        name: { type: String, required: true, trim: true },
+        totalMarks: { type: Number, required: true, min: 1 },
+        obtainedMarks: { type: Number, required: true, min: 0 },
+        percentage: { type: Number, min: 0, max: 100 },
+        grade: { type: String, trim: true } // A+, A, B+, etc.
+      }]
+    },
+    
+    // Previous Grade Records (for 12th grade students - their 11th grade performance)
+    previousGrade: {
+      grade: { type: String, enum: ['11th'], required: false },
+      totalMarks: { type: Number, min: 0 },
+      obtainedMarks: { type: Number, min: 0 },
+      percentage: { type: Number, min: 0, max: 100 },
+      academicYear: { type: String }, // e.g., "2023-2024"
+      subjects: [{
+        name: { type: String, required: true, trim: true },
+        totalMarks: { type: Number, required: true, min: 1 },
+        obtainedMarks: { type: Number, required: true, min: 0 },
+        percentage: { type: Number, min: 0, max: 100 },
+        grade: { type: String, trim: true },
+        term: { type: String, enum: ['1st Term', '2nd Term', 'Annual'], required: true }
+      }]
+    },
+    
+    // Academic Performance Tracking
+    lastUpdatedOn: { type: Date, default: Date.now },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  },
+
   // Attendance (relationship)
   attendance: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Attendance' }],
 

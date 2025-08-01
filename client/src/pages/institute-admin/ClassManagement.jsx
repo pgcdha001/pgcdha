@@ -64,8 +64,9 @@ const ClassManagement = () => {
 
   const loadStudents = useCallback(async () => {
     try {
-      const response = await api.get('/users?role=Student&enquiryLevel=5');
-      setStudents(response.data.users || []);
+      // Fetch students with class assignments (for student management)
+      const response = await api.get('/students?includeAssigned=true');
+      setStudents(response.data.data || []);
     } catch (error) {
       toast.error('Failed to load students');
       console.error('Error loading students:', error);

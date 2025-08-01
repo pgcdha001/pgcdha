@@ -45,6 +45,9 @@ import { CorrespondenceManagement } from './components/correspondence';
 // Timetable Management
 import TimetableManagement from './pages/timetable/TimetableManagement';
 
+// Examination Management
+import ExaminationDashboard from './components/examinations/ExaminationDashboard';
+
 const App = () => {
   return (
     <Router>
@@ -248,6 +251,20 @@ const App = () => {
                       allowedRoles={['Teacher']}
                     >
                       <TimetableManagement />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Examination Management */}
+              <Route path="/examinations" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      requiredPermission={PERMISSIONS.EXAMINATION.VIEW_EXAMINATIONS}
+                      allowedRoles={['InstituteAdmin', 'IT', 'Teacher', 'Principal']}
+                    >
+                      <ExaminationDashboard />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

@@ -67,6 +67,7 @@ const attendanceRoutes = require('./routes/attendance');
 const principalEnquiriesRoutes = require('./routes/principalEnquiries');
 const correspondenceRoutes = require('./routes/correspondence');
 const timetableRoutes = require('./routes/timetable');
+const examinationRoutes = require('./routes/examinations');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -79,6 +80,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/enquiries', principalEnquiriesRoutes);
 app.use('/api/correspondence', correspondenceRoutes);
 app.use('/api/timetable', timetableRoutes);
+app.use('/api/examinations', examinationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
