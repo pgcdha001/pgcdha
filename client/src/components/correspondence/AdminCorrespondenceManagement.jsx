@@ -1,5 +1,5 @@
-import React, { useState, useEffect, Fragment } from 'react';
-import { MessageSquare, TrendingUp, Users, Phone, Clock, RefreshCw, Search, User, ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
+import React, { useState, useEffect, Fragment, useRef } from 'react';
+import { MessageSquare, TrendingUp, Users, Phone, Clock, RefreshCw, Search, User, ChevronLeft, ChevronRight, Eye, X, Calendar, Filter } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -23,7 +23,33 @@ const AdminCorrespondenceManagement = () => {
   const [studentCorrespondences, setStudentCorrespondences] = useState([]);
   const [showStudentModal, setShowStudentModal] = useState(false);
   
+  // Time filter state
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
+  const [showTimeFilter, setShowTimeFilter] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [pendingTimeFilter, setPendingTimeFilter] = useState('all');
+  const [pendingStartDate, setPendingStartDate] = useState('');
+  const [pendingEndDate, setPendingEndDate] = useState('');
+  
   const { showToast } = useToast();
+  const timeFilterRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // Click outside handler for time filter dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (timeFilterRef.current && !timeFilterRef.current.contains(event.target) &&
+          dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowTimeFilter(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Fetch correspondence data (Admin sees ALL correspondence)
   const fetchCorrespondences = async () => {
@@ -36,7 +62,48 @@ const AdminCorrespondenceManagement = () => {
       if (response.data.success) {
         const allData = response.data.data || [];
         setAllCorrespondences(allData);
-        setCorrespondences(allData); // Initially show all
+        
+        // Reapply current filters after loading new data
+        const dateRange = getDateRange(selectedTimeFilter);
+        
+        // Apply all current filters to the new data
+        let filtered = [...allData];
+        
+        // Apply level filter
+        if (selectedLevel) {
+          filtered = filtered.filter(item => item.studentLevel === selectedLevel);
+        }
+
+        // Apply employee filter
+        if (selectedEmployee) {
+          filtered = filtered.filter(item => item.staffMember?._id === selectedEmployee);
+        }
+
+        // Apply search filter
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase();
+          filtered = filtered.filter(item => {
+            const studentName = `${item.studentId?.fullName?.firstName || ''} ${item.studentId?.fullName?.lastName || ''}`.toLowerCase();
+            const subject = (item.subject || '').toLowerCase();
+            const message = (item.message || '').toLowerCase();
+            const staffName = (item.staffMember?.name || '').toLowerCase();
+            
+            return studentName.includes(searchLower) ||
+                   subject.includes(searchLower) ||
+                   message.includes(searchLower) ||
+                   staffName.includes(searchLower);
+          });
+        }
+
+        // Apply time filter
+        if (selectedTimeFilter !== 'all' && dateRange.start && dateRange.end) {
+          filtered = filtered.filter(item => {
+            const itemDate = new Date(item.timestamp);
+            return itemDate >= dateRange.start && itemDate <= dateRange.end;
+          });
+        }
+        
+        setCorrespondences(filtered);
         
         // Calculate level-specific stats
         const levelBreakdown = {};
@@ -112,15 +179,27 @@ const AdminCorrespondenceManagement = () => {
     fetchCorrespondences();
   };
 
+  const handleTimeFilterToggle = () => {
+    if (!showTimeFilter) {
+      // Initialize pending values with current values
+      setPendingTimeFilter(selectedTimeFilter);
+      setPendingStartDate(customStartDate);
+      setPendingEndDate(customEndDate);
+    }
+    setShowTimeFilter(!showTimeFilter);
+  };
+
   const handleLevelFilter = (level) => {
     if (selectedLevel === level) {
       // If clicking the same level, show all
       setSelectedLevel(null);
-      applyFilters(null, selectedEmployee, searchTerm);
+      const dateRange = getDateRange(selectedTimeFilter);
+      applyAllFilters(null, selectedEmployee, searchTerm, selectedTimeFilter, dateRange);
     } else {
       // Filter by selected level
       setSelectedLevel(level);
-      applyFilters(level, selectedEmployee, searchTerm);
+      const dateRange = getDateRange(selectedTimeFilter);
+      applyAllFilters(level, selectedEmployee, searchTerm, selectedTimeFilter, dateRange);
     }
   };
 
@@ -128,20 +207,90 @@ const AdminCorrespondenceManagement = () => {
     if (selectedEmployee === employeeId) {
       // If clicking the same employee, show all
       setSelectedEmployee(null);
-      applyFilters(selectedLevel, null, searchTerm);
+      const dateRange = getDateRange(selectedTimeFilter);
+      applyAllFilters(selectedLevel, null, searchTerm, selectedTimeFilter, dateRange);
     } else {
       // Filter by selected employee
       setSelectedEmployee(employeeId);
-      applyFilters(selectedLevel, employeeId, searchTerm);
+      const dateRange = getDateRange(selectedTimeFilter);
+      applyAllFilters(selectedLevel, employeeId, searchTerm, selectedTimeFilter, dateRange);
     }
   };
 
   const handleSearch = (term) => {
     setSearchTerm(term);
-    applyFilters(selectedLevel, selectedEmployee, term);
+    const dateRange = getDateRange(selectedTimeFilter);
+    applyAllFilters(selectedLevel, selectedEmployee, term, selectedTimeFilter, dateRange);
   };
 
-  const applyFilters = (level, employeeId, search, resetPage = true) => {
+  // Time filter utility functions
+  const getTimeFilterLabel = (filter) => {
+    const labels = {
+      all: 'All Time',
+      today: 'Today',
+      week: 'This Week',
+      month: 'This Month',
+      year: 'This Year',
+      custom: 'Custom Range'
+    };
+    return labels[filter] || 'All Time';
+  };
+
+  const getDateRange = (filter) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (filter) {
+      case 'today': {
+        return {
+          start: today,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        };
+      }
+      case 'week': {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 7);
+        return { start: weekStart, end: weekEnd };
+      }
+      case 'month': {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        return { start: monthStart, end: monthEnd };
+      }
+      case 'year': {
+        const yearStart = new Date(now.getFullYear(), 0, 1);
+        const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        return { start: yearStart, end: yearEnd };
+      }
+      case 'custom': {
+        return {
+          start: customStartDate ? new Date(customStartDate) : null,
+          end: customEndDate ? new Date(customEndDate + 'T23:59:59') : null
+        };
+      }
+      default:
+        return { start: null, end: null };
+    }
+  };
+
+  const applyTimeFilter = () => {
+    const dateRange = getDateRange(pendingTimeFilter);
+    
+    // Update active filters
+    setSelectedTimeFilter(pendingTimeFilter);
+    setCustomStartDate(pendingStartDate);
+    setCustomEndDate(pendingEndDate);
+    
+    // Apply all filters including time
+    applyAllFilters(selectedLevel, selectedEmployee, searchTerm, pendingTimeFilter, dateRange);
+    
+    // Close dropdown
+    setShowTimeFilter(false);
+  };
+
+  const applyAllFilters = (level, employeeId, search, timeFilter, dateRange, resetPage = true) => {
     let filtered = [...allCorrespondences];
 
     // Apply level filter
@@ -151,12 +300,12 @@ const AdminCorrespondenceManagement = () => {
 
     // Apply employee filter
     if (employeeId) {
-      filtered = filtered.filter(item => item.staffMember?.id === employeeId);
+      filtered = filtered.filter(item => item.staffMember?._id === employeeId);
     }
 
     // Apply search filter
-    if (search && search.trim()) {
-      const searchLower = search.toLowerCase().trim();
+    if (search) {
+      const searchLower = search.toLowerCase();
       filtered = filtered.filter(item => {
         const studentName = `${item.studentId?.fullName?.firstName || ''} ${item.studentId?.fullName?.lastName || ''}`.toLowerCase();
         const subject = (item.subject || '').toLowerCase();
@@ -167,6 +316,14 @@ const AdminCorrespondenceManagement = () => {
                subject.includes(searchLower) ||
                message.includes(searchLower) ||
                staffName.includes(searchLower);
+      });
+    }
+
+    // Apply time filter
+    if (timeFilter !== 'all' && dateRange.start && dateRange.end) {
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.timestamp);
+        return itemDate >= dateRange.start && itemDate <= dateRange.end;
       });
     }
 
@@ -342,7 +499,18 @@ const AdminCorrespondenceManagement = () => {
               Principal/Admin View - All Communications & Statistics
             </p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-4 relative">
+            <div className="relative" ref={timeFilterRef}>
+              <Button
+                onClick={handleTimeFilterToggle}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                {getTimeFilterLabel(selectedTimeFilter)}
+              </Button>
+            </div>
+            
             <Button
               onClick={handleRefresh}
               variant="outline"
@@ -356,7 +524,7 @@ const AdminCorrespondenceManagement = () => {
       </div>
 
       {/* Level Cards - Clickable filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 z-0 lg:grid-cols-5 gap-4">
         {[1, 2, 3, 4, 5].map((level) => (
           <div
             key={level}
@@ -804,6 +972,87 @@ const AdminCorrespondenceManagement = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Time Filter Dropdown - Positioned outside all containers */}
+      {showTimeFilter && (
+        <div className="fixed inset-0 z-[9999]" style={{ zIndex: 9999 }}>
+          <div ref={dropdownRef} className="absolute top-32 right-8 w-80 bg-white border border-gray-200 rounded-lg shadow-xl">
+            <div className="p-4">
+              <h3 className="font-medium text-gray-900 mb-3">Filter by Time</h3>
+              
+              {/* Time Period Options */}
+              <div className="space-y-2 mb-4">
+                {[
+                  { value: 'all', label: 'All Time' },
+                  { value: 'today', label: 'Today' },
+                  { value: 'week', label: 'This Week' },
+                  { value: 'month', label: 'This Month' },
+                  { value: 'year', label: 'This Year' },
+                  { value: 'custom', label: 'Custom Range' }
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="timeFilter"
+                      value={option.value}
+                      checked={pendingTimeFilter === option.value}
+                      onChange={(e) => setPendingTimeFilter(e.target.value)}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+              
+              {/* Custom Date Range */}
+              {pendingTimeFilter === 'custom' && (
+                <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={pendingStartDate}
+                      onChange={(e) => setPendingStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={pendingEndDate}
+                      onChange={(e) => setPendingEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* Apply Button */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={applyTimeFilter}
+                  className="flex-1 flex items-center justify-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Apply Filter
+                </Button>
+                <Button
+                  onClick={() => setShowTimeFilter(false)}
+                  variant="outline"
+                  className="px-3"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
