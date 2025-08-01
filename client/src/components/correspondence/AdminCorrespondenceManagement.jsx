@@ -23,6 +23,15 @@ const AdminCorrespondenceManagement = () => {
   const [studentCorrespondences, setStudentCorrespondences] = useState([]);
   const [showStudentModal, setShowStudentModal] = useState(false);
   
+  // Glimpse modal state
+  const [showGlimpseModal, setShowGlimpseModal] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // Month detail modal state
+  const [showMonthDetailModal, setShowMonthDetailModal] = useState(false);
+  const [selectedMonthData, setSelectedMonthData] = useState(null);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState('');
+  
   // Time filter state
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
   const [showTimeFilter, setShowTimeFilter] = useState(false);
@@ -62,48 +71,7 @@ const AdminCorrespondenceManagement = () => {
       if (response.data.success) {
         const allData = response.data.data || [];
         setAllCorrespondences(allData);
-        
-        // Reapply current filters after loading new data
-        const dateRange = getDateRange(selectedTimeFilter);
-        
-        // Apply all current filters to the new data
-        let filtered = [...allData];
-        
-        // Apply level filter
-        if (selectedLevel) {
-          filtered = filtered.filter(item => item.studentLevel === selectedLevel);
-        }
-
-        // Apply employee filter
-        if (selectedEmployee) {
-          filtered = filtered.filter(item => item.staffMember?._id === selectedEmployee);
-        }
-
-        // Apply search filter
-        if (searchTerm) {
-          const searchLower = searchTerm.toLowerCase();
-          filtered = filtered.filter(item => {
-            const studentName = `${item.studentId?.fullName?.firstName || ''} ${item.studentId?.fullName?.lastName || ''}`.toLowerCase();
-            const subject = (item.subject || '').toLowerCase();
-            const message = (item.message || '').toLowerCase();
-            const staffName = (item.staffMember?.name || '').toLowerCase();
-            
-            return studentName.includes(searchLower) ||
-                   subject.includes(searchLower) ||
-                   message.includes(searchLower) ||
-                   staffName.includes(searchLower);
-          });
-        }
-
-        // Apply time filter
-        if (selectedTimeFilter !== 'all' && dateRange.start && dateRange.end) {
-          filtered = filtered.filter(item => {
-            const itemDate = new Date(item.timestamp);
-            return itemDate >= dateRange.start && itemDate <= dateRange.end;
-          });
-        }
-        
-        setCorrespondences(filtered);
+        setCorrespondences(allData); // Initially show all
         
         // Calculate level-specific stats
         const levelBreakdown = {};
@@ -122,7 +90,7 @@ const AdminCorrespondenceManagement = () => {
         const employeeBreakdown = {};
         allData.forEach(item => {
           const staffName = item.staffMember?.name || 'Unknown Staff';
-          const staffId = item.staffMember?.id || 'unknown';
+          const staffId = item.staffMember?.id || item.staffMember?._id || 'unknown';
           
           if (!employeeBreakdown[staffId]) {
             employeeBreakdown[staffId] = {
@@ -175,6 +143,14 @@ const AdminCorrespondenceManagement = () => {
     fetchCorrespondences();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reapply filters when data or filter values change
+  useEffect(() => {
+    if (allCorrespondences.length > 0) {
+      const dateRange = getDateRange(selectedTimeFilter);
+      applyAllFilters(selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, dateRange, false);
+    }
+  }, [allCorrespondences, selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, customStartDate, customEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleRefresh = () => {
     fetchCorrespondences();
   };
@@ -190,29 +166,29 @@ const AdminCorrespondenceManagement = () => {
   };
 
   const handleLevelFilter = (level) => {
+    const dateRange = getDateRange(selectedTimeFilter);
+    
     if (selectedLevel === level) {
       // If clicking the same level, show all
       setSelectedLevel(null);
-      const dateRange = getDateRange(selectedTimeFilter);
       applyAllFilters(null, selectedEmployee, searchTerm, selectedTimeFilter, dateRange);
     } else {
       // Filter by selected level
       setSelectedLevel(level);
-      const dateRange = getDateRange(selectedTimeFilter);
       applyAllFilters(level, selectedEmployee, searchTerm, selectedTimeFilter, dateRange);
     }
   };
 
   const handleEmployeeFilter = (employeeId) => {
+    const dateRange = getDateRange(selectedTimeFilter);
+    
     if (selectedEmployee === employeeId) {
       // If clicking the same employee, show all
       setSelectedEmployee(null);
-      const dateRange = getDateRange(selectedTimeFilter);
       applyAllFilters(selectedLevel, null, searchTerm, selectedTimeFilter, dateRange);
     } else {
       // Filter by selected employee
       setSelectedEmployee(employeeId);
-      const dateRange = getDateRange(selectedTimeFilter);
       applyAllFilters(selectedLevel, employeeId, searchTerm, selectedTimeFilter, dateRange);
     }
   };
@@ -248,20 +224,24 @@ const AdminCorrespondenceManagement = () => {
         };
       }
       case 'week': {
+        // Last 7 days from today
         const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay());
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 7);
+        weekStart.setDate(today.getDate() - 6); // 6 days ago + today = 7 days
+        const weekEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
         return { start: weekStart, end: weekEnd };
       }
       case 'month': {
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        // Last 30 days from today
+        const monthStart = new Date(today);
+        monthStart.setDate(today.getDate() - 29); // 29 days ago + today = 30 days
+        const monthEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
         return { start: monthStart, end: monthEnd };
       }
       case 'year': {
-        const yearStart = new Date(now.getFullYear(), 0, 1);
-        const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        // Last 365 days from today
+        const yearStart = new Date(today);
+        yearStart.setDate(today.getDate() - 364); // 364 days ago + today = 365 days
+        const yearEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
         return { start: yearStart, end: yearEnd };
       }
       case 'custom': {
@@ -300,7 +280,11 @@ const AdminCorrespondenceManagement = () => {
 
     // Apply employee filter
     if (employeeId) {
-      filtered = filtered.filter(item => item.staffMember?._id === employeeId);
+      filtered = filtered.filter(item => {
+        // Check both id and _id to handle different data formats
+        const staffMemberId = item.staffMember?.id || item.staffMember?._id;
+        return staffMemberId === employeeId;
+      });
     }
 
     // Apply search filter
@@ -375,6 +359,211 @@ const AdminCorrespondenceManagement = () => {
           new Date(b.timestamp) - new Date(a.timestamp)
         )
       }));
+  };
+
+  // Get overall filtered statistics for glimpse modal
+  const getOverallFilteredStats = () => {
+    // Get all employees with their monthwise statistics
+    const employeeStatsMap = new Map();
+    
+    allCorrespondences.forEach((item) => {
+      const empId = item.staffMember?.id || item.staffMember?._id;
+      const empName = item.staffMember?.name || 'Unknown Staff';
+      
+      // Use timestamp field instead of communicationDate
+      const dateField = item.timestamp || item.communicationDate;
+      if (!dateField) {
+        return;
+      }
+      
+      const commDate = new Date(dateField);
+      
+      // Check if date is valid
+      if (isNaN(commDate.getTime())) {
+        return;
+      }
+      
+      const monthKey = `${commDate.getFullYear()}-${(commDate.getMonth() + 1).toString().padStart(2, '0')}`;
+      
+      if (!empId) {
+        return; // Skip if no valid employee ID
+      }
+      
+      if (!employeeStatsMap.has(empId)) {
+        employeeStatsMap.set(empId, {
+          id: empId,
+          name: empName,
+          totalCount: 0,
+          monthlyData: new Map()
+        });
+      }
+      
+      const empStats = employeeStatsMap.get(empId);
+      empStats.totalCount++;
+      
+      if (!empStats.monthlyData.has(monthKey)) {
+        empStats.monthlyData.set(monthKey, {
+          month: monthKey,
+          total: 0,
+          levelChanges: 0,
+          general: 0,
+          dailyData: new Map()
+        });
+      }
+      
+      const monthStats = empStats.monthlyData.get(monthKey);
+      monthStats.total++;
+      
+      if (item.isLevelChange) {
+        monthStats.levelChanges++;
+      } else {
+        monthStats.general++;
+      }
+      
+      // Track daily data for detailed view
+      const dayKey = commDate.getDate().toString();
+      if (!monthStats.dailyData.has(dayKey)) {
+        monthStats.dailyData.set(dayKey, {
+          day: dayKey,
+          total: 0,
+          levelChanges: 0,
+          general: 0
+        });
+      }
+      
+      const dayStats = monthStats.dailyData.get(dayKey);
+      dayStats.total++;
+      
+      if (item.isLevelChange) {
+        dayStats.levelChanges++;
+      } else {
+        dayStats.general++;
+      }
+    });
+    
+    // Convert to array and sort by total count
+    const employeeStats = Array.from(employeeStatsMap.values())
+      .map(emp => ({
+        ...emp,
+        monthlyData: Array.from(emp.monthlyData.values()).sort((a, b) => b.month.localeCompare(a.month))
+      }))
+      .sort((a, b) => b.totalCount - a.totalCount);
+    
+    const uniqueStudents = new Set(allCorrespondences.map(item => item.studentId)).size;
+    const levelChanges = allCorrespondences.filter(item => item.isLevelChange).length;
+    
+    return {
+      total: allCorrespondences.length,
+      employeeCount: employeeStats.length,
+      uniqueStudents,
+      levelChanges,
+      employeeStats
+    };
+  };
+
+  const overallStats = getOverallFilteredStats();
+
+  // Function to handle month cell click for detailed view
+  const handleMonthClick = (employeeName, monthData) => {
+    setSelectedEmployeeName(employeeName);
+    setSelectedMonthData(monthData);
+    setShowMonthDetailModal(true);
+  };
+
+  // Function to format month display
+  const formatMonthDisplay = (monthKey) => {
+    if (!monthKey || typeof monthKey !== 'string') {
+      return 'Invalid Month';
+    }
+    
+    try {
+      const [year, month] = monthKey.split('-');
+      if (!year || !month) {
+        return 'Invalid Date';
+      }
+      
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIndex = parseInt(month) - 1;
+      
+      if (monthIndex < 0 || monthIndex > 11) {
+        return 'Invalid Month';
+      }
+      
+      return `${monthNames[monthIndex]} ${year.slice(2)}`;
+    } catch (error) {
+      console.error('Error formatting month:', monthKey, error);
+      return 'Invalid Date';
+    }
+  };
+
+  // Get available years from the data
+  const getAvailableYears = () => {
+    const yearsSet = new Set();
+    allCorrespondences.forEach(item => {
+      const dateField = item.timestamp || item.communicationDate;
+      if (dateField) {
+        const year = new Date(dateField).getFullYear();
+        if (!isNaN(year)) {
+          yearsSet.add(year);
+        }
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b - a); // Latest years first
+  };
+
+  // Get all months for the selected year
+  const getMonthsForYear = (year) => {
+    const months = [];
+    for (let month = 12; month >= 1; month--) { // December to January
+      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+      months.push(monthKey);
+    }
+    return months;
+  };
+
+  const availableYears = getAvailableYears();
+  const displayMonths = getMonthsForYear(selectedYear);
+
+  // Calculate filtered employee stats based on current filtered correspondences
+  const getFilteredEmployeeStats = (employeeId) => {
+    if (!employeeId || !employeeStats[employeeId]) {
+      return employeeStats[employeeId] || {};
+    }
+
+    // Filter current correspondences for this specific employee
+    const employeeCorrespondences = correspondences.filter(item => {
+      const staffMemberId = item.staffMember?.id || item.staffMember?._id;
+      return staffMemberId === employeeId;
+    });
+
+    // Calculate filtered stats
+    const total = employeeCorrespondences.length;
+    const levelChanges = employeeCorrespondences.filter(item => item.isLevelChange).length;
+    const general = total - levelChanges;
+    
+    // Calculate unique students in filtered data
+    const uniqueStudents = new Set();
+    employeeCorrespondences.forEach(item => {
+      if (item.studentId?._id) {
+        uniqueStudents.add(item.studentId._id);
+      }
+    });
+
+    // Calculate level breakdown for filtered data
+    const byLevel = {};
+    for (let level = 1; level <= 5; level++) {
+      byLevel[level] = employeeCorrespondences.filter(item => item.studentLevel === level).length;
+    }
+
+    return {
+      ...employeeStats[employeeId], // Keep original data like name, role
+      total,
+      levelChanges,
+      general,
+      uniqueCount: uniqueStudents.size,
+      byLevel
+    };
   };
 
   const handleViewStudentDetails = (studentId) => {
@@ -670,7 +859,7 @@ const AdminCorrespondenceManagement = () => {
                 {employeeStats[selectedEmployee].name}
               </h3>
               <p className="text-green-600">
-                {employeeStats[selectedEmployee].role} • Performance Overview
+                {employeeStats[selectedEmployee].role} • Performance Overview {(selectedLevel || selectedTimeFilter !== 'all' || searchTerm) && '(Filtered)'}
               </p>
             </div>
           </div>
@@ -678,25 +867,25 @@ const AdminCorrespondenceManagement = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-green-700">
-                {employeeStats[selectedEmployee].total}
+                {getFilteredEmployeeStats(selectedEmployee).total}
               </p>
               <p className="text-sm text-green-600">Total Communications</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-green-700">
-                {employeeStats[selectedEmployee].uniqueCount}
+                {getFilteredEmployeeStats(selectedEmployee).uniqueCount}
               </p>
               <p className="text-sm text-green-600">Unique Students</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-green-700">
-                {employeeStats[selectedEmployee].levelChanges}
+                {getFilteredEmployeeStats(selectedEmployee).levelChanges}
               </p>
               <p className="text-sm text-green-600">Level Changes</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-green-700">
-                {employeeStats[selectedEmployee].general}
+                {getFilteredEmployeeStats(selectedEmployee).general}
               </p>
               <p className="text-sm text-green-600">General Communications</p>
             </div>
@@ -708,7 +897,7 @@ const AdminCorrespondenceManagement = () => {
             <div className="flex gap-2 flex-wrap">
               {[1, 2, 3, 4, 5].map(level => (
                 <span key={level} className="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">
-                  Level {level}: {employeeStats[selectedEmployee].byLevel[level] || 0}
+                  Level {level}: {getFilteredEmployeeStats(selectedEmployee).byLevel[level] || 0}
                 </span>
               ))}
             </div>
@@ -1052,6 +1241,382 @@ const AdminCorrespondenceManagement = () => {
                 >
                   <X className="h-4 w-4" />
                 </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Glimpse Pill */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setShowGlimpseModal(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"
+          title="View Statistics Overview"
+        >
+          <svg 
+            className="w-5 h-5" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
+            />
+          </svg>
+          <span className="text-sm font-medium">Glimpse</span>
+        </button>
+      </div>
+
+      {/* Glimpse Modal */}
+      {showGlimpseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Correspondence Statistics Overview
+              </h3>
+              <button
+                onClick={() => setShowGlimpseModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Overview Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-blue-600 text-sm font-medium">Total Communications</div>
+                  <div className="text-2xl font-bold text-blue-700">
+                    {overallStats.total}
+                  </div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="text-green-600 text-sm font-medium">Employee Count</div>
+                  <div className="text-2xl font-bold text-green-700">
+                    {overallStats.employeeCount}
+                  </div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="text-purple-600 text-sm font-medium">Unique Students</div>
+                  <div className="text-2xl font-bold text-purple-700">
+                    {overallStats.uniqueStudents}
+                  </div>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <div className="text-orange-600 text-sm font-medium">Level Changes</div>
+                  <div className="text-2xl font-bold text-orange-700">
+                    {overallStats.levelChanges}
+                  </div>
+                </div>
+              </div>
+
+              {/* Employee Monthly Performance Matrix */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-lg font-semibold">Monthly Performance Matrix</h4>
+                  {/* Year Filter Dropdown */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Year:</label>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {availableYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                {displayMonths.length === 0 ? (
+                  <div className="bg-gray-50 rounded-lg p-8 text-center">
+                    <div className="text-gray-500">No monthly data available for {selectedYear}</div>
+                    <div className="text-sm text-gray-400 mt-2">
+                      Try selecting a different year or add correspondence records
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-4 overflow-auto">
+                    <div className="min-w-full">
+                      {/* Table Header - Employee Names */}
+                      <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `120px repeat(${overallStats.employeeStats.length}, minmax(140px, 1fr))` }}>
+                        <div className="px-2 py-3 font-semibold text-sm text-gray-700 border-b-2 border-gray-300">
+                          Month
+                        </div>
+                        {overallStats.employeeStats.map((emp, index) => (
+                          <div key={index} className="px-2 py-3 font-semibold text-sm text-gray-700 border-b-2 border-gray-300 text-center">
+                            <div className="truncate" title={emp.name}>
+                              {emp.name}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Total: {emp.totalCount}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Table Rows - Months */}
+                      <div className="space-y-1">
+                        {displayMonths.map((month) => (
+                          <div key={month} className="grid gap-1" style={{ gridTemplateColumns: `120px repeat(${overallStats.employeeStats.length}, minmax(140px, 1fr))` }}>
+                            {/* Month Label */}
+                            <div className="px-2 py-3 font-medium text-sm bg-gray-100 rounded-l border-r border-gray-300 flex items-center">
+                              {formatMonthDisplay(month)}
+                            </div>
+                            
+                            {/* Employee Data for this Month */}
+                            {overallStats.employeeStats.map((emp, empIndex) => {
+                              const monthData = emp.monthlyData.find(m => m.month === month);
+                              return (
+                                <div key={empIndex} className="px-1 py-1">
+                                  {monthData ? (
+                                    <button
+                                      onClick={() => handleMonthClick(emp.name, monthData)}
+                                      className="w-full bg-white rounded border hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer p-2 h-full"
+                                    >
+                                      <div className="text-xs space-y-1">
+                                        <div className="font-bold text-gray-900 text-base">
+                                          {monthData.total}
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-orange-600 font-medium">
+                                            L: {monthData.levelChanges}
+                                          </span>
+                                          <span className="text-green-600 font-medium">
+                                            G: {monthData.general}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ) : (
+                                    <div className="w-full bg-gray-50 rounded border p-2 h-full flex items-center justify-center">
+                                      <div className="text-xs text-gray-400">-</div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Legend */}
+                      <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-600 bg-white p-3 rounded border">
+                        <div className="flex items-center gap-1">
+                          <div className="w-3 h-3 bg-gray-900 rounded"></div>
+                          <span>Total Communications</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-3 h-3 bg-orange-600 rounded"></div>
+                          <span>L: Level Changes</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-3 h-3 bg-green-600 rounded"></div>
+                          <span>G: General Communications</span>
+                        </div>
+                        <div className="text-blue-600 font-medium">
+                          💡 Click on any cell to view daily breakdown
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Communication Types */}
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold mb-3">Communication Types</h4>
+                <div className="space-y-3">
+                  {/* Since the data structure doesn't have communicationType, show available types */}
+                  {(() => {
+                    // Get unique types from the data
+                    const typeField = 'type'; // From debug log, we see "type": "enquiry"
+                    const uniqueTypes = [...new Set(allCorrespondences.map(c => c[typeField]).filter(Boolean))];
+                    
+                    if (uniqueTypes.length === 0) {
+                      return (
+                        <div className="text-gray-500 text-sm">No communication type data available</div>
+                      );
+                    }
+                    
+                    return uniqueTypes.map(type => {
+                      const count = allCorrespondences.filter(c => c[typeField] === type).length;
+                      const percentage = allCorrespondences.length > 0 ? ((count / allCorrespondences.length) * 100).toFixed(1) : 0;
+                      return (
+                        <div key={type} className="flex items-center justify-between">
+                          <span className="text-sm font-medium capitalize">{type}</span>
+                          <div className="flex items-center gap-2 flex-1 ml-4">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full" 
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Recent Activity Summary */}
+              <div>
+                <h4 className="text-lg font-semibold mb-3">Recent Activity</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                    <div className="text-sm text-gray-600">Today</div>
+                    <div className="text-lg font-bold">
+                      {allCorrespondences.filter(c => {
+                        const dateField = c.timestamp || c.communicationDate;
+                        return dateField && new Date(dateField).toDateString() === new Date().toDateString();
+                      }).length}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                    <div className="text-sm text-gray-600">This Week</div>
+                    <div className="text-lg font-bold">
+                      {allCorrespondences.filter(c => {
+                        const dateField = c.timestamp || c.communicationDate;
+                        if (!dateField) return false;
+                        const commDate = new Date(dateField);
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return commDate >= weekAgo;
+                      }).length}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                    <div className="text-sm text-gray-600">This Month</div>
+                    <div className="text-lg font-bold">
+                      {allCorrespondences.filter(c => {
+                        const dateField = c.timestamp || c.communicationDate;
+                        if (!dateField) return false;
+                        const commDate = new Date(dateField);
+                        const monthAgo = new Date();
+                        monthAgo.setDate(monthAgo.getDate() - 30);
+                        return commDate >= monthAgo;
+                      }).length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Month Detail Modal */}
+      {showMonthDetailModal && selectedMonthData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {selectedEmployeeName} - {formatMonthDisplay(selectedMonthData.month)} Details
+              </h3>
+              <button
+                onClick={() => setShowMonthDetailModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Month Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <div className="text-blue-600 text-sm font-medium">Total Communications</div>
+                  <div className="text-2xl font-bold text-blue-700">
+                    {selectedMonthData.total}
+                  </div>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg text-center">
+                  <div className="text-orange-600 text-sm font-medium">Level Changes</div>
+                  <div className="text-2xl font-bold text-orange-700">
+                    {selectedMonthData.levelChanges}
+                  </div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <div className="text-green-600 text-sm font-medium">General Communications</div>
+                  <div className="text-2xl font-bold text-green-700">
+                    {selectedMonthData.general}
+                  </div>
+                </div>
+              </div>
+
+              {/* Daily Breakdown Chart */}
+              <div>
+                <h4 className="text-lg font-semibold mb-3">Daily Breakdown</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  {/* Daily Stats Table */}
+                  <div className="bg-white rounded border">
+                    <div className="grid grid-cols-4 gap-2 p-3 bg-gray-100 border-b font-semibold text-sm">
+                      <div>Day</div>
+                      <div className="text-center">Total</div>
+                      <div className="text-center">Level Changes</div>
+                      <div className="text-center">General</div>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {Array.from(selectedMonthData.dailyData.values())
+                        .sort((a, b) => parseInt(a.day) - parseInt(b.day))
+                        .map(dayData => (
+                          <div key={dayData.day} className="grid grid-cols-4 gap-2 p-3 border-b text-sm hover:bg-gray-50">
+                            <div className="font-medium">Day {dayData.day}</div>
+                            <div className="text-center font-bold">{dayData.total}</div>
+                            <div className="text-center text-orange-600 font-medium">{dayData.levelChanges}</div>
+                            <div className="text-center text-green-600 font-medium">{dayData.general}</div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Visual Chart */}
+                  <div className="mt-6">
+                    <h5 className="font-semibold mb-3">Visual Overview</h5>
+                    <div className="grid grid-cols-7 gap-2">
+                      {Array.from({ length: 31 }, (_, i) => {
+                        const day = (i + 1).toString();
+                        const dayData = Array.from(selectedMonthData.dailyData.values()).find(d => d.day === day);
+                        
+                        return (
+                          <div key={i} className="aspect-square">
+                            <div className={`w-full h-full rounded border ${dayData ? 'bg-white border-blue-300' : 'bg-gray-100 border-gray-200'} p-1 flex flex-col justify-center items-center text-xs`}>
+                              <div className="font-semibold text-gray-700 mb-1">{day}</div>
+                              {dayData && (
+                                <div className="space-y-0.5 text-center">
+                                  <div className="text-blue-600 font-bold">{dayData.total}</div>
+                                  {dayData.levelChanges > 0 && (
+                                    <div className="text-orange-500 text-xs">L:{dayData.levelChanges}</div>
+                                  )}
+                                  {dayData.general > 0 && (
+                                    <div className="text-green-500 text-xs">G:{dayData.general}</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
