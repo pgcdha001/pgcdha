@@ -380,6 +380,15 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
     },
     {
+      id: 'teacher-attendance',
+      title: 'Teacher Attendance',
+      href: '/coordinator/teacher-attendance',
+      icon: 'UserCheck2',
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: null
+    },
+    {
       id: 'student-attendance',
       title: 'Student Attendance Reports',
       href: '/reports?section=student-attendance',
@@ -567,6 +576,13 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'Users',
       description: 'Supervise and manage student information',
       permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
+    },
+    {
+      title: 'Teacher Attendance',
+      href: '/coordinator/teacher-attendance',
+      icon: 'UserCheck2',
+      description: 'Mark teacher attendance and add remarks',
+      permission: null
     },
     {
       title: 'Student Attendance',

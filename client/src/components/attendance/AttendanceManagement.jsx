@@ -163,7 +163,7 @@ const AttendanceManagement = () => {
         // Load overall statistics
         const [studentStats, teacherStats] = await Promise.all([
           callApi(`/api/attendance/stats/daily/${today}`, 'GET'),
-          callApi(`/api/teacher-attendance/report/daily/${today}`, 'GET')
+          callApi(`/teacher-attendance/report/daily/${today}`, 'GET')
         ]);
         
         setDashboardStats({

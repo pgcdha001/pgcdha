@@ -107,7 +107,9 @@ router.get('/',
 
     // Role filter - normalize the role before filtering
     if (role) {
-      filter.role = normalizeRole(role);
+      const normalizedRole = normalizeRole(role);
+      console.log(`Role filter: "${role}" normalized to "${normalizedRole}"`);
+      filter.role = normalizedRole;
     }
 
     // Status filter
@@ -148,6 +150,8 @@ router.get('/',
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    console.log('Final filter for users query:', JSON.stringify(filter, null, 2));
+
     // Execute query
     const users = await User.find(filter)
       .select('-password -passwordResetToken -passwordResetExpires')
@@ -155,6 +159,8 @@ router.get('/',
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+
+    console.log(`Found ${users.length} users matching filter`);
 
     const total = await User.countDocuments(filter);
     const totalPages = Math.ceil(total / parseInt(limit));

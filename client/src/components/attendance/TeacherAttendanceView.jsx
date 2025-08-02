@@ -75,7 +75,7 @@ const TeacherAttendanceView = ({ user }) => {
 
   const loadTeacherAttendance = useCallback(async () => {
     try {
-      const response = await callApi(`/api/teacher-attendance/date/${selectedDate}`, 'GET');
+      const response = await callApi(`/teacher-attendance/date/${selectedDate}`, 'GET');
       if (response.success) {
         const attendanceMap = {};
         response.data.forEach(record => {
@@ -92,7 +92,7 @@ const TeacherAttendanceView = ({ user }) => {
     try {
       setSaving(true);
       
-      const response = await callApi('/api/teacher-attendance/mark', 'POST', {
+      const response = await callApi('/teacher-attendance/mark', 'POST', {
         timetableEntry: timetableId,
         date: selectedDate,
         status,

@@ -5,6 +5,7 @@ const Timetable = require('../models/Timetable');
 const Class = require('../models/Class');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
+const { asyncHandler } = require('../middleware/errorHandler');
 
 // Mark teacher attendance for lectures (by Floor Coordinator)
 router.post('/mark', authenticate, async (req, res) => {
@@ -530,6 +531,302 @@ router.get('/stats/punctuality/:teacherId', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error getting punctuality stats:', error);
     res.status(500).json({ message: 'Error getting punctuality stats', error: error.message });
+  }
+});
+
+// Mark teacher attendance by Coordinator
+router.post('/coordinator/mark', authenticate, async (req, res) => {
+  try {
+    const { attendanceRecords } = req.body;
+    const markedBy = req.user.id;
+
+    if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Attendance records are required' 
+      });
+    }
+
+    // Verify user is a coordinator
+    if (req.user.role !== 'Coordinator') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only coordinators can use this endpoint' 
+      });
+    }
+
+    const results = {
+      success: [],
+      errors: []
+    };
+
+    // Process each attendance record
+    for (const record of attendanceRecords) {
+      try {
+        const {
+          teacherId,
+          timetableId,
+          status,
+          coordinatorRemarks,
+          date
+        } = record;
+
+        // Validate required fields
+        if (!teacherId || !timetableId || !status || !date) {
+          results.errors.push({
+            record,
+            error: 'Teacher ID, timetable ID, status, and date are required'
+          });
+          continue;
+        }
+
+        // Validate teacher exists
+        const teacher = await User.findById(teacherId);
+        if (!teacher || teacher.role !== 'Teacher') {
+          results.errors.push({
+            record,
+            error: 'Invalid teacher ID'
+          });
+          continue;
+        }
+
+        // Validate timetable entry
+        const timetableEntry = await Timetable.findById(timetableId)
+          .populate('classId', 'name grade campus program floor');
+        if (!timetableEntry) {
+          results.errors.push({
+            record,
+            error: 'Timetable entry not found'
+          });
+          continue;
+        }
+
+        const attendanceDate = new Date(date);
+        attendanceDate.setHours(0, 0, 0, 0);
+
+        // Check if attendance already exists
+        const existingAttendance = await TeacherAttendance.findOne({
+          teacherId,
+          timetableId,
+          date: attendanceDate
+        });
+
+        const attendanceData = {
+          teacherId,
+          timetableId,
+          classId: timetableEntry.classId._id,
+          date: attendanceDate,
+          status,
+          subject: timetableEntry.subject,
+          lectureType: timetableEntry.lectureType || 'Theory',
+          coordinatorRemarks: coordinatorRemarks || '',
+          markedBy,
+          floor: timetableEntry.classId.floor
+        };
+
+        let savedRecord;
+        if (existingAttendance) {
+          // Update existing record
+          Object.assign(existingAttendance, attendanceData);
+          savedRecord = await existingAttendance.save();
+        } else {
+          // Create new record
+          savedRecord = new TeacherAttendance(attendanceData);
+          await savedRecord.save();
+        }
+
+        results.success.push({
+          teacherId,
+          timetableId,
+          status,
+          record: savedRecord._id
+        });
+
+      } catch (error) {
+        results.errors.push({
+          record,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Processed ${results.success.length} records successfully, ${results.errors.length} errors`,
+      results
+    });
+
+  } catch (error) {
+    console.error('Error marking coordinator attendance:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error marking attendance', 
+      error: error.message 
+    });
+  }
+});
+
+// Get teacher attendance for a specific date (for coordinator view)
+router.get('/date/:date', authenticate, async (req, res) => {
+  try {
+    console.log('GET /date/:date route hit with date:', req.params.date);
+    const { date } = req.params;
+    
+    const queryDate = new Date(date);
+    queryDate.setHours(0, 0, 0, 0);
+    
+    console.log('Querying attendance for date:', queryDate);
+    
+    const attendance = await TeacherAttendance.find({
+      date: queryDate
+    })
+    .populate('teacherId', 'fullName userName email role')
+    .populate('timetableId')
+    .populate('classId', 'name grade section floor')
+    .sort({ createdAt: -1 });
+
+    console.log('Found attendance records:', attendance.length);
+
+    res.json({
+      success: true,
+      data: attendance
+    });
+
+  } catch (error) {
+    console.error('Error fetching teacher attendance by date:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching attendance data', 
+      error: error.message 
+    });
+  }
+});
+
+// Get teacher attendance for a specific class and date
+router.get('/class/:classId/date/:date', authenticate, async (req, res) => {
+  try {
+    const { classId, date } = req.params;
+    
+    const queryDate = new Date(date);
+    queryDate.setHours(0, 0, 0, 0);
+    
+    const attendance = await TeacherAttendance.find({
+      classId,
+      date: queryDate
+    })
+    .populate('teacherId', 'fullName userName email')
+    .populate('timetableId', 'subject startTime endTime')
+    .populate('classId', 'name grade campus program floor')
+    .populate('markedBy', 'fullName userName')
+    .sort({ 'timetableId.startTime': 1 });
+
+    res.json({
+      success: true,
+      data: attendance
+    });
+
+  } catch (error) {
+    console.error('Error fetching class teacher attendance:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching class teacher attendance', 
+      error: error.message 
+    });
+  }
+});
+
+// Bulk mark teacher attendance
+router.post('/mark-bulk', authenticate, async (req, res) => {
+  try {
+    const { attendanceRecords } = req.body;
+    const markedBy = req.user.id;
+
+    if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Attendance records are required' 
+      });
+    }
+
+    const results = {
+      success: [],
+      errors: []
+    };
+
+    // Process each attendance record
+    for (const record of attendanceRecords) {
+      try {
+        const {
+          teacherId,
+          timetableId,
+          classId,
+          status,
+          lateMinutes,
+          remarks,
+          date
+        } = record;
+
+        // Validate required fields
+        if (!teacherId || !timetableId || !classId || !status || !date) {
+          results.errors.push({
+            record,
+            error: 'Teacher ID, timetable ID, class ID, status, and date are required'
+          });
+          continue;
+        }
+
+        const attendanceDate = new Date(date);
+        attendanceDate.setHours(0, 0, 0, 0);
+
+        // Update existing or create new record
+        const attendance = await TeacherAttendance.findOneAndUpdate(
+          { teacherId, timetableId, date: attendanceDate },
+          {
+            teacherId,
+            timetableId,
+            classId,
+            date: attendanceDate,
+            status,
+            lateMinutes: status === 'Late' ? lateMinutes : undefined,
+            remarks: remarks || '',
+            markedBy
+          },
+          { 
+            upsert: true, 
+            new: true,
+            runValidators: true
+          }
+        );
+
+        results.success.push(attendance);
+
+      } catch (error) {
+        console.error(`Error processing teacher attendance:`, error);
+        results.errors.push({
+          record,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Teacher attendance processed: ${results.success.length} successful, ${results.errors.length} errors`,
+      results: {
+        successful: results.success.length,
+        errors: results.errors.length,
+        successfulRecords: results.success,
+        errorRecords: results.errors
+      }
+    });
+
+  } catch (error) {
+    console.error('Error bulk marking teacher attendance:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error marking teacher attendance', 
+      error: error.message 
+    });
   }
 });
 

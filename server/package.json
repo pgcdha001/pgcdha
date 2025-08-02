@@ -11,7 +11,11 @@
     "seed:dev": "NODE_ENV=development node scripts/seedDatabase.js",
     "reset": "node scripts/resetDatabase.js",
     "reset:seed": "npm run reset && npm run seed",
-    "import:level3": "node scripts/importLevel3Students.js"
+    "import:level3": "node scripts/importLevel3Students.js",
+    "seed:timetable": "node scripts/seedTimetable.js",
+    "seed:current-week": "node scripts/seedCurrentWeekTimetable.js",
+    "check:data": "node scripts/checkData.js",
+    "test:timetable": "node scripts/testTimetableAPI.js"
   },
   "keywords": [
     "nodejs",

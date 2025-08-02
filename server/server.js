@@ -68,6 +68,7 @@ const principalEnquiriesRoutes = require('./routes/principalEnquiries');
 const correspondenceRoutes = require('./routes/correspondence');
 const timetableRoutes = require('./routes/timetable');
 const examinationRoutes = require('./routes/examinations');
+const teacherAttendanceRoutes = require('./routes/teacherAttendance');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -77,6 +78,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/remarks', remarksRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/teacher-attendance', teacherAttendanceRoutes);
 app.use('/api/enquiries', principalEnquiriesRoutes);
 app.use('/api/correspondence', correspondenceRoutes);
 app.use('/api/timetable', timetableRoutes);

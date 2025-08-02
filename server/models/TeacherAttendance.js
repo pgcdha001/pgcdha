@@ -83,6 +83,13 @@ const TeacherAttendanceSchema = new mongoose.Schema({
     trim: true
   },
   
+  // Coordinator remarks (separate from general remarks)
+  coordinatorRemarks: {
+    type: String,
+    maxlength: 500,
+    trim: true
+  },
+  
   // Who marked the attendance (Floor Coordinator)
   markedBy: {
     type: mongoose.Schema.Types.ObjectId,

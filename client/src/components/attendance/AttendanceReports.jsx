@@ -67,7 +67,7 @@ const AttendanceReports = ({ user }) => {
           endpoint = `/api/attendance/report/summary?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
           break;
         case 'teacher-punctuality':
-          endpoint = `/api/teacher-attendance/report/summary?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+          endpoint = `/teacher-attendance/report/summary?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
           break;
         case 'daily-breakdown':
           endpoint = `/api/attendance/report/daily?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;

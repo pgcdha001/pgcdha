@@ -498,4 +498,61 @@ router.get('/floors/:floors/week/:weekDate', authenticate, async (req, res) => {
   }
 });
 
+// Get teacher's lectures for a specific date
+router.get('/teacher/:teacherId/date/:date', authenticate, async (req, res) => {
+  try {
+    const { teacherId, date } = req.params;
+
+    // Validate teacher exists
+    const teacher = await User.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Teacher not found' 
+      });
+    }
+
+    if (teacher.role !== 'Teacher') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'User is not a teacher' 
+      });
+    }
+
+    // Get day of week from date
+    const queryDate = new Date(date);
+    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][queryDate.getDay()];
+
+    // Get teacher's timetable for that day
+    const lectures = await Timetable.find({
+      teacherId,
+      dayOfWeek,
+      isActive: true
+    })
+    .populate('classId', 'name grade campus program floor')
+    .sort({ startTime: 1 });
+
+    res.json({
+      success: true,
+      data: lectures,
+      teacher: {
+        id: teacher._id,
+        fullName: teacher.fullName,
+        userName: teacher.userName,
+        email: teacher.email
+      },
+      date,
+      dayOfWeek
+    });
+
+  } catch (error) {
+    console.error('Error fetching teacher lectures by date:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching teacher lectures', 
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;
