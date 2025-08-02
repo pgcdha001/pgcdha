@@ -46,7 +46,7 @@ import { CorrespondenceManagement } from './components/correspondence';
 import TimetableManagement from './pages/timetable/TimetableManagement';
 
 // Examination Management
-import ExaminationDashboard from './components/examinations/ExaminationDashboard';
+import ExaminationPage from './pages/examinations/ExaminationPage';
 
 const App = () => {
   return (
@@ -264,7 +264,7 @@ const App = () => {
                       requiredPermission={PERMISSIONS.EXAMINATION.VIEW_EXAMINATIONS}
                       allowedRoles={['InstituteAdmin', 'IT', 'Teacher', 'Principal']}
                     >
-                      <ExaminationDashboard />
+                      <ExaminationPage />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

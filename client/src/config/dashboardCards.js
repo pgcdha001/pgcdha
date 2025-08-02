@@ -114,6 +114,17 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-amber-500 to-amber-600',
       type: 'normal',
       permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
+    },
+    {
+      id: 'examination-management',
+      title: 'Examination Management',
+      href: '/examinations',
+      icon: 'GraduationCap',
+      bgGradient: 'from-indigo-500 to-indigo-600',
+      type: 'normal',
+      permission: PERMISSIONS.EXAMINATION.MANAGE_ACADEMIC_RECORDS,
+      recentActivity: null,
+      todayCount: null
     }
   ],
 
@@ -147,13 +158,15 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
     },
     {
-      id: 'academic-performance',
-      title: 'Academic Performance',
-      href: '/reports?section=examinations',
-      icon: 'Award',
-      bgGradient: 'from-orange-500 to-orange-600',
+      id: 'examination-analytics',
+      title: 'Examination Analytics',
+      href: '/examinations',
+      icon: 'GraduationCap',
+      bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
+      permission: PERMISSIONS.EXAMINATION.VIEW_ANALYTICS,
+      recentActivity: null,
+      todayCount: null
     },
     {
       id: 'institutional-reports',
@@ -241,6 +254,17 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-amber-500 to-amber-600',
       type: 'normal',
       permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
+    },
+    {
+      id: 'examination-management',
+      title: 'Test Management',
+      href: '/examinations',
+      icon: 'GraduationCap',
+      bgGradient: 'from-indigo-500 to-indigo-600',
+      type: 'normal',
+      permission: PERMISSIONS.EXAMINATION.CREATE_TEST,
+      recentActivity: null,
+      todayCount: null
     }
   ],
 
@@ -299,6 +323,17 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-amber-500 to-amber-600',
       type: 'normal',
       permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
+    },
+    {
+      id: 'my-tests',
+      title: 'My Tests & Marks Entry',
+      href: '/examinations?view=teacher',
+      icon: 'ClipboardCheck',
+      bgGradient: 'from-indigo-500 to-indigo-600',
+      type: 'normal',
+      permission: PERMISSIONS.EXAMINATION.ENTER_MARKS,
+      recentActivity: null,
+      todayCount: null
     }
   ],
 
