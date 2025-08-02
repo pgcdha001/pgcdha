@@ -390,12 +390,12 @@ export const DASHBOARD_CARDS = {
     },
     {
       id: 'student-attendance',
-      title: 'Student Attendance Reports',
-      href: '/reports?section=student-attendance',
+      title: 'Student Attendance',
+      href: '/coordinator/student-attendance',
       icon: 'UserCheck',
       bgGradient: 'from-blue-500 to-blue-600',
-      type: 'sliding',
-      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
+      type: 'normal',
+      permission: null
     },
     {
       id: 'student-reports',
@@ -586,10 +586,10 @@ export const QUICK_MANAGEMENT_ACCESS = {
     },
     {
       title: 'Student Attendance',
-      href: '/reports?section=student-attendance',
+      href: '/coordinator/student-attendance',
       icon: 'UserCheck',
-      description: 'Monitor student attendance and punctuality',
-      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
+      description: 'Mark daily student attendance',
+      permission: null
     },
     {
       title: 'Enquiry Support',

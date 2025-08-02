@@ -8,6 +8,72 @@ const { authenticate } = require('../middleware/auth');
 // Mark attendance for a class (for teachers/admin)
 router.post('/mark', authenticate, async (req, res) => {
   try {
+    const { studentId, classId, date, status, markedBy } = req.body;
+
+    // Validate required fields
+    if (!studentId || !classId || !date || !status) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Student ID, class ID, date, and status are required' 
+      });
+    }
+
+    // Validate class exists
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Class not found' 
+      });
+    }
+
+    // Validate student exists
+    const student = await User.findById(studentId);
+    if (!student || student.role !== 'Student') {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Student not found' 
+      });
+    }
+
+    const attendanceDate = new Date(date);
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    // Update existing or create new attendance record
+    const attendance = await Attendance.findOneAndUpdate(
+      { studentId, date: attendanceDate },
+      {
+        classId,
+        status,
+        markedBy: markedBy || req.user.id,
+        markedByRole: 'Floor Incharge'
+      },
+      { 
+        upsert: true, 
+        new: true,
+        runValidators: true
+      }
+    );
+
+    res.json({
+      success: true,
+      message: `Student marked as ${status}`,
+      data: attendance
+    });
+
+  } catch (error) {
+    console.error('Error marking attendance:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error marking attendance', 
+      error: error.message 
+    });
+  }
+});
+
+// Mark attendance for multiple students (bulk)
+router.post('/mark-bulk', authenticate, async (req, res) => {
+  try {
     const { classId, date, attendanceData, subject } = req.body;
     const markedBy = req.user.id;
 

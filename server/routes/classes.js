@@ -7,7 +7,9 @@ const { authenticate } = require('../middleware/auth');
 // Get all classes with teacher information
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { floor, campus, grade, program } = req.query;
+    const { floor, campus, grade, program, floorIncharge } = req.query;
+    
+    console.log('Classes query params:', { floor, campus, grade, program, floorIncharge });
     
     // Build filter
     const filter = { isActive: true };
@@ -15,6 +17,9 @@ router.get('/', authenticate, async (req, res) => {
     if (campus) filter.campus = campus;
     if (grade) filter.grade = grade;
     if (program) filter.program = program;
+    if (floorIncharge && floorIncharge !== 'undefined') filter.floorIncharge = floorIncharge;
+
+    console.log('Final filter for classes query:', filter);
 
     const classes = await Class.find(filter)
       .populate('classIncharge', 'fullName userName email')
@@ -420,6 +425,37 @@ router.get('/floor-incharge/:teacherId', authenticate, async (req, res) => {
   }
 });
 
+// Get floors for coordinator
+router.get('/coordinator-floors/:coordinatorId', authenticate, async (req, res) => {
+  try {
+    const { coordinatorId } = req.params;
+    
+    // Find floors where user is floorIncharge
+    const classes = await Class.find({
+      floorIncharge: coordinatorId,
+      isActive: true
+    });
+    
+    // Get unique floors
+    const floors = [...new Set(classes.map(cls => cls.floor))].sort();
+    
+    res.json({
+      success: true,
+      data: {
+        floors,
+        totalClasses: classes.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching coordinator floors:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching coordinator floors', 
+      error: error.message 
+    });
+  }
+});
+
 // Get classes by floors
 router.get('/floors/:floors', authenticate, async (req, res) => {
   try {
@@ -443,6 +479,58 @@ router.get('/floors/:floors', authenticate, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching classes by floors', 
+      error: error.message 
+    });
+  }
+});
+
+// Get students for a specific class
+router.get('/:classId/students', authenticate, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    // Validate class exists
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Class not found' 
+      });
+    }
+    
+    // Get students for this class
+    const students = await User.find({
+      classId: classId,
+      role: 'Student',
+      isActive: true,
+      $or: [
+        { prospectusStage: 5 },
+        { enquiryLevel: 5 }
+      ]
+    })
+    .select('fullName userName rollNumber email program gender')
+    .sort({ 'fullName.firstName': 1, 'fullName.lastName': 1 });
+    
+    res.json({
+      success: true,
+      data: {
+        class: {
+          id: classDoc._id,
+          name: classDoc.name,
+          grade: classDoc.grade,
+          campus: classDoc.campus,
+          program: classDoc.program,
+          floor: classDoc.floor
+        },
+        students,
+        totalStudents: students.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching class students:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching class students', 
       error: error.message 
     });
   }

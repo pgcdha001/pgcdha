@@ -15,7 +15,10 @@
     "seed:timetable": "node scripts/seedTimetable.js",
     "seed:current-week": "node scripts/seedCurrentWeekTimetable.js",
     "check:data": "node scripts/checkData.js",
-    "test:timetable": "node scripts/testTimetableAPI.js"
+    "test:timetable": "node scripts/testTimetableAPI.js",
+    "seed:student-attendance": "node scripts/runStudentAttendanceSeed.js",
+    "check:coordinator": "node scripts/checkAndAssignCoordinator.js",
+    "expand:student-attendance": "node scripts/expandStudentAttendanceData.js"
   },
   "keywords": [
     "nodejs",
