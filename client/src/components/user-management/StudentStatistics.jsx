@@ -22,8 +22,7 @@ const StudentStatistics = () => {
 
       // Get all students
       const response = await userAPI.getUsers({
-        role: 'Student',
-        limit: 1000
+        role: 'Student'
       });
 
       if (response.success) {

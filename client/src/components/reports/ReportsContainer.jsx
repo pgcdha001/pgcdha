@@ -7,6 +7,7 @@ import ReportsNavigation from './ReportsNavigation';
 import EnquiryReports from './EnquiryReports';
 import StudentAttendanceReports from './StudentAttendanceReports';
 import LectureAttendanceReports from './LectureAttendanceReports';
+import AttendanceReports from './AttendanceReports';
 import ExaminationReports from './ExaminationReports';
 import AppointmentReports from './AppointmentReports';
 import { PERMISSIONS } from '../../utils/rolePermissions';
@@ -66,6 +67,12 @@ const ReportsContainer = () => {
         return (
           <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}>
             <LectureAttendanceReports config={config} />
+          </PermissionGuard>
+        );
+      case 'attendance-reports':
+        return (
+          <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}>
+            <AttendanceReports config={config} />
           </PermissionGuard>
         );
       case 'examinations':

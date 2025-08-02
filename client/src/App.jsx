@@ -35,7 +35,6 @@ import PrincipalEnquiryManagement from './components/principal/PrincipalEnquiryM
 import AttendanceManagement from './components/attendance/AttendanceManagement';
 import AttendanceDashboard from './components/attendance/AttendanceDashboard';
 import TeacherAttendanceManagement from './components/coordinator/TeacherAttendanceManagement';
-import StudentAttendanceManagement from './components/coordinator/StudentAttendanceManagement';
 import TeacherDashboard from './components/dashboard/TeacherDashboard';
 
 // Reports
@@ -200,19 +199,6 @@ const App = () => {
                       allowedRoles={['Coordinator']}
                     >
                       <TeacherAttendanceManagement />
-                    </ProtectedRoute>
-                  </Layout>
-                </AuthenticatedRoute>
-              } />
-
-              {/* Coordinator Student Attendance */}
-              <Route path="/coordinator/student-attendance" element={
-                <AuthenticatedRoute>
-                  <Layout>
-                    <ProtectedRoute
-                      allowedRoles={['Coordinator']}
-                    >
-                      <StudentAttendanceManagement />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

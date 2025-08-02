@@ -69,7 +69,6 @@ const StudentReport = () => {
       // Build query parameters
       const params = new URLSearchParams();
       params.append('role', 'Student');
-      params.append('limit', '1000');
       
       // Add date filter parameters (only if not custom, or if custom and dates are applied)
       if (selectedDate !== 'all' && selectedDate !== 'custom') {
@@ -195,14 +194,14 @@ const StudentReport = () => {
       idx + 1,
       `${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim(),
       s.cnic || '',
-      s.email || '',
+      s.phoneNumbers?.primary || s.phoneNumber || s.phone || 'N/A',
       s.gender || 'Not specified',
       `Stage ${s.prospectusStage || 1}: ${STAGE_LABELS[(s.prospectusStage || 1) - 1] || 'Unknown'}`,
       s.receptionistRemarks && s.receptionistRemarks.length > 0 ? 
         `${s.receptionistRemarks.length} remarks` : 'No remarks'
     ]);
     autoTable(doc, {
-      head: [['#', 'Name', 'CNIC', 'Email', 'Gender', 'Stage', 'Correspondence']],
+      head: [['#', 'Name', 'CNIC', 'Phone', 'Gender', 'Stage', 'Correspondence']],
       body: tableData,
       startY: 30,
       styles: { fontSize: 10 },
@@ -257,10 +256,10 @@ const StudentReport = () => {
       '#': idx + 1,
       'Name': `${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim(),
       'CNIC': s.cnic || '',
-      'Email': s.email || '',
+      'Phone': s.phoneNumbers?.primary || s.phoneNumber || s.phone || '',
       'Gender': s.gender || 'Not specified',
-      'Primary Phone': s.phoneNumbers?.primary || s.phoneNumber || s.phone || '',
       'Secondary Phone': s.phoneNumbers?.secondary || s.secondaryPhone || '',
+      'Email': s.email || '',
       'Address': s.address || '',
       'Reference': s.reference || '',
       'Previous School': s.oldSchoolName || s.previousSchool || '',
@@ -699,7 +698,7 @@ const StudentReport = () => {
                   <th className="px-6 py-4 text-left text-sm font-bold rounded-tl-xl">#</th>
                   <th className="px-6 py-4 text-left text-sm font-bold">Name</th>
                   <th className="px-6 py-4 text-left text-sm font-bold">CNIC</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold">Email</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold">Phone</th>
                   <th className="px-6 py-4 text-left text-sm font-bold">Gender</th>
                   <th className="px-6 py-4 text-left text-sm font-bold rounded-tr-xl">Stage</th>
                 </tr>
@@ -710,7 +709,7 @@ const StudentReport = () => {
                     <td className="px-6 py-4 text-sm font-medium text-primary">{idx + 1}</td>
                     <td className="px-6 py-4 text-sm font-semibold text-primary">{`${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim()}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground font-medium">{s.cnic}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground font-medium">{s.email}</td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground font-medium">{s.phoneNumbers?.primary || s.phoneNumber || s.phone || 'N/A'}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                         (s.gender || '').toLowerCase() === 'male' ? 'bg-blue-100 text-blue-700 border border-blue-200' :

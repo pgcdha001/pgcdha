@@ -131,8 +131,7 @@ const UserList = ({
       const params = {
         search: debouncedSearchTerm,
         role: filterRole,
-        status: filterStatus,
-        limit: 1000 // Show all users by default
+        status: filterStatus
       };
 
       // Apply userType-based filtering

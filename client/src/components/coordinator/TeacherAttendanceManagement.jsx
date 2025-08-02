@@ -33,7 +33,6 @@ const TeacherAttendanceManagement = () => {
   const [remarkData, setRemarkData] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingAttendance, setSavingAttendance] = useState({});
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [currentRemark, setCurrentRemark] = useState({ lectureId: '', text: '' });
 
@@ -55,26 +54,6 @@ const TeacherAttendanceManagement = () => {
     }
   }, [selectedDate]);
 
-  // Handle escape key for modal
-  useEffect(() => {
-    const handleEscapeKey = (e) => {
-      if (e.key === 'Escape' && showRemarkModal) {
-        setShowRemarkModal(false);
-      }
-    };
-
-    if (showRemarkModal) {
-      document.addEventListener('keydown', handleEscapeKey);
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
-      document.body.style.overflow = 'unset';
-    };
-  }, [showRemarkModal]);
-
   const loadTeachers = async () => {
     try {
       setLoading(true);
@@ -88,18 +67,8 @@ const TeacherAttendanceManagement = () => {
       console.log('Teachers API response:', response);
       console.log('Response data structure:', response.data);
       
-      // Handle different response structures
-      let teachersData = [];
-      if (response.data?.data?.users) {
-        teachersData = response.data.data.users;
-      } else if (response.data?.users) {
-        teachersData = response.data.users;
-      } else if (Array.isArray(response.data?.data)) {
-        teachersData = response.data.data;
-      } else if (Array.isArray(response.data)) {
-        teachersData = response.data;
-      }
-      
+      // Ensure we always set an array
+      const teachersData = response.data?.users || response.data || [];
       const teachersArray = Array.isArray(teachersData) ? teachersData : [];
       
       console.log('Teachers data extracted:', teachersData);
@@ -119,57 +88,7 @@ const TeacherAttendanceManagement = () => {
       const response = await handleApiResponse(
         async () => api.get(`/timetable/teacher/${teacherId}/date/${selectedDate}`)
       );
-      
-      console.log('Timetable API response:', response);
-      console.log('Response data structure:', response.data);
-      console.log('Response data type:', typeof response.data);
-      console.log('Is response.data an array?', Array.isArray(response.data));
-      console.log('Response.data.data:', response.data?.data);
-      console.log('Is response.data.data an array?', Array.isArray(response.data?.data));
-      
-      // Handle the timetable API response structure
-      let lectures = [];
-      
-      // The timetable API returns: { success: true, data: lecturesArray, teacher: {...}, date: "...", dayOfWeek: "..." }
-      // So lectures should be in response.data.data
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        lectures = response.data.data;
-        console.log('✅ Using nested data response (correct structure)');
-      } else if (Array.isArray(response.data)) {
-        // Fallback: direct array response
-        lectures = response.data;
-        console.log('⚠️ Using direct array response (fallback)');
-      } else if (response.data && typeof response.data === 'object') {
-        console.log('❌ Unexpected timetable response structure:', response.data);
-        // Try to find lectures in various possible locations
-        if (response.data.lectures && Array.isArray(response.data.lectures)) {
-          lectures = response.data.lectures;
-          console.log('Found lectures in response.data.lectures');
-        } else if (response.data.timetable && Array.isArray(response.data.timetable)) {
-          lectures = response.data.timetable;
-          console.log('Found lectures in response.data.timetable');
-        } else {
-          console.log('No lectures array found in response');
-          lectures = [];
-        }
-      } else {
-        console.log('❌ Invalid response structure');
-        lectures = [];
-      }
-      
-      console.log('Processed lectures data:', lectures);
-      console.log('Lectures count:', lectures.length);
-      console.log('Is lectures an array?', Array.isArray(lectures));
-      
-      // Safety check before grouping
-      if (!Array.isArray(lectures)) {
-        console.error('❌ Lectures is not an array:', lectures);
-        setTeacherLectures(prev => ({
-          ...prev,
-          [teacherId]: {}
-        }));
-        return;
-      }
+      const lectures = response.data || [];
       
       // Group lectures by class
       const groupedLectures = lectures.reduce((acc, lecture) => {
@@ -205,20 +124,8 @@ const TeacherAttendanceManagement = () => {
       const attendanceMap = {};
       const remarksMap = {};
       
-      // Handle different response structures
-      let attendanceRecords = [];
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        attendanceRecords = response.data.data;
-      } else if (Array.isArray(response.data)) {
-        attendanceRecords = response.data;
-      } else if (response.data && typeof response.data === 'object') {
-        // If response.data is an object but not an array, it might be empty or have a different structure
-        console.log('Unexpected response structure:', response.data);
-        attendanceRecords = [];
-      }
-      
-      attendanceRecords.forEach(record => {
-        const key = `${record.teacherId?._id || record.teacherId}_${record.timetableId?._id || record.timetableId}`;
+      response.data.forEach(record => {
+        const key = `${record.teacherId}_${record.timetableId}`;
         attendanceMap[key] = record.status;
         if (record.coordinatorRemarks) {
           remarksMap[key] = record.coordinatorRemarks;
@@ -233,76 +140,22 @@ const TeacherAttendanceManagement = () => {
   };
 
   const handleTeacherClick = async (teacherId) => {
-    console.log('Teacher clicked:', teacherId);
-    console.log('Selected date:', selectedDate);
-    
     if (expandedTeacher === teacherId) {
       setExpandedTeacher(null);
     } else {
       setExpandedTeacher(teacherId);
       if (!teacherLectures[teacherId]) {
-        console.log('Loading lectures for teacher:', teacherId);
         await loadTeacherLectures(teacherId);
-      } else {
-        console.log('Using cached lectures for teacher:', teacherId);
       }
     }
   };
 
-  const handleAttendanceChange = async (teacherId, lectureId, status) => {
+  const handleAttendanceChange = (teacherId, lectureId, status) => {
     const key = `${teacherId}_${lectureId}`;
-    
-    // Set saving state for this specific lecture
-    setSavingAttendance(prev => ({ ...prev, [key]: true }));
-    
-    // Update local state immediately for UI responsiveness
     setAttendanceData(prev => ({
       ...prev,
       [key]: status
     }));
-
-    // Auto-save to database immediately
-    try {
-      const attendanceRecord = {
-        teacherId,
-        timetableId: lectureId,
-        status,
-        coordinatorRemarks: remarkData[key] || '',
-        date: selectedDate
-      };
-
-      console.log('Auto-saving attendance:', attendanceRecord);
-
-      await handleApiResponse(
-        async () => api.post('/teacher-attendance/coordinator/mark', {
-          attendanceRecords: [attendanceRecord]
-        }),
-        {
-          successMessage: `Attendance marked as ${status}`,
-          errorMessage: 'Failed to save attendance'
-        }
-      );
-
-      console.log(`✅ Auto-saved attendance: ${status} for lecture ${lectureId}`);
-    } catch (error) {
-      console.error('❌ Failed to auto-save attendance:', error);
-      // Revert local state on error
-      setAttendanceData(prev => {
-        const newState = { ...prev };
-        delete newState[key];
-        return newState;
-      });
-      
-      // Show error feedback
-      toast.error('Failed to save attendance. Please try again.');
-    } finally {
-      // Clear saving state
-      setSavingAttendance(prev => {
-        const newState = { ...prev };
-        delete newState[key];
-        return newState;
-      });
-    }
   };
 
   const openRemarkModal = (teacherId, lectureId) => {
@@ -314,74 +167,19 @@ const TeacherAttendanceManagement = () => {
     setShowRemarkModal(true);
   };
 
-  const saveRemark = async () => {
-    try {
-      // Update local state
-      setRemarkData(prev => ({
-        ...prev,
-        [currentRemark.lectureId]: currentRemark.text
-      }));
-
-      // Save remark to database (create attendance record if doesn't exist)
-      const [teacherId, lectureId] = currentRemark.lectureId.split('_');
-      const existingStatus = attendanceData[currentRemark.lectureId] || 'On Time'; // Default to On Time if no status set
-      
-      const attendanceRecord = {
-        teacherId,
-        timetableId: lectureId,
-        status: existingStatus,
-        coordinatorRemarks: currentRemark.text,
-        date: selectedDate
-      };
-
-      console.log('Saving remark with attendance:', attendanceRecord);
-
-      await handleApiResponse(
-        async () => api.post('/teacher-attendance/coordinator/mark', {
-          attendanceRecords: [attendanceRecord]
-        }),
-        {
-          successMessage: 'Remark saved successfully',
-          errorMessage: 'Failed to save remark'
-        }
-      );
-
-      // Update attendance data if it wasn't set before
-      if (!attendanceData[currentRemark.lectureId]) {
-        setAttendanceData(prev => ({
-          ...prev,
-          [currentRemark.lectureId]: existingStatus
-        }));
-      }
-
-      // Close modal and reset
-      setShowRemarkModal(false);
-      setCurrentRemark({ lectureId: '', text: '' });
-    } catch (error) {
-      console.error('Failed to save remark:', error);
-      // Revert local state on error
-      setRemarkData(prev => {
-        const newState = { ...prev };
-        delete newState[currentRemark.lectureId];
-        return newState;
-      });
-    }
+  const saveRemark = () => {
+    setRemarkData(prev => ({
+      ...prev,
+      [currentRemark.lectureId]: currentRemark.text
+    }));
+    setShowRemarkModal(false);
+    setCurrentRemark({ lectureId: '', text: '' });
   };
 
-  // Handle keyboard shortcuts for modal
-  const handleModalKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      setShowRemarkModal(false);
-    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      saveRemark();
-    }
-  };
-
-  const syncAllAttendance = async () => {
+  const saveAllAttendance = async () => {
     try {
       setSaving(true);
       
-      // Get all unsaved attendance records (this is now mainly for backup/sync)
       const attendanceRecords = [];
       
       Object.entries(attendanceData).forEach(([key, status]) => {
@@ -391,31 +189,24 @@ const TeacherAttendanceManagement = () => {
           timetableId: lectureId,
           status,
           coordinatorRemarks: remarkData[key] || '',
-          date: selectedDate
+          date: selectedDate,
+          markedBy: user._id
         });
       });
 
-      if (attendanceRecords.length === 0) {
-        toast.info('No attendance data to sync');
-        return;
-      }
-
-      console.log('Syncing all attendance records:', attendanceRecords);
-
-      await handleApiResponse(
+      const response = await handleApiResponse(
         async () => api.post('/teacher-attendance/coordinator/mark', {
           attendanceRecords
         }),
         {
-          successMessage: `Synced ${attendanceRecords.length} attendance records`,
-          errorMessage: 'Failed to sync attendance data'
+          successMessage: 'Attendance saved successfully'
         }
       );
 
-      // Refresh data to ensure consistency
+      // Refresh data
       await loadTeacherAttendanceData();
     } catch (error) {
-      console.error('Error syncing attendance:', error);
+      console.error('Error saving attendance:', error);
     } finally {
       setSaving(false);
     }
@@ -484,20 +275,12 @@ const TeacherAttendanceManagement = () => {
             
             <div className="flex gap-3">
               <Button
-                onClick={syncAllAttendance}
-                disabled={saving}
+                onClick={saveAllAttendance}
+                disabled={saving || Object.keys(attendanceData).length === 0}
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Syncing...' : 'Sync All Data'}
-              </Button>
-              <Button
-                onClick={() => loadTeacherAttendanceData()}
-                disabled={loading}
-                className="bg-gray-600 hover:bg-gray-700 text-white"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Refresh Data
+                {saving ? 'Saving...' : 'Save All Attendance'}
               </Button>
             </div>
           </div>
@@ -634,52 +417,37 @@ const TeacherAttendanceManagement = () => {
                                       <div className="flex gap-2">
                                         <button
                                           onClick={() => handleAttendanceChange(teacherId, lecture._id, 'On Time')}
-                                          disabled={savingAttendance[lectureKey]}
-                                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                                             currentStatus === 'On Time'
                                               ? 'bg-green-600 text-white'
                                               : 'bg-gray-200 text-gray-700 hover:bg-green-100'
                                           }`}
                                         >
-                                          {savingAttendance[lectureKey] && currentStatus === 'On Time' ? (
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                          ) : (
-                                            <CheckCircle className="h-4 w-4" />
-                                          )}
+                                          <CheckCircle className="h-4 w-4" />
                                           Present
                                         </button>
                                         
                                         <button
                                           onClick={() => handleAttendanceChange(teacherId, lecture._id, 'Late')}
-                                          disabled={savingAttendance[lectureKey]}
-                                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                                             currentStatus === 'Late'
                                               ? 'bg-orange-600 text-white'
                                               : 'bg-gray-200 text-gray-700 hover:bg-orange-100'
                                           }`}
                                         >
-                                          {savingAttendance[lectureKey] && currentStatus === 'Late' ? (
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                          ) : (
-                                            <Clock className="h-4 w-4" />
-                                          )}
+                                          <Clock className="h-4 w-4" />
                                           Late
                                         </button>
                                         
                                         <button
                                           onClick={() => handleAttendanceChange(teacherId, lecture._id, 'Absent')}
-                                          disabled={savingAttendance[lectureKey]}
-                                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                                             currentStatus === 'Absent'
                                               ? 'bg-red-600 text-white'
                                               : 'bg-gray-200 text-gray-700 hover:bg-red-100'
                                           }`}
                                         >
-                                          {savingAttendance[lectureKey] && currentStatus === 'Absent' ? (
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                          ) : (
-                                            <XCircle className="h-4 w-4" />
-                                          )}
+                                          <XCircle className="h-4 w-4" />
                                           Absent
                                         </button>
                                       </div>
@@ -724,76 +492,52 @@ const TeacherAttendanceManagement = () => {
 
       {/* Remark Modal */}
       {showRemarkModal && (
-        <div 
-          className="fixed inset-0 z-[9999] overflow-y-auto"
-          style={{ zIndex: 9999 }}
-        >
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-            onClick={() => setShowRemarkModal(false)}
-            aria-hidden="true"
-          />
-          
-          {/* Modal Container */}
-          <div className="flex min-h-screen items-center justify-center p-4">
-            {/* Modal Content */}
-            <div 
-              className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-auto transform transition-all"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-blue-600" />
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <MessageSquare className="h-6 w-6 text-blue-600" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Add Coordinator Remark
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowRemarkModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <XCircle className="h-6 w-6" />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="p-6">
-                <textarea
-                  value={currentRemark.text}
-                  onChange={(e) => setCurrentRemark(prev => ({ ...prev, text: e.target.value }))}
-                  onKeyDown={handleModalKeyDown}
-                  placeholder="Enter your remark about this lecture..."
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                  maxLength={500}
-                  autoFocus
-                />
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-xs text-gray-500">
-                    {currentRemark.text.length}/500 characters
-                  </p>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Add Coordinator Remark
+                    </h3>
+                    <div className="mt-4">
+                      <textarea
+                        value={currentRemark.text}
+                        onChange={(e) => setCurrentRemark(prev => ({ ...prev, text: e.target.value }))}
+                        placeholder="Enter your remark about this lecture..."
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        maxLength={500}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currentRemark.text.length}/500 characters
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-                <button
-                  type="button"
-                  onClick={() => setShowRemarkModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                >
-                  Cancel
-                </button>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
                   onClick={saveRemark}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Save Remark
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRemarkModal(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
