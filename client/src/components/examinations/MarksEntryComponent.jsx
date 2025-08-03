@@ -26,7 +26,7 @@ const MarksEntryComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showMarksForm, setShowMarksForm] = useState(false);
   
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -36,22 +36,48 @@ const MarksEntryComponent = () => {
   const fetchAssignedTests = async () => {
     setLoading(true);
     try {
+      console.log('Fetching tests for teacher ID:', user.id);
       // Fetch tests assigned to current teacher
-      const response = await api.get(`/examinations/tests?assignedTeacher=${user.id}&isPublished=true`);
+      const response = await api.get(`/examinations/tests?teacherId=${user.id}&isPublished=true`);
+      console.log('API Response:', response.data);
       const tests = response.data?.data || [];
+      console.log('Found tests:', tests.length);
+      
+      if (tests.length > 0) {
+        console.log('Sample test:', tests[0]);
+        console.log('Sample test assignedTeacher:', tests[0].assignedTeacher);
+      }
       
       // Filter tests that are past their test date but within marks entry deadline
+      // For now, let's show all assigned tests for debugging
+      const testsRequiringMarks = tests; // Remove date filtering temporarily
+      
+      /*
       const testsRequiringMarks = tests.filter(test => {
         const testDate = new Date(test.testDate);
         const marksDeadline = new Date(test.marksEntryDeadline || testDate.getTime() + 7 * 24 * 60 * 60 * 1000);
         const now = new Date();
-        return testDate < now && marksDeadline > now;
+        const isPastTestDate = testDate < now;
+        const isWithinDeadline = marksDeadline > now;
+        
+        console.log(`Test ${test.title}:`, {
+          testDate: testDate.toISOString(),
+          marksDeadline: marksDeadline.toISOString(),
+          now: now.toISOString(),
+          isPastTestDate,
+          isWithinDeadline,
+          shouldInclude: isPastTestDate && isWithinDeadline
+        });
+        
+        return isPastTestDate && isWithinDeadline;
       });
+      */
       
+      console.log('Tests requiring marks entry:', testsRequiringMarks.length);
       setAssignedTests(testsRequiringMarks);
     } catch (error) {
       console.error('Error fetching assigned tests:', error);
-      showToast('Failed to fetch assigned tests', 'error');
+      toast.error('Failed to fetch assigned tests');
     } finally {
       setLoading(false);
     }
@@ -88,7 +114,7 @@ const MarksEntryComponent = () => {
       setShowMarksForm(true);
     } catch (error) {
       console.error('Error fetching test data:', error);
-      showToast('Failed to fetch test data', 'error');
+      toast.error('Failed to fetch test data');
     } finally {
       setLoading(false);
     }
@@ -117,7 +143,7 @@ const MarksEntryComponent = () => {
       );
       
       if (invalidEntries.length > 0) {
-        showToast('Please enter valid marks for all students or mark them as absent', 'error');
+        toast.error('Please enter valid marks for all students or mark them as absent');
         setSaving(false);
         return;
       }
@@ -138,14 +164,14 @@ const MarksEntryComponent = () => {
       });
       
       if (response.data.success) {
-        showToast('Marks entered successfully!', 'success');
+        toast.success('Marks entered successfully!');
         setShowMarksForm(false);
         setSelectedTest(null);
         fetchAssignedTests(); // Refresh the list
       }
     } catch (error) {
       console.error('Error submitting marks:', error);
-      showToast('Failed to submit marks', 'error');
+      toast.error('Failed to submit marks');
     } finally {
       setSaving(false);
     }

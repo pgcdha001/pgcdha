@@ -829,11 +829,12 @@ router.get('/monthly-stats', asyncHandler(async (req, res) => {
     for (const month of months) {
       const monthData = {};
       
-      // Get statistics for each level (1-5)
+      // Get statistics for each level (1-5) with cumulative counting
       for (let level = 1; level <= 5; level++) {
+        // Count students who are at this level OR HIGHER
         const count = await User.countDocuments({
           role: 'Student',
-          prospectusStage: level,
+          prospectusStage: { $gte: level }, // Greater than or equal to this level
           createdOn: {
             $gte: month.start,
             $lte: month.end
@@ -844,7 +845,7 @@ router.get('/monthly-stats', asyncHandler(async (req, res) => {
       }
       
       monthlyData[month.name] = monthData;
-      console.log(`${month.name} data:`, monthData);
+      console.log(`${month.name} data (cumulative):`, monthData);
     }
 
     console.log('Final monthly data structure:', JSON.stringify(monthlyData, null, 2));
@@ -864,6 +865,135 @@ router.get('/monthly-stats', asyncHandler(async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch monthly statistics',
+      error: error.message
+    });
+  }
+}));
+
+/**
+ * @route   GET /api/enquiries/daily-stats
+ * @desc    Get daily statistics for a specific month
+ * @access  Private (Principal, InstituteAdmin)
+ */
+router.get('/daily-stats', asyncHandler(async (req, res) => {
+  console.log('Daily stats requested by user:', req.user.email, 'Role:', req.user.role);
+  
+  // Check if user is Principal or InstituteAdmin
+  if (req.user.role !== 'Principal' && req.user.role !== 'InstituteAdmin') {
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. Principal privileges required. Your role: ${req.user.role}`
+    });
+  }
+
+  try {
+    const { month, year } = req.query;
+    
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Month and year parameters are required'
+      });
+    }
+
+    // Convert month name to month number
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    const monthIndex = monthNames.findIndex(name => 
+      name.toLowerCase() === month.toLowerCase()
+    );
+    
+    if (monthIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid month name provided'
+      });
+    }
+
+    const yearNum = parseInt(year);
+    const monthStart = new Date(yearNum, monthIndex, 1);
+    const monthEnd = new Date(yearNum, monthIndex + 1, 0, 23, 59, 59, 999);
+    
+    // Get the number of days in the month
+    const daysInMonth = new Date(yearNum, monthIndex + 1, 0).getDate();
+    
+    console.log(`Fetching daily data for ${month} ${year} (${daysInMonth} days)`);
+    
+    // Use a single aggregation query to get all data at once
+    const pipeline = [
+      {
+        $match: {
+          role: 'Student',
+          createdOn: {
+            $gte: monthStart,
+            $lte: monthEnd
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            day: { $dayOfMonth: '$createdOn' },
+            level: '$prospectusStage'
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ];
+    
+    const results = await User.aggregate(pipeline);
+    console.log('Aggregation results:', results);
+    
+    // Initialize daily data structure
+    const dailyData = {};
+    
+    // Initialize all days with zero counts
+    for (let day = 1; day <= daysInMonth; day++) {
+      dailyData[day] = {
+        level1: 0,
+        level2: 0,
+        level3: 0,
+        level4: 0,
+        level5: 0
+      };
+    }
+    
+    // Fill in the actual counts from aggregation results with cumulative logic
+    results.forEach(result => {
+      const day = result._id.day;
+      const studentLevel = result._id.level;
+      const count = result.count;
+      
+      if (day >= 1 && day <= daysInMonth && studentLevel >= 1 && studentLevel <= 5) {
+        // Add this count to all levels from 1 up to the student's level
+        for (let level = 1; level <= studentLevel; level++) {
+          dailyData[day][`level${level}`] += count;
+        }
+      }
+    });
+
+    console.log(`Daily data for ${month} ${year}:`, dailyData);
+
+    res.json({
+      success: true,
+      data: {
+        month,
+        year: yearNum,
+        dailyData,
+        totalDays: daysInMonth
+      },
+      message: 'Daily statistics retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('Error fetching daily stats:', error);
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch daily statistics',
       error: error.message
     });
   }

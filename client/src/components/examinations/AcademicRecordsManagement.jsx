@@ -376,13 +376,6 @@ const AcademicRecordsManagement = () => {
               <option value="11th">11th Grade</option>
               <option value="12th">12th Grade</option>
             </select>
-
-            <PermissionGuard permission={PERMISSIONS.EXAMINATION.MANAGE_ACADEMIC_RECORDS}>
-              <Button className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Bulk Import
-              </Button>
-            </PermissionGuard>
           </div>
         </div>
 

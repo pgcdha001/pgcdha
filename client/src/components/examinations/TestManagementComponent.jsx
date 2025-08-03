@@ -28,6 +28,23 @@ const TestManagementComponent = () => {
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Helper function to safely render teachers
+  const renderTeacherOptions = () => {
+    if (!Array.isArray(teachers)) {
+      console.warn('Teachers is not an array:', teachers);
+      return null;
+    }
+    if (teachers.length === 0) {
+      console.log('No teachers found - this might be normal if no teachers exist in the system');
+      return null;
+    }
+    return teachers.map(teacher => (
+      <option key={teacher._id} value={teacher._id}>
+        {teacher.name || `${teacher.fullName?.firstName} ${teacher.fullName?.lastName}` || 'Unknown Teacher'}
+      </option>
+    ));
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedSubject, setSelectedSubject] = useState('all');
@@ -53,7 +70,7 @@ const TestManagementComponent = () => {
     autoCalculateGrades: true
   });
 
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const subjects = [
     'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science',
@@ -80,10 +97,16 @@ const TestManagementComponent = () => {
       };
 
       const response = await api.get('/examinations/tests', { params });
-      setTests(response.data?.data || []);
+      console.log('Fetched tests response:', response.data);
+      const testsData = response.data?.data || [];
+      console.log('Tests data:', testsData);
+      if (testsData.length > 0) {
+        console.log('Sample test assignedTeacher:', testsData[0].assignedTeacher);
+      }
+      setTests(testsData);
     } catch (error) {
       console.error('Error fetching tests:', error);
-      showToast('Failed to fetch tests', 'error');
+      toast.error('Failed to fetch tests');
     } finally {
       setLoading(false);
     }
@@ -91,47 +114,97 @@ const TestManagementComponent = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await api.get('/classes');
-      setClasses(response.data?.data || []);
+      console.log('Fetching classes...');
+      const response = await api.get('/classes?limit=100');
+      console.log('Classes API response:', response.data);
+      
+      // Classes API returns data directly in classes key
+      const classesData = response.data?.classes || [];
+      console.log('Raw classes data:', classesData);
+      
+      if (Array.isArray(classesData)) {
+        console.log('Found classes:', classesData.length);
+        console.log('First few classes:', classesData.slice(0, 3));
+        setClasses(classesData);
+      } else {
+        console.log('Classes data is not an array:', typeof classesData, classesData);
+        setClasses([]);
+      }
     } catch (error) {
       console.error('Error fetching classes:', error);
+      console.error('Error details:', error.response?.data);
+      setClasses([]); // Ensure it's always an array
     }
   };
 
   const fetchTeachers = async () => {
     try {
-      const response = await api.get('/users?role=Teacher');
-      setTeachers(response.data?.data || []);
+      console.log('Fetching teachers...');
+      
+      // First, let's try to get all users to see what's available
+      const allUsersResponse = await api.get('/users?limit=100');
+      console.log('All users API response:', allUsersResponse.data);
+      
+      // Then try to get teachers specifically
+      const response = await api.get('/users?role=Teacher&limit=100');
+      console.log('Teachers API response:', response.data);
+      
+      // Users API returns data in nested structure: data.users
+      const usersData = response.data?.data?.users || [];
+      console.log('Raw users data:', usersData);
+      
+      if (Array.isArray(usersData)) {
+        console.log('Found users:', usersData.length);
+        console.log('First few users:', usersData.slice(0, 3));
+        setTeachers(usersData);
+      } else {
+        console.log('Users data is not an array:', typeof usersData, usersData);
+        setTeachers([]);
+      }
     } catch (error) {
       console.error('Error fetching teachers:', error);
+      console.error('Error details:', error.response?.data);
+      setTeachers([]); // Ensure it's always an array
     }
   };
 
   const handleCreateTest = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/examinations/tests', formData);
-      showToast('Test created successfully', 'success');
+      // Clean up formData before sending
+      const cleanedFormData = {
+        ...formData,
+        assignedTeacher: formData.assignedTeacher || undefined // Convert empty string to undefined
+      };
+      console.log('Creating test with formData:', cleanedFormData);
+      const response = await api.post('/examinations/tests', cleanedFormData);
+      console.log('Test creation response:', response.data);
+      toast.success('Test created successfully');
       setShowCreateModal(false);
       resetForm();
       fetchTests();
     } catch (error) {
       console.error('Error creating test:', error);
-      showToast(error.response?.data?.message || 'Failed to create test', 'error');
+      toast.error(error.response?.data?.message || 'Failed to create test');
     }
   };
 
   const handleUpdateTest = async (e) => {
     e.preventDefault();
     try {
-      await api.put(`/examinations/tests/${selectedTest._id}`, formData);
-      showToast('Test updated successfully', 'success');
+      // Clean up formData before sending
+      const cleanedFormData = {
+        ...formData,
+        assignedTeacher: formData.assignedTeacher || undefined // Convert empty string to undefined
+      };
+      await api.put(`/examinations/tests/${selectedTest._id}`, cleanedFormData);
+      toast.success('Test updated successfully');
       setShowEditModal(false);
       resetForm();
       fetchTests();
     } catch (error) {
       console.error('Error updating test:', error);
-      showToast(error.response?.data?.message || 'Failed to update test', 'error');
+      toast.error(error.response?.data?.message || 'Failed to update test');
     }
   };
 
@@ -140,11 +213,11 @@ const TestManagementComponent = () => {
     
     try {
       await api.delete(`/examinations/tests/${testId}`);
-      showToast('Test deleted successfully', 'success');
+      toast.success('Test deleted successfully');
       fetchTests();
     } catch (error) {
       console.error('Error deleting test:', error);
-      showToast(error.response?.data?.message || 'Failed to delete test', 'error');
+      toast.error(error.response?.data?.message || 'Failed to delete test');
     }
   };
 
@@ -365,7 +438,9 @@ const TestManagementComponent = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 flex items-center">
                           <User className="h-4 w-4 mr-1" />
-                          {test.assignedTeacher?.name || 'Not assigned'}
+                          {test.assignedTeacher?.fullName 
+                            ? `${test.assignedTeacher.fullName.firstName} ${test.assignedTeacher.fullName.lastName}` 
+                            : 'Not assigned'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -541,11 +616,7 @@ const TestManagementComponent = () => {
                     onChange={(e) => setFormData({...formData, assignedTeacher: e.target.value})}
                   >
                     <option value="">Select Teacher</option>
-                    {teachers.map(teacher => (
-                      <option key={teacher._id} value={teacher._id}>
-                        {teacher.name}
-                      </option>
-                    ))}
+                    {renderTeacherOptions()}
                   </select>
                 </div>
 
@@ -763,11 +834,7 @@ const TestManagementComponent = () => {
                     onChange={(e) => setFormData({...formData, assignedTeacher: e.target.value})}
                   >
                     <option value="">Select Teacher</option>
-                    {teachers.map(teacher => (
-                      <option key={teacher._id} value={teacher._id}>
-                        {teacher.name}
-                      </option>
-                    ))}
+                    {renderTeacherOptions()}
                   </select>
                 </div>
 

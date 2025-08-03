@@ -18,13 +18,23 @@ const AdvancedStatsTable = ({ data, loading }) => {
   const fetchDailyData = async (month, year) => {
     try {
       setLoadingDaily(true);
+      console.log('Fetching daily data for:', month, year);
       
       const response = await api.get(`/enquiries/daily-stats?month=${month}&year=${year}`);
+      console.log('Daily data API response:', response.data);
       
       if (response.data.success) {
-        setDailyData(response.data.data.dailyData);
+        const dailyData = response.data.data.dailyData;
+        console.log('Daily data received successfully, days with data:', 
+          Object.keys(dailyData).filter(day => {
+            const dayData = dailyData[day];
+            const total = Object.values(dayData).reduce((sum, val) => sum + (val || 0), 0);
+            return total > 0;
+          })
+        );
+        setDailyData(dailyData);
       } else {
-        console.error('Failed to fetch daily data');
+        console.error('Failed to fetch daily data:', response.data);
         setDailyData({});
       }
     } catch (err) {
@@ -311,6 +321,11 @@ const AdvancedStatsTable = ({ data, loading }) => {
                             const dayData = dailyData[day] || {};
                             const dayTotal = Object.values(dayData).reduce((sum, val) => sum + (val || 0), 0);
                             
+                            // Log only days with data for debugging
+                            if (dayTotal > 0) {
+                              console.log(`Day ${day} has data:`, dayData, 'Total:', dayTotal);
+                            }
+                            
                             // Skip days with no data
                             if (dayTotal === 0) return null;
                             
@@ -330,9 +345,25 @@ const AdvancedStatsTable = ({ data, loading }) => {
                               </tr>
                             );
                           }).filter(Boolean)}
+                          {/* Debug: Check if any rows are being generated */}
+                          {(() => {
+                            const rows = Array.from({ length: 31 }, (_, i) => {
+                              const day = i + 1;
+                              const dayData = dailyData[day] || {};
+                              const dayTotal = Object.values(dayData).reduce((sum, val) => sum + (val || 0), 0);
+                              return dayTotal > 0 ? day : null;
+                            }).filter(Boolean);
+                            console.log('Days with data:', rows);
+                            return null;
+                          })()}
                         </tbody>
                       </table>
                     </div>
+                    
+                    {/* Debug info */}
+                    {console.log('Rendering - Current dailyData keys:', Object.keys(dailyData))}
+                    {console.log('Rendering - Current dailyData:', dailyData)}
+                    {console.log('Rendering - loadingDaily:', loadingDaily)}
                     
                     {Object.keys(dailyData).length === 0 && !loadingDaily && (
                       <div className="p-8 text-center text-gray-500">

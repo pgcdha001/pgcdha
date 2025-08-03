@@ -178,7 +178,7 @@ router.post('/tests', authenticate, requireExaminationAccess('create_test'), asy
     
     // Auto-assign teacher if not provided
     let finalAssignedTeacher = assignedTeacher;
-    if (!finalAssignedTeacher) {
+    if (!finalAssignedTeacher || finalAssignedTeacher === '') {
       const autoAssignedTeacher = await User.findOne({
         role: 'Teacher',
         'teachers.classId': classId,
@@ -259,7 +259,14 @@ router.put('/tests/:id', authenticate, requireExaminationAccess('edit_test'), as
       Object.assign(test, updateFields);
     } else {
       // Update all fields if no results exist
-      Object.assign(test, req.body);
+      const updatedData = { ...req.body };
+      
+      // Handle empty assignedTeacher
+      if (updatedData.assignedTeacher === '') {
+        updatedData.assignedTeacher = null;
+      }
+      
+      Object.assign(test, updatedData);
     }
     
     await test.save();

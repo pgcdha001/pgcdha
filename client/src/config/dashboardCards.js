@@ -265,6 +265,17 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.EXAMINATION.CREATE_TEST,
       recentActivity: null,
       todayCount: null
+    },
+    {
+      id: 'academic-records-management',
+      title: 'Academic Records',
+      href: '/examinations?tab=academic-records',
+      icon: 'BookOpen',
+      bgGradient: 'from-red-500 to-red-600',
+      type: 'normal',
+      permission: PERMISSIONS.EXAMINATION.MANAGE_ACADEMIC_RECORDS,
+      recentActivity: null,
+      todayCount: null
     }
   ],
 
@@ -532,6 +543,20 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'Calendar',
       description: 'Manage timetables and schedules',
       permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
+    },
+    {
+      title: 'Test Management',
+      href: '/examinations',
+      icon: 'GraduationCap',
+      description: 'Create and manage tests',
+      permission: PERMISSIONS.EXAMINATION.CREATE_TEST
+    },
+    {
+      title: 'Academic Records',
+      href: '/examinations?tab=academic-records',
+      icon: 'BookOpen',
+      description: 'Manage student matriculation marks and academic records',
+      permission: PERMISSIONS.EXAMINATION.MANAGE_ACADEMIC_RECORDS
     }
   ],
 
