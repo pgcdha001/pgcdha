@@ -149,10 +149,10 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
     },
     {
-      id: 'attendance-analytics',
-      title: 'Attendance Analytics',
-      href: '/reports?section=attendance',
-      icon: 'TrendingUp',
+      id: 'attendance-reports',
+      title: 'Attendance Reports',
+      href: '/principal/attendance-reports',
+      icon: 'UserCheck',
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
@@ -567,6 +567,13 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'BarChart3',
       description: 'View enquiry statistics and analytics',
       permission: null
+    },
+    {
+      title: 'Attendance Reports',
+      href: '/principal/attendance-reports',
+      icon: 'TrendingUp',
+      description: 'View teacher attendance reports and analytics',
+      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
     },
     {
       title: 'Correspondence Management',
