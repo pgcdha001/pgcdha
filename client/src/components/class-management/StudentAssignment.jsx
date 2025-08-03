@@ -191,6 +191,62 @@ const StudentAssignment = () => {
     }
   };
 
+  const handleBulkUnassignStudents = async () => {
+    const assignedSelectedStudents = selectedStudents.filter(studentId => {
+      const student = students.find(s => s._id === studentId);
+      return student && student.classId;
+    });
+
+    if (assignedSelectedStudents.length === 0) {
+      alert('No assigned students selected for unassignment.');
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to unassign ${assignedSelectedStudents.length} selected students from their classes?`)) {
+      try {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const studentId of assignedSelectedStudents) {
+          try {
+            const response = await api.post(`/students/${studentId}/unassign-class`);
+            if (response.data.success) {
+              successCount++;
+              // Update local state
+              setStudents(students.map(student => 
+                student._id === studentId 
+                  ? { ...student, classId: null, rollNumber: null }
+                  : student
+              ));
+            } else {
+              errorCount++;
+            }
+          } catch (error) {
+            console.error(`Error unassigning student ${studentId}:`, error);
+            errorCount++;
+          }
+        }
+
+        // Refresh classes to update student count
+        await fetchClasses();
+
+        // Clear selection after bulk operation
+        setSelectedStudents([]);
+
+        if (successCount > 0 && errorCount === 0) {
+          alert(`Successfully unassigned ${successCount} students from their classes.`);
+        } else if (successCount > 0 && errorCount > 0) {
+          alert(`${successCount} students unassigned successfully, ${errorCount} failed.`);
+        } else {
+          alert('Failed to unassign students. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error in bulk unassign operation:', error);
+        alert('Failed to unassign students. Please try again.');
+      }
+    }
+  };
+
   const openIndividualAssignModal = (student) => {
     console.log('Opening assignment modal for student:', {
       id: student._id,
@@ -431,13 +487,41 @@ const StudentAssignment = () => {
             <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS}>
               <div className="flex gap-2">
                 {selectedStudents.length > 0 && (
-                  <Button
-                    onClick={() => setShowBulkAssign(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <UserPlus className="h-5 w-5 mr-2" />
-                    Assign {selectedStudents.length} Students
-                  </Button>
+                  <>
+                    {/* Check if any selected students are unassigned */}
+                    {selectedStudents.some(studentId => {
+                      const student = students.find(s => s._id === studentId);
+                      return student && !student.classId;
+                    }) && (
+                      <Button
+                        onClick={() => setShowBulkAssign(true)}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <UserPlus className="h-5 w-5 mr-2" />
+                        Assign {selectedStudents.filter(studentId => {
+                          const student = students.find(s => s._id === studentId);
+                          return student && !student.classId;
+                        }).length} Students
+                      </Button>
+                    )}
+                    
+                    {/* Check if any selected students are assigned */}
+                    {selectedStudents.some(studentId => {
+                      const student = students.find(s => s._id === studentId);
+                      return student && student.classId;
+                    }) && (
+                      <Button
+                        onClick={handleBulkUnassignStudents}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <UserMinus className="h-5 w-5 mr-2" />
+                        Unassign {selectedStudents.filter(studentId => {
+                          const student = students.find(s => s._id === studentId);
+                          return student && student.classId;
+                        }).length} Students
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </PermissionGuard>
@@ -493,10 +577,10 @@ const StudentAssignment = () => {
                     <th className="px-4 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedStudents.length === filteredStudents.filter(s => !s.classId).length && filteredStudents.filter(s => !s.classId).length > 0}
+                        checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedStudents(filteredStudents.filter(s => !s.classId).map(s => s._id));
+                            setSelectedStudents(filteredStudents.map(s => s._id));
                           } else {
                             setSelectedStudents([]);
                           }
@@ -507,6 +591,7 @@ const StudentAssignment = () => {
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Student Details</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Academic Info</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Current Class</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -518,7 +603,6 @@ const StudentAssignment = () => {
                             type="checkbox"
                             checked={selectedStudents.includes(student._id)}
                             onChange={() => toggleStudentSelection(student._id)}
-                            disabled={!!student.classId}
                             className="rounded border-gray-300"
                           />
                         </td>
@@ -590,6 +674,31 @@ const StudentAssignment = () => {
                                 ⚠ Unassigned
                               </span>
                             </div>
+                          )}
+                        </td>
+                        
+                        {/* Actions Column */}
+                        <td className="px-4 py-4">
+                          {student.classId ? (
+                            <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.ASSIGN_STUDENTS}>
+                              <button
+                                onClick={() => handleUnassignStudent(student._id)}
+                                className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Unassign from class"
+                              >
+                                <UserMinus className="h-4 w-4" />
+                                Unassign
+                              </button>
+                            </PermissionGuard>
+                          ) : (
+                            <button
+                              onClick={() => openIndividualAssignModal(student)}
+                              className="flex items-center gap-1 px-3 py-1 text-sm text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Assign to class"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                              Assign
+                            </button>
                           )}
                         </td>
                         

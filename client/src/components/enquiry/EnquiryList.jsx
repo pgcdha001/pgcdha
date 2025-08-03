@@ -47,6 +47,10 @@ const EnquiryList = ({ config }) => {
       // Build query parameters
       const params = new URLSearchParams();
       
+      // IMPORTANT: Only show students who are NOT assigned to a class
+      // Students assigned to classes should not appear in enquiry list
+      params.append('assignmentFilter', 'unassigned');
+      
       // Add date filter parameters (only if not custom, or if custom and dates are applied)
       if (selectedDate !== 'all' && selectedDate !== 'custom') {
         params.append('dateFilter', selectedDate);
@@ -63,7 +67,7 @@ const EnquiryList = ({ config }) => {
       }
       
       const queryString = params.toString();
-      const url = queryString ? `/students?${queryString}` : '/students';
+      const url = `/students?${queryString}`;
       
       const response = await api.get(url);
       // Extract the actual data array from the API response

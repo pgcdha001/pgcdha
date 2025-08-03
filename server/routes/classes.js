@@ -9,17 +9,13 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const { floor, campus, grade, program, floorIncharge } = req.query;
     
-    console.log('Classes query params:', { floor, campus, grade, program, floorIncharge });
-    
-    // Build filter
+    // Build filter - only add defined values
     const filter = { isActive: true };
-    if (floor) filter.floor = parseInt(floor);
-    if (campus) filter.campus = campus;
-    if (grade) filter.grade = grade;
-    if (program) filter.program = program;
+    if (floor && floor !== 'undefined') filter.floor = parseInt(floor);
+    if (campus && campus !== 'undefined') filter.campus = campus;
+    if (grade && grade !== 'undefined') filter.grade = grade;
+    if (program && program !== 'undefined') filter.program = program;
     if (floorIncharge && floorIncharge !== 'undefined') filter.floorIncharge = floorIncharge;
-
-    console.log('Final filter for classes query:', filter);
 
     const classes = await Class.find(filter)
       .populate('classIncharge', 'fullName userName email')
@@ -156,7 +152,7 @@ router.put('/:classId', authenticate, async (req, res) => {
     }
 
     const { classId } = req.params;
-    const { name, maxStudents, program } = req.body;
+    const { name, maxStudents, program, classIncharge, floorIncharge } = req.body;
 
     const classDoc = await Class.findById(classId);
     if (!classDoc) {
@@ -186,6 +182,8 @@ router.put('/:classId', authenticate, async (req, res) => {
     if (name !== undefined) updateData.name = name.trim();
     if (maxStudents !== undefined) updateData.maxStudents = maxStudents;
     if (program !== undefined) updateData.program = program;
+    if (classIncharge !== undefined) updateData.classIncharge = classIncharge || null;
+    if (floorIncharge !== undefined) updateData.floorIncharge = floorIncharge || null;
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: 'No valid update data provided' });
@@ -283,6 +281,51 @@ router.delete('/:classId/teachers/:teacherId', authenticate, async (req, res) =>
   } catch (error) {
     console.error('Error removing teacher from class:', error);
     res.status(500).json({ message: 'Error removing teacher from class', error: error.message });
+  }
+});
+
+// Delete an entire class
+router.delete('/:classId', authenticate, async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    // Find the class first to check if it exists
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Class not found' 
+      });
+    }
+
+    // Check if class has any students assigned
+    const studentsInClass = await User.countDocuments({ 
+      classId: classId, 
+      role: 'Student' 
+    });
+
+    if (studentsInClass > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot delete class. ${studentsInClass} students are currently assigned to this class. Please unassign students first.` 
+      });
+    }
+
+    // Delete the class
+    await Class.findByIdAndDelete(classId);
+
+    res.json({
+      success: true,
+      message: 'Class deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting class:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error deleting class', 
+      error: error.message 
+    });
   }
 });
 

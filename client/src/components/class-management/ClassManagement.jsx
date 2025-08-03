@@ -32,6 +32,7 @@ const ClassManagement = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
   const [classStudents, setClassStudents] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Form state for creating/editing classes
   const [formData, setFormData] = useState({
@@ -41,7 +42,7 @@ const ClassManagement = () => {
     program: '',
     maxStudents: 50,
     classIncharge: '',
-    assignedCoordinator: '',
+    floorIncharge: '',
     academicYear: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
   });
 
@@ -76,7 +77,8 @@ const ClassManagement = () => {
     try {
       const response = await api.get('/classes');
       // API returns { success: true, classes: [...] }
-      setClasses(response.data?.classes || []);
+      const classes = response.data?.classes || [];
+      setClasses(classes);
     } catch (error) {
       console.error('Error fetching classes:', error);
       setClasses([]); // Ensure classes is always an array
@@ -136,13 +138,54 @@ const ClassManagement = () => {
   const handleDeleteClass = async (classId) => {
     if (window.confirm('Are you sure you want to delete this class?')) {
       try {
-        await api.delete(`/classes/${classId}`);
-        setClasses((prevClasses) => (prevClasses || []).filter(cls => cls._id !== classId));
-        alert('Class deleted successfully!');
+        const response = await api.delete(`/classes/${classId}`);
+        if (response.data.success) {
+          setClasses((prevClasses) => (prevClasses || []).filter(cls => cls._id !== classId));
+          alert('Class deleted successfully!');
+        } else {
+          alert(response.data.message || 'Failed to delete class.');
+        }
       } catch (error) {
         console.error('Error deleting class:', error);
-        alert('Failed to delete class. Please try again.');
+        const errorMessage = error.response?.data?.message || 'Failed to delete class. Please try again.';
+        alert(errorMessage);
       }
+    }
+  };
+
+  const handleEditClass = (classData) => {
+    setFormData({
+      name: classData.name || '',
+      campus: classData.campus || '',
+      grade: classData.grade || '',
+      program: classData.program || '',
+      maxStudents: classData.maxStudents || 50,
+      classIncharge: classData.classIncharge || '',
+      floorIncharge: classData.floorIncharge || '',
+      academicYear: classData.academicYear || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
+    });
+    setSelectedClass(classData);
+    setIsEditing(true);
+    setShowCreateModal(true);
+  };
+
+  const handleUpdateClass = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await api.put(`/classes/${selectedClass._id}`, formData);
+      if (response.data.success) {
+        setClasses(classes.map(cls => 
+          cls._id === selectedClass._id ? response.data.class : cls
+        ));
+        setShowCreateModal(false);
+        setIsEditing(false);
+        resetForm();
+        setSelectedClass(null);
+        alert('Class updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating class:', error);
+      alert('Failed to update class. Please try again.');
     }
   };
 
@@ -160,9 +203,11 @@ const ClassManagement = () => {
       program: '',
       maxStudents: 50,
       classIncharge: '',
-      assignedCoordinator: '',
+      floorIncharge: '',
       academicYear: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
     });
+    setIsEditing(false);
+    setSelectedClass(null);
   };
 
   // Filter classes based on search and filters
@@ -185,16 +230,34 @@ const ClassManagement = () => {
     return floorNames[floor] || 'Unknown Floor';
   };
 
-  const getTeacherName = (teacherId) => {
-    if (!Array.isArray(teachers)) return 'Not Assigned';
-    const teacher = teachers.find(t => t._id === teacherId);
-    return teacher ? `${teacher.fullName?.firstName || ''} ${teacher.fullName?.lastName || ''}`.trim() : 'Not Assigned';
+  const getTeacherName = (teacher) => {
+    // If teacher is already a populated object
+    if (teacher && typeof teacher === 'object' && teacher.fullName) {
+      return `${teacher.fullName?.firstName || ''} ${teacher.fullName?.lastName || ''}`.trim();
+    }
+    
+    // If teacher is just an ID, look it up in the teachers array
+    if (typeof teacher === 'string' && Array.isArray(teachers)) {
+      const foundTeacher = teachers.find(t => t._id === teacher);
+      return foundTeacher ? `${foundTeacher.fullName?.firstName || ''} ${foundTeacher.fullName?.lastName || ''}`.trim() : 'Not Assigned';
+    }
+    
+    return 'Not Assigned';
   };
 
-  const getCoordinatorName = (coordinatorId) => {
-    if (!Array.isArray(coordinators)) return 'Not Assigned';
-    const coordinator = coordinators.find(c => c._id === coordinatorId);
-    return coordinator ? `${coordinator.fullName?.firstName || ''} ${coordinator.fullName?.lastName || ''}`.trim() : 'Not Assigned';
+  const getCoordinatorName = (coordinator) => {
+    // If coordinator is already a populated object
+    if (coordinator && typeof coordinator === 'object' && coordinator.fullName) {
+      return `${coordinator.fullName?.firstName || ''} ${coordinator.fullName?.lastName || ''}`.trim();
+    }
+    
+    // If coordinator is just an ID, look it up in the coordinators array
+    if (typeof coordinator === 'string' && Array.isArray(coordinators)) {
+      const foundCoordinator = coordinators.find(c => c._id === coordinator);
+      return foundCoordinator ? `${foundCoordinator.fullName?.firstName || ''} ${foundCoordinator.fullName?.lastName || ''}`.trim() : 'Not Assigned';
+    }
+    
+    return 'Not Assigned';
   };
 
   if (loading) {
@@ -371,7 +434,10 @@ const ClassManagement = () => {
                     </PermissionGuard>
 
                     <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.EDIT_CLASS}>
-                      <button className="flex items-center justify-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                      <button 
+                        onClick={() => handleEditClass(cls)}
+                        className="flex items-center justify-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
                         <Edit className="h-4 w-4" />
                         Edit
                       </button>
@@ -400,7 +466,9 @@ const ClassManagement = () => {
               {/* Modal Header */}
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-t-2xl">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold">Create New Class</h3>
+                  <h3 className="text-xl font-bold">
+                    {isEditing ? 'Edit Class' : 'Create New Class'}
+                  </h3>
                   <button
                     onClick={() => {
                       setShowCreateModal(false);
@@ -414,7 +482,7 @@ const ClassManagement = () => {
               </div>
 
               {/* Modal Content */}
-              <form onSubmit={handleCreateClass} className="p-6">
+              <form onSubmit={isEditing ? handleUpdateClass : handleCreateClass} className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Class Name */}
                   <div className="md:col-span-2">
@@ -527,14 +595,14 @@ const ClassManagement = () => {
                     </select>
                   </div>
 
-                  {/* Assigned Coordinator */}
+                  {/* Floor Coordinator */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Assigned Coordinator
+                      Floor Coordinator
                     </label>
                     <select
-                      value={formData.assignedCoordinator}
-                      onChange={(e) => setFormData({ ...formData, assignedCoordinator: e.target.value })}
+                      value={formData.floorIncharge}
+                      onChange={(e) => setFormData({ ...formData, floorIncharge: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select Coordinator</option>
@@ -577,7 +645,7 @@ const ClassManagement = () => {
                     type="submit"
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    Create Class
+                    {isEditing ? 'Update Class' : 'Create Class'}
                   </Button>
                 </div>
               </form>
@@ -611,7 +679,7 @@ const ClassManagement = () => {
               {/* Modal Content */}
               <div className="p-6">
                 {/* Class Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Users className="h-5 w-5 text-blue-500" />
@@ -636,6 +704,14 @@ const ClassManagement = () => {
                       <span className="font-medium">Class Incharge</span>
                     </div>
                     <p className="text-lg font-semibold">{getTeacherName(selectedClass.classIncharge)}</p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <GraduationCap className="h-5 w-5 text-orange-500" />
+                      <span className="font-medium">Floor Coordinator</span>
+                    </div>
+                    <p className="text-lg font-semibold">{getCoordinatorName(selectedClass.floorIncharge)}</p>
                   </div>
                 </div>
 
