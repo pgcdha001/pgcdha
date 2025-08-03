@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Users, Phone, Clock, RefreshCw, User, Plus } from 'lucide-react';
+import { MessageSquare, Users, Phone, Clock, RefreshCw, User, Plus, Search, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -13,27 +13,65 @@ const StaffCorrespondenceManagement = () => {
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [levelStats, setLevelStats] = useState({});
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { showToast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch correspondence data (Staff sees ONLY their own correspondence)
-  const fetchCorrespondences = async () => {
+  // Fetch correspondence data
+  const fetchCorrespondences = async (searchQuery = '') => {
     try {
       setLoading(true);
+      const userId = user?._id || user?.id;
+      console.log('Fetching correspondences for user:', userId, 'search:', searchQuery);
       
-      // Fetch all data for this staff member
+      let url = '/correspondence';
       const params = new URLSearchParams();
-      params.append('staffMember', user.id);
       
-      const queryString = params.toString();
-      const response = await api.get(`/correspondence?${queryString}`);
+      if (searchQuery.trim()) {
+        // When searching, get all correspondence and filter on frontend
+        setIsSearching(true);
+        console.log('Searching mode: fetching all correspondence');
+      } else {
+        // Default: only show correspondence by this staff member
+        params.append('staffMember', userId);
+        setIsSearching(false);
+        console.log('Default mode: fetching only user correspondence');
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      console.log('Making API call to:', url);
+      const response = await api.get(url);
+      console.log('API response:', response.data);
       
       if (response.data.success) {
-        const allData = response.data.data || [];
+        let allData = response.data.data || [];
+        console.log('Received data count:', allData.length);
+        
+        // If searching, filter the results on frontend
+        if (searchQuery.trim()) {
+          const searchLower = searchQuery.toLowerCase();
+          allData = allData.filter(item => {
+            const studentName = `${item.studentId?.fullName?.firstName || ''} ${item.studentId?.fullName?.lastName || ''}`.toLowerCase();
+            const subject = (item.subject || '').toLowerCase();
+            const message = (item.message || '').toLowerCase();
+            const staffName = (item.staffMember?.name || '').toLowerCase();
+            
+            return studentName.includes(searchLower) ||
+                   subject.includes(searchLower) ||
+                   message.includes(searchLower) ||
+                   staffName.includes(searchLower);
+          });
+          console.log('Filtered data count:', allData.length);
+        }
+        
         setAllCorrespondences(allData);
         setCorrespondences(allData); // Initially show all
         
-        // Calculate level-specific stats for this staff member
+        // Calculate level-specific stats for the filtered data
         const levelBreakdown = {};
         for (let level = 1; level <= 5; level++) {
           const levelData = allData.filter(item => item.studentLevel === level);
@@ -45,25 +83,40 @@ const StaffCorrespondenceManagement = () => {
           };
         }
         setLevelStats(levelBreakdown);
+        console.log('Level stats calculated:', levelBreakdown);
       } else {
-        showToast('Failed to fetch correspondence data', 'error');
+        console.error('API response not successful:', response.data);
+        toast.error('Failed to fetch correspondence data');
       }
     } catch (error) {
       console.error('Error fetching correspondences:', error);
-      showToast('Error loading correspondence data', 'error');
+      toast.error('Error loading correspondence data');
     } finally {
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user?.id) {
-      fetchCorrespondences();
+    const userId = user?._id || user?.id;
+    console.log('useEffect triggered - user._id:', user?._id, 'user.id:', user?.id, 'searchTerm:', searchTerm);
+    if (userId) {
+      fetchCorrespondences(searchTerm);
     }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?._id, user?.id, searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = () => {
-    fetchCorrespondences();
+    fetchCorrespondences(searchTerm);
+  };
+
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+    setSelectedLevel(null); // Reset level filter when searching
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSelectedLevel(null);
   };
 
   const handleLevelFilter = (level) => {
@@ -116,7 +169,29 @@ const StaffCorrespondenceManagement = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading correspondence...</p>
+            <p className="text-sm text-gray-500 mt-2">
+              User: {user?.fullName?.firstName} {user?.fullName?.lastName} ({user?.role})
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user?._id && !user?.id) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-gray-600">User not loaded</p>
+            <p className="text-sm text-gray-500 mt-2">Please check authentication</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Debug: user._id={user?._id}, user.id={user?.id}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -129,10 +204,13 @@ const StaffCorrespondenceManagement = () => {
         <div className="flex items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-extrabold text-primary mb-1 tracking-tight">
-              My Correspondence
+              {isSearching ? 'Search Results' : 'My Correspondence'}
             </h1>
             <p className="text-primary/80">
-              Your Communications - {user?.fullName?.firstName} {user?.fullName?.lastName} ({user?.role})
+              {isSearching 
+                ? `Showing search results for "${searchTerm}"` 
+                : `Your Communications - ${user?.fullName?.firstName} ${user?.fullName?.lastName} (${user?.role})`
+              }
             </p>
           </div>
           <div className="flex gap-4">
@@ -152,6 +230,53 @@ const StaffCorrespondenceManagement = () => {
               Refresh
             </Button>
           </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mt-6">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search students, subjects, messages, or staff members..."
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Search Status */}
+          {searchTerm && (
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {isSearching ? (
+                  <span className="text-blue-600">
+                    🔍 Searching all correspondence records
+                  </span>
+                ) : (
+                  <span className="text-gray-600">
+                    📋 Showing only your correspondence
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleClearSearch}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear Search
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -218,12 +343,14 @@ const StaffCorrespondenceManagement = () => {
         </div>
       )}
 
-      {/* Personal Stats - Simple count only */}
+      {/* Personal Stats - Context-aware */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white/60 backdrop-blur-2xl rounded-2xl shadow-lg border border-border p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">My Communications</p>
+              <p className="text-sm font-medium text-gray-600">
+                {isSearching ? 'Search Results' : 'My Communications'}
+              </p>
               <p className="text-2xl font-bold text-primary">{correspondences.length}</p>
             </div>
             <MessageSquare className="h-8 w-8 text-blue-500" />
@@ -233,7 +360,9 @@ const StaffCorrespondenceManagement = () => {
         <div className="bg-white/60 backdrop-blur-2xl rounded-2xl shadow-lg border border-border p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Students Contacted</p>
+              <p className="text-sm font-medium text-gray-600">
+                {isSearching ? 'Students Found' : 'Students Contacted'}
+              </p>
               <p className="text-2xl font-bold text-primary">
                 {new Set(correspondences.map(c => c.studentId?._id)).size}
               </p>
@@ -245,7 +374,9 @@ const StaffCorrespondenceManagement = () => {
         <div className="bg-white/60 backdrop-blur-2xl rounded-2xl shadow-lg border border-border p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Level Changes Made</p>
+              <p className="text-sm font-medium text-gray-600">
+                {isSearching ? 'Level Changes Found' : 'Level Changes Made'}
+              </p>
               <p className="text-2xl font-bold text-primary">
                 {correspondences.filter(c => c.isLevelChange).length}
               </p>
@@ -258,19 +389,37 @@ const StaffCorrespondenceManagement = () => {
       {/* Correspondence List */}
       <div className="bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-primary">My Correspondence History</h2>
+          <h2 className="text-xl font-bold text-primary">
+            {isSearching ? 'Search Results' : 'My Correspondence History'}
+          </h2>
           <div className="text-sm text-gray-600">
             {correspondences.length} {correspondences.length === 1 ? 'entry' : 'entries'}
+            {isSearching && (
+              <span className="ml-2 text-blue-600">
+                (All records searched)
+              </span>
+            )}
           </div>
         </div>
 
         {correspondences.length === 0 ? (
           <div className="text-center py-8">
             <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">You haven't created any correspondence yet</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Your communications with students will appear here
-            </p>
+            {isSearching ? (
+              <>
+                <p className="text-gray-600">No correspondence found for "{searchTerm}"</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Try searching with different keywords or clear your search to see your communications
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600">You haven't created any correspondence yet</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Your communications with students will appear here
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -307,7 +456,15 @@ const StaffCorrespondenceManagement = () => {
                   </div>
                   <div className="text-right text-sm text-gray-500">
                     <p>{formatDate(correspondence.timestamp)}</p>
-                    <p className="mt-1 text-blue-600 font-medium">by me</p>
+                    <p className="mt-1 font-medium">
+                      {isSearching ? (
+                        <span className="text-gray-600">
+                          by {correspondence.staffMember?.name || 'Unknown Staff'}
+                        </span>
+                      ) : (
+                        <span className="text-blue-600">by me</span>
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -320,7 +477,10 @@ const StaffCorrespondenceManagement = () => {
       <CreateCorrespondenceModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={handleRefresh}
+        onSuccess={() => {
+          handleRefresh();
+          setShowCreateModal(false);
+        }}
       />
     </div>
   );
