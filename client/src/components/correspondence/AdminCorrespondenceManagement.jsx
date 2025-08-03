@@ -1,8 +1,11 @@
 import React, { useState, useEffect, Fragment, useRef } from 'react';
-import { MessageSquare, TrendingUp, Users, Phone, Clock, RefreshCw, Search, User, ChevronLeft, ChevronRight, Eye, X, Calendar, Filter } from 'lucide-react';
+import { MessageSquare, TrendingUp, Users, Phone, Clock, RefreshCw, Search, User, ChevronLeft, ChevronRight, Eye, X, Calendar, Filter, Plus } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import CreateCorrespondenceModal from './CreateCorrespondenceModal';
+import PermissionGuard from '../PermissionGuard';
+import { PERMISSIONS } from '../../utils/rolePermissions';
 
 const AdminCorrespondenceManagement = () => {
   const [correspondences, setCorrespondences] = useState([]);
@@ -13,6 +16,9 @@ const AdminCorrespondenceManagement = () => {
   const [searchTerm, setSearchTerm] = useState(''); // search across communications
   const [levelStats, setLevelStats] = useState({});
   const [employeeStats, setEmployeeStats] = useState({});
+  
+  // Create correspondence modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -689,6 +695,16 @@ const AdminCorrespondenceManagement = () => {
             </p>
           </div>
           <div className="flex gap-4 relative">
+            <PermissionGuard permission={PERMISSIONS.CORRESPONDENCE.CREATE_CORRESPONDENCE}>
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Create Correspondence
+              </Button>
+            </PermissionGuard>
+            
             <div className="relative" ref={timeFilterRef}>
               <Button
                 onClick={handleTimeFilterToggle}
@@ -1622,6 +1638,13 @@ const AdminCorrespondenceManagement = () => {
           </div>
         </div>
       )}
+      
+      {/* Create Correspondence Modal */}
+      <CreateCorrespondenceModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCorrespondenceCreated={fetchCorrespondences}
+      />
     </div>
   );
 };

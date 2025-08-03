@@ -69,6 +69,7 @@ const StudentReport = () => {
       // Build query parameters
       const params = new URLSearchParams();
       params.append('role', 'Student');
+      params.append('limit', '10000'); // Set high limit to show all records (no pagination)
       
       // Add date filter parameters (only if not custom, or if custom and dates are applied)
       if (selectedDate !== 'all' && selectedDate !== 'custom') {
