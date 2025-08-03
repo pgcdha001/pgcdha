@@ -3,13 +3,11 @@ import {
   BookOpen, 
   FileText,
   GraduationCap,
-  Database,
   UserCheck,
   BarChart3
 } from 'lucide-react';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
-import ExaminationAPITest from './ExaminationAPITest';
 import AcademicRecordsManagement from './AcademicRecordsManagement';
 import TestManagementComponent from './TestManagementComponent';
 import MarksEntryComponent from './MarksEntryComponent';
@@ -110,23 +108,6 @@ const ExaminationDashboard = ({ initialView = null }) => {
                   </div>
                 </button>
               </PermissionGuard>
-              
-              {/* Development Tab */}
-              {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
-                <button
-                  onClick={() => setActiveTab('api-test')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === 'api-test'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <Database className="h-4 w-4" />
-                    <span>API Test</span>
-                  </div>
-                </button>
-              )}
             </nav>
           </div>
         </div>
@@ -151,11 +132,6 @@ const ExaminationDashboard = ({ initialView = null }) => {
         {/* Analytics Tab Content */}
         {activeTab === 'analytics' && (
           <AnalyticsComponent />
-        )}
-        
-        {/* API Test Tab Content */}
-        {activeTab === 'api-test' && (
-          <ExaminationAPITest />
         )}
       </div>
     </div>

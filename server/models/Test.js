@@ -163,11 +163,6 @@ const TestSchema = new mongoose.Schema({
     default: true
   },
   
-  isPublished: {
-    type: Boolean,
-    default: false // Test must be published before marks can be entered
-  },
-  
   // Who created the test
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -230,9 +225,8 @@ TestSchema.methods.canEnterMarks = function() {
   const isDeadlinePassed = this.marksEntryDeadline && now > this.marksEntryDeadline;
   
   return {
-    allowed: this.isPublished && this.isActive && !isDeadlinePassed,
-    reason: !this.isPublished ? 'Test not published yet' :
-            !this.isActive ? 'Test is inactive' :
+    allowed: this.isActive && !isDeadlinePassed,
+    reason: !this.isActive ? 'Test is inactive' :
             isDeadlinePassed ? 'Marks entry deadline passed' : null
   };
 };
@@ -309,8 +303,7 @@ TestSchema.statics.getUpcomingTests = function(classId = null) {
   
   const query = {
     testDate: { $gte: tomorrow },
-    isActive: true,
-    isPublished: true
+    isActive: true
   };
   
   if (classId) query.classId = classId;
@@ -381,17 +374,11 @@ TestSchema.statics.getAdvancedStats = async function(filters = {}) {
       $group: {
         _id: null,
         totalTests: { $sum: 1 },
-        publishedTests: {
-          $sum: { $cond: [{ $eq: ['$isPublished', true] }, 1, 0] }
-        },
         upcomingTests: {
           $sum: { $cond: [{ $gt: ['$testDate', new Date()] }, 1, 0] }
         },
         completedTests: {
           $sum: { $cond: [{ $lt: ['$testDate', new Date()] }, 1, 0] }
-        },
-        draftTests: {
-          $sum: { $cond: [{ $eq: ['$isPublished', false] }, 1, 0] }
         },
         avgMarks: { $avg: '$totalMarks' },
         difficultyDistribution: {
@@ -420,7 +407,6 @@ TestSchema.statics.getAdvancedStats = async function(filters = {}) {
 TestSchema.statics.getTestsRequiringMarksEntry = function(teacherId = null) {
   const query = {
     isActive: true,
-    isPublished: true,
     testDate: { $lt: new Date() }, // Test has occurred
     marksEntryDeadline: { $gte: new Date() } // Deadline not passed
   };
@@ -450,8 +436,7 @@ TestSchema.statics.createRetest = async function(originalTestId, retestData) {
     instructions: retestData.instructions || originalTest.instructions,
     createdBy: retestData.createdBy,
     createdOn: new Date(),
-    updatedOn: new Date(),
-    isPublished: false // Retests start as drafts
+    updatedOn: new Date()
   });
   
   return retestDoc.save();

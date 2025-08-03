@@ -36,12 +36,17 @@ const MarksEntryComponent = () => {
   const fetchAssignedTests = async () => {
     setLoading(true);
     try {
-      console.log('Fetching tests for teacher ID:', user.id);
-      // Fetch tests assigned to current teacher
-      const response = await api.get(`/examinations/tests?teacherId=${user.id}&isPublished=true`);
-      console.log('API Response:', response.data);
+      const teacherId = user?._id || user?.id;
+      
+      if (!teacherId) {
+        console.error('No teacher ID found in user object');
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch tests assigned to current teacher for marks entry
+      const response = await api.get(`/examinations/tests?teacherId=${teacherId}&forMarksEntry=true`);
       const tests = response.data?.data || [];
-      console.log('Found tests:', tests.length);
       
       if (tests.length > 0) {
         console.log('Sample test:', tests[0]);

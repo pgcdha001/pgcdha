@@ -32,7 +32,7 @@ const ExaminationModuleSummary = () => {
         'Test Management System',
         'Academic Records Entry',
         'System Configuration', 
-        'Test Creation & Publishing',
+        'Test Creation & Management',
         'Teacher Assignment Logic',
         'Calendar View Management'
       ],

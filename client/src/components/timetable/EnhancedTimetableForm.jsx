@@ -23,6 +23,31 @@ const EnhancedTimetableForm = ({ classes, teachers, onSubmit, onClose, editingTi
   ];
 
   const lectureTypes = ['Theory', 'Practical', 'Lab', 'Tutorial', 'Seminar'];
+  
+  // Standard subjects for consistency
+  const subjects = [
+    'Mathematics',
+    'Physics', 
+    'Chemistry',
+    'Biology',
+    'Computer Science',
+    'English',
+    'Urdu',
+    'Islamic Studies',
+    'Pakistan Studies',
+    'Accounting',
+    'Business Studies',
+    'Economics',
+    'Banking',
+    'Commercial Geography',
+    'Statistics',
+    'Psychology', 
+    'Sociology',
+    'History',
+    'Geography',
+    'Physical Education',
+    'Ethics'
+  ];
 
   useEffect(() => {
     // Initialize empty schedule for all days
@@ -390,11 +415,19 @@ const EnhancedTimetableForm = ({ classes, teachers, onSubmit, onClose, editingTi
                                       {/* Subject */}
                                       <div>
                                         <Label>Subject</Label>
-                                        <Input
-                                          value={lecture.subject}
-                                          onChange={(e) => updateLecture(day, lecture.id, 'subject', e.target.value)}
-                                          placeholder="e.g., Algebra"
-                                        />
+                                        <Select 
+                                          value={lecture.subject} 
+                                          onValueChange={(value) => updateLecture(day, lecture.id, 'subject', value)}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select subject" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {subjects.map(subject => (
+                                              <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
                                       </div>
 
                                       {/* Lecture Type */}

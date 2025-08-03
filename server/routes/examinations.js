@@ -47,20 +47,18 @@ router.get('/tests', authenticate, async (req, res) => {
       fromDate, 
       toDate,
       teacherId,
-      isPublished,
       page = 1,
       limit = 50
     } = req.query;
     
     // Build query
-    const query = { isActive: true };
+    let query = { isActive: true };
     
     if (classId) query.classId = classId;
     if (subject) query.subject = { $regex: subject, $options: 'i' };
     if (testType) query.testType = testType;
     if (academicYear) query.academicYear = academicYear;
     if (teacherId) query.assignedTeacher = teacherId;
-    if (isPublished !== undefined) query.isPublished = isPublished === 'true';
     
     // Date range filter
     if (fromDate || toDate) {
@@ -71,7 +69,67 @@ router.get('/tests', authenticate, async (req, res) => {
     
     // Role-based filtering
     if (req.user.role === 'Teacher') {
-      query.assignedTeacher = req.user.id;
+      // For teachers, show tests where they are either:
+      // 1. Assigned as the main teacher, OR
+      // 2. Listed in the class teachers array for that subject
+      
+      if (req.query.forMarksEntry === 'true') {
+        // For marks entry, we need more complex authorization
+        const now = new Date();
+        
+        // First, get classes where this teacher can teach the subject
+        const teacherClasses = await Class.find({
+          $or: [
+            { classIncharge: req.user._id },
+            { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
+          ]
+        }).select('_id teachers');
+        
+        const classIds = teacherClasses.map(cls => cls._id);
+        
+        // Find tests in those classes where:
+        // - Either assigned to this teacher OR teacher is in class teachers array
+        // - Test date has passed
+        // - Within marks entry deadline
+        // - Test is active (no need for isPublished for marks entry)
+        query = {
+          isActive: true,
+          classId: { $in: classIds },
+          testDate: { $lte: now },
+          $or: [
+            { marksEntryDeadline: { $exists: false } },
+            { marksEntryDeadline: null },
+            { marksEntryDeadline: { $gte: now } }
+          ]
+        };
+        
+        console.log('Enhanced teacher marks entry filter:', {
+          teacherId: req.user._id,
+          classIds: classIds
+        });
+      } else {
+        // Regular test viewing - show tests where teacher is assigned OR in class teachers array
+        const teacherClasses = await Class.find({
+          $or: [
+            { classIncharge: req.user._id },
+            { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
+          ]
+        }).select('_id teachers');
+        
+        const classIds = teacherClasses.map(cls => cls._id);
+        
+        // Show tests where teacher is either assigned OR teaching the class
+        query.$or = [
+          { assignedTeacher: req.user._id },
+          { classId: { $in: classIds } }
+        ];
+        
+        console.log('Enhanced teacher test viewing filter:', {
+          teacherId: req.user._id,
+          classIds: classIds,
+          query: query
+        });
+      }
     }
     
     // Execute query with pagination
@@ -120,7 +178,7 @@ router.get('/tests/:id', authenticate, async (req, res) => {
     }
     
     // Check if user can access this test
-    if (req.user.role === 'Teacher' && test.assignedTeacher._id.toString() !== req.user.id) {
+    if (req.user.role === 'Teacher' && test.assignedTeacher._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Access denied to this test' });
     }
     
@@ -199,7 +257,7 @@ router.post('/tests', authenticate, requireExaminationAccess('create_test'), asy
       instructions,
       duration: duration || estimatedDuration,
       marksEntryDeadline: marksEntryDeadline ? new Date(marksEntryDeadline) : undefined,
-      createdBy: req.user.id,
+      createdBy: req.user._id,
       assignedTeacher: finalAssignedTeacher,
       // Phase 3 fields
       difficulty: difficulty || 'Medium',
@@ -292,37 +350,6 @@ router.put('/tests/:id', authenticate, requireExaminationAccess('edit_test'), as
   }
 });
 
-// Publish/Unpublish test
-router.patch('/tests/:id/publish', authenticate, requireExaminationAccess('edit_test'), async (req, res) => {
-  try {
-    const { isPublished } = req.body;
-    
-    const test = await Test.findByIdAndUpdate(
-      req.params.id,
-      { isPublished: Boolean(isPublished) },
-      { new: true }
-    ).populate('classId', 'name grade campus program');
-    
-    if (!test) {
-      return res.status(404).json({ success: false, message: 'Test not found' });
-    }
-    
-    res.json({
-      success: true,
-      message: `Test ${isPublished ? 'published' : 'unpublished'} successfully`,
-      data: test
-    });
-    
-  } catch (error) {
-    console.error('Error publishing test:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error publishing test', 
-      error: error.message 
-    });
-  }
-});
-
 // Delete test
 router.delete('/tests/:id', authenticate, requireExaminationAccess('delete_test'), async (req, res) => {
   try {
@@ -373,7 +400,7 @@ router.get('/tests/:id/results', authenticate, async (req, res) => {
     }
     
     // Check access permissions
-    if (req.user.role === 'Teacher' && test.assignedTeacher.toString() !== req.user.id) {
+    if (req.user.role === 'Teacher' && test.assignedTeacher.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Access denied to this test' });
     }
     
@@ -429,9 +456,27 @@ router.post('/tests/:id/results', authenticate, requireExaminationAccess('enter_
       });
     }
     
-    // Check teacher access
-    if (req.user.role === 'Teacher' && test.assignedTeacher.toString() !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Access denied to enter marks for this test' });
+    // Enhanced teacher access check
+    if (req.user.role === 'Teacher') {
+      // Check if teacher is either assigned to test OR is in the class teachers array
+      const isAssignedTeacher = test.assignedTeacher.toString() === req.user._id.toString();
+      
+      if (!isAssignedTeacher) {
+        // Check if teacher is in the class teachers array for this subject
+        const classDoc = await Class.findById(test.classId);
+        const isClassTeacher = classDoc && classDoc.teachers.some(t => 
+          t.teacherId.toString() === req.user._id.toString() && 
+          t.isActive && 
+          (!t.subject || t.subject.toLowerCase() === test.subject.toLowerCase())
+        );
+        
+        if (!isClassTeacher) {
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Access denied. You are not authorized to enter marks for this test.' 
+          });
+        }
+      }
     }
     
     const processedResults = [];
@@ -460,7 +505,7 @@ router.post('/tests/:id/results', authenticate, requireExaminationAccess('enter_
             obtainedMarks: isAbsent ? 0 : obtainedMarks,
             isAbsent: Boolean(isAbsent),
             remarks: remarks || '',
-            enteredBy: req.user.id
+            enteredBy: req.user._id
           },
           { 
             upsert: true, 
@@ -642,7 +687,7 @@ router.post('/tests/:id/retest', authenticate, requireExaminationAccess('create_
     const { id } = req.params;
     const retestData = {
       ...req.body,
-      createdBy: req.user.id
+      createdBy: req.user._id
     };
     
     const retest = await Test.createRetest(id, retestData);
@@ -682,7 +727,7 @@ router.get('/calendar', authenticate, async (req, res) => {
     const tests = await Test.find(query)
       .populate('classId', 'name grade program')
       .populate('assignedTeacher', 'fullName')
-      .select('title testDate testType totalMarks duration difficulty isPublished')
+      .select('title testDate testType totalMarks duration difficulty')
       .sort({ testDate: 1 });
     
     // Group tests by date

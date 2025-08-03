@@ -25,6 +25,36 @@ const TimetableForm = ({ timetable, classes, teachers, onSubmit, onClose }) => {
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const lectureTypes = ['Theory', 'Practical', 'Lab', 'Tutorial'];
+  
+  // Standard subjects for consistency
+  const subjects = [
+    // Core Subjects
+    'Mathematics',
+    'Physics', 
+    'Chemistry',
+    'Biology',
+    'Computer Science',
+    'English',
+    'Urdu',
+    'Islamic Studies',
+    'Pakistan Studies',
+    // Business/Commerce
+    'Accounting',
+    'Business Studies',
+    'Economics',
+    'Banking',
+    'Commercial Geography',
+    // ICS/FSc Additional
+    'Statistics',
+    // FA/Arts
+    'Psychology', 
+    'Sociology',
+    'History',
+    'Geography',
+    // Other
+    'Physical Education',
+    'Ethics'
+  ];
 
   // Generate time slots (8:00 AM to 6:00 PM in 30-minute intervals)
   const generateTimeSlots = () => {
@@ -252,13 +282,24 @@ const TimetableForm = ({ timetable, classes, teachers, onSubmit, onClose }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="subject">Subject *</Label>
-                <Input
-                  id="subject"
-                  value={formData.subject}
-                  onChange={(e) => handleInputChange('subject', e.target.value)}
-                  placeholder="Enter subject name"
-                  className={errors.subject ? 'border-red-500' : ''}
-                />
+                <Select 
+                  value={formData.subject} 
+                  onValueChange={(value) => handleInputChange('subject', value)}
+                >
+                  <SelectTrigger className={errors.subject ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map(subject => (
+                      <SelectItem key={subject} value={subject}>
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4" />
+                          {subject}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.subject && <p className="text-sm text-red-500">{errors.subject}</p>}
               </div>
 
