@@ -521,6 +521,9 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
 
   try {
     const now = new Date();
+    // Create consistent "today" date boundary for all calculations
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     
     // Single aggregation pipeline to get all data at once
     const pipeline = [
@@ -540,7 +543,7 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
               $switch: {
                 branches: [
                   {
-                    case: { $gte: ['$createdOn', new Date(now.getFullYear(), now.getMonth(), now.getDate())] },
+                    case: { $and: [{ $gte: ['$createdOn', todayStart] }, { $lt: ['$createdOn', todayEnd] }] },
                     then: 'today'
                   },
                   {
@@ -1229,11 +1232,12 @@ router.get('/level-history-students', async (req, res) => {
       
       switch (dateFilter) {
         case 'today':
-          const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-          const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+          // Use the same date calculation as comprehensive-data for consistency
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
           dateCondition = {
             $gte: startOfDay,
-            $lte: endOfDay
+            $lt: endOfDay // Use $lt instead of $lte for end of day
           };
           break;
           
@@ -1271,9 +1275,10 @@ router.get('/level-history-students', async (req, res) => {
           break;
       }
       
-      // Add condition to match students who achieved any level within the date range
+      // Use createdOn for date filtering to match principal enquiry behavior
+      // This ensures students created today are included in "today" results
       if (Object.keys(dateCondition).length > 0) {
-        matchCondition['levelHistory.achievedAt'] = dateCondition;
+        matchCondition['createdOn'] = dateCondition;
       }
     }
     

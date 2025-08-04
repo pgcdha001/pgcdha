@@ -141,11 +141,14 @@ const EnquiryList = ({ config }) => {
     setShowNonProgression(newShowNonProgression);
     
     if (newShowNonProgression) {
-      // When enabling non-progression filter, reset level filter to "All Levels"
+      // When enabling non-progression filter, reset level filter to avoid confusion
       setFilterLevel('');
       if (!progressionLevel) {
         setProgressionLevel('2'); // Default to Level 2
       }
+    } else {
+      // When disabling non-progression filter, reset level filter to show cumulative data clearly
+      setFilterLevel('');
     }
   };
 
@@ -168,11 +171,21 @@ const EnquiryList = ({ config }) => {
       });
     }
 
-    // Level filter
+    // Level filter - cumulative when non-progression is off, exact when on
     if (filterLevel) {
-      filtered = filtered.filter(enquiry => 
-        (enquiry.prospectusStage || enquiry.enquiryLevel) === parseInt(filterLevel)
-      );
+      const targetLevel = parseInt(filterLevel);
+      filtered = filtered.filter(enquiry => {
+        const currentLevel = enquiry.prospectusStage || enquiry.enquiryLevel;
+        
+        if (showNonProgression) {
+          // Non-progression mode: exact level match
+          return currentLevel === targetLevel;
+        } else {
+          // Normal mode: cumulative match (aligned with principal enquiry)
+          // Level 2+ includes students at levels 2, 3, 4, 5
+          return currentLevel >= targetLevel;
+        }
+      });
     }
 
     // Gender filter
@@ -181,7 +194,7 @@ const EnquiryList = ({ config }) => {
     }
 
     setFilteredEnquiries(filtered);
-  }, [enquiries, debouncedSearchTerm, filterLevel, filterGender]);
+  }, [enquiries, debouncedSearchTerm, filterLevel, filterGender, showNonProgression]);
 
   const getStatusIconComponent = (levelId) => {
     switch (levelId) {

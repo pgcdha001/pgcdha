@@ -149,11 +149,14 @@ const StudentReport = () => {
     setShowNonProgression(newShowNonProgression);
     
     if (newShowNonProgression) {
-      // When enabling non-progression filter, reset stage filter to "All Stages"
+      // When enabling non-progression filter, reset stage filter to avoid confusion
       setStageFilter('');
       if (!progressionLevel) {
         setProgressionLevel('2'); // Default to Level 2
       }
+    } else {
+      // When disabling non-progression filter, reset stage filter to show cumulative data clearly
+      setStageFilter('');
     }
   };
 
@@ -161,11 +164,24 @@ const StudentReport = () => {
     setProgressionLevel(level);
   };
 
-  // Filtered students (cumulative approach)
+  // Filtered students - cumulative when non-progression is off, exact when on
   const filteredStudents = students.filter((s) => {
-    // Cumulative stage match - Level 2 includes Level 3 students, etc.
-    const currentStage = s.prospectusStage || 1;
-    const matchesStage = !stageFilter || currentStage >= parseInt(stageFilter);
+    // Stage filtering logic depends on non-progression mode
+    let matchesStage = true;
+    if (stageFilter) {
+      const currentStage = s.prospectusStage || 1;
+      const targetStage = parseInt(stageFilter);
+      
+      if (showNonProgression) {
+        // Non-progression mode: exact level match
+        matchesStage = currentStage === targetStage;
+      } else {
+        // Normal mode: cumulative match (aligned with principal enquiry)
+        // Level 2+ includes students at levels 2, 3, 4, 5
+        matchesStage = currentStage >= targetStage;
+      }
+    }
+    
     const matchesName = !nameFilter || (`${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.toLowerCase().includes(nameFilter.toLowerCase()));
     const matchesCnic = !cnicFilter || (s.cnic || '').includes(cnicFilter);
     const matchesGender = !genderFilter || (s.gender || 'Not specified').toLowerCase() === genderFilter.toLowerCase();
