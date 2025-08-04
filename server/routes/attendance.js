@@ -599,47 +599,33 @@ router.get('/student/:studentId', async (req, res) => {
 
     // Get student attendance records
     const attendanceRecords = await Attendance.find({
-      studentId: studentId,
+      studentId,
       ...dateFilter
-    })
-    .populate('classId', 'className subject grade programme campus')
-    .sort({ date: -1 });
+    }).populate('classId', 'className grade campus program')
+      .sort({ date: -1 });
 
     // Calculate statistics
-    const totalDays = attendanceRecords.length;
-    const presentDays = attendanceRecords.filter(record => record.status === 'Present').length;
-    const absentDays = attendanceRecords.filter(record => record.status === 'Absent').length;
-    const attendancePercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+    const stats = {
+      total: attendanceRecords.length,
+      present: attendanceRecords.filter(r => r.status === 'Present').length,
+      absent: attendanceRecords.filter(r => r.status === 'Absent').length,
+      late: attendanceRecords.filter(r => r.status === 'Late').length
+    };
 
-    // Get absent days with details
-    const absentRecords = attendanceRecords
-      .filter(record => record.status === 'Absent')
-      .map(record => ({
-        date: record.date,
-        className: record.classId?.className || 'Unknown Class',
-        subject: record.classId?.subject || 'Unknown Subject',
-        remarks: record.remarks
-      }));
+    stats.attendanceRate = stats.total > 0 ? 
+      ((stats.present + stats.late) / stats.total * 100).toFixed(1) : 0;
 
     res.json({
       success: true,
       data: {
         student: {
-          _id: student._id,
+          id: student._id,
           fullName: student.fullName,
           academicInfo: student.academicInfo
         },
-        statistics: {
-          totalDays,
-          presentDays,
-          absentDays,
-          attendancePercentage
-        },
-        absentRecords,
-        dateRange: {
-          startDate: startDate || 'All time',
-          endDate: endDate || 'All time'
-        }
+        records: attendanceRecords,
+        statistics: stats,
+        dateRange: { startDate, endDate }
       }
     });
 
@@ -647,7 +633,307 @@ router.get('/student/:studentId', async (req, res) => {
     console.error('Error getting student attendance:', error);
     res.status(500).json({
       success: false,
-      message: 'Error getting student attendance data',
+      message: 'Error getting student attendance',
+      error: error.message
+    });
+  }
+});
+
+// Monthly attendance statistics for Principal
+router.get('/monthly-stats/:year', authenticate, async (req, res) => {
+  try {
+    const { year } = req.params;
+    
+    // Check if user is Principal
+    if (req.user.role !== 'Principal' && req.user.role !== 'InstituteAdmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Principal privileges required.'
+      });
+    }
+
+    const yearNum = parseInt(year);
+    if (isNaN(yearNum) || yearNum < 2020 || yearNum > 2030) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid year provided'
+      });
+    }
+
+    console.log(`Fetching monthly stats for year: ${yearNum}`);
+    
+    // First, let's get a sample of attendance records to debug
+    const sampleRecords = await Attendance.find({}).limit(5).select('date status');
+    console.log('Sample attendance records:', sampleRecords);
+
+    // Create date range for the year - using proper date handling for DateTime fields
+    const startDate = new Date(yearNum, 0, 1, 0, 0, 0, 0); // January 1st, 00:00:00
+    const endDate = new Date(yearNum + 1, 0, 1, 0, 0, 0, 0); // January 1st of next year, 00:00:00
+
+    console.log('Date range:', { startDate, endDate });
+
+    // Get total count first to verify data exists
+    const totalCount = await Attendance.countDocuments({
+      date: {
+        $gte: startDate,
+        $lt: endDate  // Use $lt instead of $lte for the end date
+      }
+    });
+
+    console.log(`Total attendance records found for ${yearNum}: ${totalCount}`);
+
+    if (totalCount === 0) {
+      // Let's check what years we actually have data for
+      const allYears = await Attendance.aggregate([
+        {
+          $group: {
+            _id: { $year: '$date' },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      
+      console.log('Available years with data:', allYears);
+      
+      return res.json({
+        success: true,
+        data: [],
+        debug: {
+          message: `No attendance records found for ${yearNum}`,
+          availableYears: allYears,
+          totalRecordsInDb: await Attendance.countDocuments({})
+        }
+      });
+    }
+
+    // Get monthly statistics
+    const monthlyStats = await Attendance.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: startDate,
+            $lt: endDate  // Use $lt instead of $lte
+          }
+        }
+      },
+      {
+        $addFields: {
+          month: { $month: '$date' },
+          year: { $year: '$date' }
+        }
+      },
+      {
+        $group: {
+          _id: '$month',
+          presentCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'Present'] }, 1, 0] }
+          },
+          absentCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'Absent'] }, 1, 0] }
+          },
+          lateCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'Late'] }, 1, 0] }
+          },
+          totalRecords: { $sum: 1 },
+          uniqueStudents: { $addToSet: '$studentId' }
+        }
+      },
+      {
+        $addFields: {
+          month: '$_id',
+          totalStudents: { $size: '$uniqueStudents' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          month: 1,
+          presentCount: 1,
+          absentCount: 1,
+          lateCount: 1,
+          totalRecords: 1,
+          totalStudents: 1
+        }
+      },
+      {
+        $sort: { month: 1 }
+      }
+    ]);
+
+    console.log(`Monthly stats result:`, monthlyStats);
+
+    res.json({
+      success: true,
+      data: monthlyStats,
+      debug: {
+        year: yearNum,
+        totalRecordsFound: totalCount,
+        dateRange: { startDate, endDate }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting monthly attendance stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting monthly attendance statistics',
+      error: error.message
+    });
+  }
+});
+
+// Day-wise attendance report for a specific month
+router.get('/day-wise-report/:year/:month', authenticate, async (req, res) => {
+  try {
+    const { year, month } = req.params;
+    
+    // Check if user is Principal
+    if (req.user.role !== 'Principal' && req.user.role !== 'InstituteAdmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Principal privileges required.'
+      });
+    }
+
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid year or month provided'
+      });
+    }
+
+    // Get the start and end dates for the month
+    const startDate = new Date(yearNum, monthNum - 1, 1, 0, 0, 0, 0); // First day of month
+    const endDate = new Date(yearNum, monthNum, 1, 0, 0, 0, 0); // First day of next month
+
+    // Get day-wise statistics
+    const dayWiseStats = await Attendance.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: startDate,
+            $lt: endDate  // Use $lt instead of $lte
+          }
+        }
+      },
+      {
+        $addFields: {
+          dateOnly: {
+            $dateFromString: {
+              dateString: {
+                $dateToString: {
+                  format: "%Y-%m-%d",
+                  date: "$date"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$dateOnly',
+          present: {
+            $sum: { $cond: [{ $eq: ['$status', 'Present'] }, 1, 0] }
+          },
+          absent: {
+            $sum: { $cond: [{ $eq: ['$status', 'Absent'] }, 1, 0] }
+          },
+          late: {
+            $sum: { $cond: [{ $eq: ['$status', 'Late'] }, 1, 0] }
+          },
+          totalRecords: { $sum: 1 },
+          uniqueStudents: { $addToSet: '$studentId' }
+        }
+      },
+      {
+        $addFields: {
+          date: '$_id',
+          totalStudents: { $size: '$uniqueStudents' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          date: 1,
+          present: 1,
+          absent: 1,
+          late: 1,
+          totalRecords: 1,
+          totalStudents: 1
+        }
+      },
+      {
+        $sort: { date: 1 }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        month: monthNum,
+        year: yearNum,
+        dayWiseData: dayWiseStats
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting day-wise attendance report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting day-wise attendance report',
+      error: error.message
+    });
+  }
+});
+
+// Debug endpoint to check attendance data
+router.get('/debug/check-data', authenticate, async (req, res) => {
+  try {
+    // Get total count
+    const totalCount = await Attendance.countDocuments({});
+    
+    // Get sample records
+    const sampleRecords = await Attendance.find({}).limit(10).select('date status studentId');
+    
+    // Get unique years
+    const uniqueYears = await Attendance.aggregate([
+      {
+        $group: {
+          _id: { $year: '$date' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    
+    // Get records for 2025 specifically
+    const records2025 = await Attendance.find({
+      date: {
+        $gte: new Date(2025, 0, 1, 0, 0, 0, 0),
+        $lt: new Date(2026, 0, 1, 0, 0, 0, 0)
+      }
+    }).limit(5);
+    
+    res.json({
+      success: true,
+      debug: {
+        totalRecords: totalCount,
+        sampleRecords,
+        uniqueYears,
+        records2025Count: records2025.length,
+        records2025Sample: records2025
+      }
+    });
+    
+  } catch (error) {
+    console.error('Debug check error:', error);
+    res.status(500).json({
+      success: false,
       error: error.message
     });
   }

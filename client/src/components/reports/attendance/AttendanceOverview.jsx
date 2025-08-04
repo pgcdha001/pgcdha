@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Users, TrendingUp, Building, GraduationCap, Search } from 'lucide-react';
 import { Button } from '../../ui/button';
+import { useAuth } from '../../../hooks/useAuth';
 
 // Import sub-components
 import AttendanceStatsCards from './AttendanceStatsCards';
@@ -9,6 +10,8 @@ import ProgramDistribution from './ProgramDistribution';
 import ClassDistribution from './ClassDistribution';
 import DateRangeSelector from './DateRangeSelector';
 import StudentSearch from './StudentSearch';
+import AttendanceGlimpse from './AttendanceGlimpse';
+import AttendanceGlimpseButton from './AttendanceGlimpseButton';
 
 /**
  * Attendance Overview Component for Principal
@@ -36,6 +39,11 @@ const AttendanceOverview = ({
   
   const currentView = getCurrentView();
   const [showStudentSearch, setShowStudentSearch] = useState(false);
+  const [showGlimpseModal, setShowGlimpseModal] = useState(false);
+  
+  // Get auth context for role checking
+  const { user } = useAuth();
+  const isPrincipal = user?.role === 'Principal' || user?.role === 'InstituteAdmin';
 
   // Calculate overall statistics
   const calculateOverallStats = () => {
@@ -359,6 +367,21 @@ const AttendanceOverview = ({
         <StudentSearch 
           onClose={() => setShowStudentSearch(false)}
           dateRange={dateRange}
+        />
+      )}
+
+      {/* Floating Glimpse Button - Only for Principal */}
+      {isPrincipal && (
+        <AttendanceGlimpseButton 
+          onClick={() => setShowGlimpseModal(true)}
+          loading={loading}
+        />
+      )}
+
+      {/* Glimpse Modal */}
+      {showGlimpseModal && (
+        <AttendanceGlimpse 
+          onClose={() => setShowGlimpseModal(false)}
         />
       )}
     </div>
