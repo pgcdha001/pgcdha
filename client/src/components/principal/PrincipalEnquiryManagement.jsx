@@ -6,6 +6,7 @@ import useEnquiryData from '../../hooks/useEnquiryData';
 import ErrorDisplay from './ErrorDisplay';
 import Header from './Header';
 import LevelTabs from './LevelTabs';
+import TodaysStats from './TodaysStats';
 import StatsCards from './StatsCards';
 import ProgramBreakdownCards from './ProgramBreakdownCards';
 import FloatingStatsPill from './FloatingStatsPill';
@@ -276,6 +277,9 @@ const PrincipalEnquiryManagement = () => {
           levelStats={levelStats}
           loading={loading}
         />
+
+        {/* Today's Statistics */}
+        <TodaysStats />
 
         {/* Stats Cards OR Program Breakdown Cards */}
         {currentView === 'default' ? (
