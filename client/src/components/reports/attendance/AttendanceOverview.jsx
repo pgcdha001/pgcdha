@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, TrendingUp, Building, GraduationCap } from 'lucide-react';
+import { Calendar, Users, TrendingUp, Building, GraduationCap, Search } from 'lucide-react';
 import { Button } from '../../ui/button';
 
 // Import sub-components
@@ -8,6 +8,7 @@ import FloorDistribution from './FloorDistribution';
 import ProgramDistribution from './ProgramDistribution';
 import ClassDistribution from './ClassDistribution';
 import DateRangeSelector from './DateRangeSelector';
+import StudentSearch from './StudentSearch';
 
 /**
  * Attendance Overview Component for Principal
@@ -25,7 +26,16 @@ const AttendanceOverview = ({
   onRefresh,
   loading
 }) => {
-  const [currentView, setCurrentView] = useState('overview'); // overview, campus, floor, program, class
+  // Derive currentView from props instead of local state to avoid reset issues
+  const getCurrentView = () => {
+    if (selectedFloor !== 'all') return 'floor';
+    if (selectedProgram !== 'all') return 'program';
+    if (selectedCampus !== 'all') return 'campus';
+    return 'overview';
+  };
+  
+  const currentView = getCurrentView();
+  const [showStudentSearch, setShowStudentSearch] = useState(false);
 
   // Calculate overall statistics
   const calculateOverallStats = () => {
@@ -48,12 +58,17 @@ const AttendanceOverview = ({
   const overallStats = calculateOverallStats();
 
   const handleViewChange = (view, options = {}) => {
-    console.log('handleViewChange called:', view, options); // Debug log
-    setCurrentView(view);
+    // Reset to overview - clear all filters
+    if (view === 'overview') {
+      onFilterChange('campus', 'all');
+      onFilterChange('floor', 'all');
+      onFilterChange('program', 'all');
+      onFilterChange('classId', 'all');
+      return;
+    }
     
     // Apply any filters passed in options
     if (options.campus) {
-      console.log('Setting campus filter:', options.campus); // Debug log
       onFilterChange('campus', options.campus);
     }
     if (options.floor) {
@@ -89,6 +104,13 @@ const AttendanceOverview = ({
               onDateRangeChange={(range) => onFilterChange('dateRange', range)}
             />
             <Button 
+              onClick={() => setShowStudentSearch(true)}
+              variant="outline"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Search Student
+            </Button>
+            <Button 
               onClick={onRefresh} 
               disabled={loading}
               variant="outline"
@@ -114,6 +136,7 @@ const AttendanceOverview = ({
             type="button"
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               handleViewChange('overview');
             }}
             className={`px-3 py-1 rounded-lg transition-colors ${
@@ -132,6 +155,7 @@ const AttendanceOverview = ({
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleViewChange('campus');
                 }}
                 className={`px-3 py-1 rounded-lg transition-colors ${
@@ -175,7 +199,7 @@ const AttendanceOverview = ({
       </div>
 
       {/* Main Content based on current view */}
-      {currentView === 'overview' && (
+      {currentView === 'overview' && selectedCampus === 'all' && (
         <div className="space-y-6">
           {/* Boys Campus Row */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
@@ -190,6 +214,7 @@ const AttendanceOverview = ({
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleViewChange('campus', { campus: 'Boys' });
                 }}
                 className="text-blue-600 hover:text-blue-700 text-sm font-medium"
@@ -240,6 +265,7 @@ const AttendanceOverview = ({
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleViewChange('campus', { campus: 'Girls' });
                 }}
                 className="text-pink-600 hover:text-pink-700 text-sm font-medium"
@@ -285,13 +311,13 @@ const AttendanceOverview = ({
             attendanceData={attendanceData}
             campus={selectedCampus}
             selectedFloor={selectedFloor}
-            onFloorSelect={(floor) => handleViewChange('floor', { floor })}
+            onFloorSelect={(floor) => handleViewChange('floor', { floor, campus: selectedCampus })}
           />
           <ProgramDistribution
             attendanceData={attendanceData}
             campus={selectedCampus}
             selectedProgram={selectedProgram}
-            onProgramSelect={(program) => handleViewChange('program', { program })}
+            onProgramSelect={(program) => handleViewChange('program', { program, campus: selectedCampus })}
           />
         </div>
       )}
@@ -327,6 +353,14 @@ const AttendanceOverview = ({
           </div>
         </div>
       </div>
+
+      {/* Student Search Modal */}
+      {showStudentSearch && (
+        <StudentSearch 
+          onClose={() => setShowStudentSearch(false)}
+          dateRange={dateRange}
+        />
+      )}
     </div>
   );
 };

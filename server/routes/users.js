@@ -978,4 +978,36 @@ router.put('/:id/enquiry-level', asyncHandler(async (req, res) => {
   sendSuccessResponse(res, { user: userResponse }, 'Enquiry level updated successfully');
 }));
 
+/**
+ * @route   GET /api/users/search-students
+ * @desc    Search for students by name for attendance lookup
+ * @access  Private
+ */
+router.get('/search-students', 
+  asyncHandler(async (req, res) => {
+    const { query = '', limit = 10 } = req.query;
+    
+    if (!query || query.trim().length < 2) {
+      return sendSuccessResponse(res, { students: [] }, 'Search query too short');
+    }
+    
+    // Search for students (role = 3 for Student)
+    const students = await User.find({
+      role: 3, // Student role
+      status: { $ne: 3 }, // Not deleted
+      $or: [
+        { 'fullName.firstName': new RegExp(query, 'i') },
+        { 'fullName.lastName': new RegExp(query, 'i') },
+        { email: new RegExp(query, 'i') },
+        { username: new RegExp(query, 'i') }
+      ]
+    })
+    .select('_id fullName email username academicInfo.grade academicInfo.programme academicInfo.campus')
+    .limit(parseInt(limit))
+    .sort({ 'fullName.firstName': 1 });
+    
+    sendSuccessResponse(res, { students }, 'Students found successfully');
+  })
+);
+
 module.exports = router;

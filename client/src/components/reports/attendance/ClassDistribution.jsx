@@ -157,6 +157,7 @@ const ClassDistribution = ({
               type="button"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 onClassSelect(cls._id);
               }}
               className={`p-4 border-2 rounded-xl transition-all duration-200 hover:shadow-lg text-left ${colorClasses.card}`}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter, Download, Users, Phone, Mail, Building } from 'lucide-react';
 import { Button } from '../../ui/button';
 import DateRangeSelector from './DateRangeSelector';
+import StudentSearch from './StudentSearch';
 
 /**
  * Attendance Details Component for IT/Admin roles
@@ -23,6 +24,7 @@ const AttendanceDetails = ({
   const [statusFilter, setStatusFilter] = useState('all'); // all, present, absent
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage] = useState(50);
+  const [showStudentSearch, setShowStudentSearch] = useState(false);
 
   // Get student records from attendance data
   const getStudentRecords = () => {
@@ -134,6 +136,13 @@ const AttendanceDetails = ({
               dateRange={dateRange}
               onDateRangeChange={(range) => onFilterChange('dateRange', range)}
             />
+            <Button 
+              onClick={() => setShowStudentSearch(true)}
+              variant="outline"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Search Student
+            </Button>
             <Button 
               onClick={onRefresh} 
               disabled={loading}
@@ -392,6 +401,14 @@ const AttendanceDetails = ({
           </div>
         )}
       </div>
+
+      {/* Student Search Modal */}
+      {showStudentSearch && (
+        <StudentSearch 
+          onClose={() => setShowStudentSearch(false)}
+          dateRange={dateRange}
+        />
+      )}
     </div>
   );
 };

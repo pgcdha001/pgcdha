@@ -86,6 +86,7 @@ const FloorDistribution = ({
               type="button"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 onFloorSelect(floor.id);
               }}
               className={`w-full p-4 border-2 rounded-xl transition-all duration-200 hover:shadow-md ${colorClasses.card}`}

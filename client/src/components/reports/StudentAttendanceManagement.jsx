@@ -20,6 +20,7 @@ const StudentAttendanceManagement = () => {
   
   // State management
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [attendanceData, setAttendanceData] = useState(null);
   const [classesData, setClassesData] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('all'); // all, boys, girls
@@ -37,11 +38,15 @@ const StudentAttendanceManagement = () => {
   const isAuthorized = canViewAttendanceReports();
 
   // Fetch attendance data
-  const fetchAttendanceData = useCallback(async () => {
+  const fetchAttendanceData = useCallback(async (isFilterChange = false) => {
     if (!isAuthorized) return;
     
     try {
-      setLoading(true);
+      if (isFilterChange) {
+        setFilterLoading(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       
       const params = new URLSearchParams();
@@ -91,6 +96,7 @@ const StudentAttendanceManagement = () => {
       }
     } finally {
       setLoading(false);
+      setFilterLoading(false);
     }
   }, [dateRange, selectedCampus, selectedFloor, selectedProgram, selectedClass, isPrincipal, isAuthorized, addToast]);
 
@@ -144,7 +150,10 @@ const StudentAttendanceManagement = () => {
       default:
         break;
     }
-  }, []);
+    
+    // Trigger data fetch after filter change with filter loading state
+    fetchAttendanceData(true);
+  }, [fetchAttendanceData]);
 
   // Refresh data
   const refreshData = useCallback(() => {
@@ -187,6 +196,14 @@ const StudentAttendanceManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Filter Loading Indicator */}
+      {filterLoading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-blue-700 text-sm">Applying filters...</span>
+        </div>
+      )}
+      
       {isPrincipal ? (
         <AttendanceOverview
           attendanceData={attendanceData}
@@ -198,7 +215,7 @@ const StudentAttendanceManagement = () => {
           dateRange={dateRange}
           onFilterChange={handleFilterChange}
           onRefresh={refreshData}
-          loading={loading}
+          loading={loading || filterLoading}
         />
       ) : (
         <AttendanceDetails
@@ -211,7 +228,7 @@ const StudentAttendanceManagement = () => {
           dateRange={dateRange}
           onFilterChange={handleFilterChange}
           onRefresh={refreshData}
-          loading={loading}
+          loading={loading || filterLoading}
         />
       )}
     </div>
