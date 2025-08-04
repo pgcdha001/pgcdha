@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const Class = require('../models/Class');
@@ -389,6 +390,305 @@ router.get('/class/:classId/range', authenticate, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error getting attendance data', 
+      error: error.message 
+    });
+  }
+});
+
+// Get attendance overview for Principal (hierarchical stats)
+router.get('/overview', authenticate, async (req, res) => {
+  try {
+    const { startDate, endDate, campus, floor, program, classId } = req.query;
+    
+    // Default to all time data if no date range provided
+    const today = new Date();
+    
+    const queryStartDate = startDate ? new Date(startDate + 'T00:00:00.000Z') : new Date('2020-01-01'); // Far past date to include all data
+    const queryEndDate = endDate ? new Date(endDate + 'T23:59:59.999Z') : today;
+
+    // Build match criteria with proper Date objects
+    const matchCriteria = {
+      date: {
+        $gte: queryStartDate,
+        $lte: queryEndDate
+      }
+    };
+
+    // Build aggregation pipeline
+    const pipeline = [
+      { $match: matchCriteria },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'studentId',
+          foreignField: '_id',
+          as: 'student'
+        }
+      },
+      { $unwind: '$student' },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'classId',
+          foreignField: '_id',
+          as: 'class'
+        }
+      },
+      { $unwind: '$class' },
+      {
+        $match: {
+          'student.role': 'Student',
+          ...(campus && campus !== 'all' ? { 'class.campus': campus } : {}),
+          ...(floor && floor !== 'all' ? { 'class.grade': floor === '1st' ? '11th' : '12th' } : {}),
+          ...(program && program !== 'all' ? { 'class.program': program } : {}),
+          ...(classId && classId !== 'all' ? { 'classId': classId } : {})
+        }
+      }
+    ];
+
+    const records = await Attendance.aggregate(pipeline);
+
+    // Calculate overall statistics
+    const totalStudents = new Set(records.map(r => r.studentId.toString())).size;
+    const presentRecords = records.filter(r => r.status === 'Present');
+    const absentRecords = records.filter(r => r.status === 'Absent');
+    const lateRecords = records.filter(r => r.status === 'Late');
+    
+    // For all-time data, show record counts not unique student counts
+    const totalRecords = records.length;
+    const presentCount = presentRecords.length;
+    const absentCount = absentRecords.length;
+    const lateCount = lateRecords.length;
+    
+    const attendancePercentage = totalRecords > 0 ? (presentCount / totalRecords) * 100 : 0;
+
+    // Calculate campus breakdown
+    const campusBreakdown = {};
+    ['Boys', 'Girls'].forEach(campusType => {
+      const campusRecords = records.filter(r => r.class.campus === campusType);
+      const campusTotal = new Set(campusRecords.map(r => r.studentId.toString())).size;
+      const campusPresentRecords = campusRecords.filter(r => r.status === 'Present');
+      const campusAbsentRecords = campusRecords.filter(r => r.status === 'Absent');
+      const campusTotalRecords = campusRecords.length;
+      
+      campusBreakdown[campusType.toLowerCase()] = {
+        total: campusTotal,                    // Unique students
+        present: campusPresentRecords.length,  // Present records count
+        absent: campusAbsentRecords.length,    // Absent records count
+        totalRecords: campusTotalRecords,      // Total records for this campus
+        percentage: campusTotalRecords > 0 ? (campusPresentRecords.length / campusTotalRecords) * 100 : 0
+      };
+    });
+
+    // Calculate floor breakdown by campus
+    const floorBreakdown = {};
+    ['Boys', 'Girls'].forEach(campusType => {
+      floorBreakdown[campusType.toLowerCase()] = {};
+      ['1st', '2nd'].forEach(floorType => {
+        const floorRecords = records.filter(r => 
+          r.class.campus === campusType && 
+          ((floorType === '1st' && r.class.grade === '11th') || (floorType === '2nd' && r.class.grade === '12th'))
+        );
+        const floorTotal = new Set(floorRecords.map(r => r.studentId.toString())).size;
+        const floorPresent = new Set(floorRecords.filter(r => r.status === 'Present').map(r => r.studentId.toString())).size;
+        const floorAbsent = floorTotal - floorPresent;
+        
+        floorBreakdown[campusType.toLowerCase()][floorType] = {
+          total: floorTotal,
+          present: floorPresent,
+          absent: floorAbsent,
+          percentage: floorTotal > 0 ? (floorPresent / floorTotal) * 100 : 0,
+          grade: floorType === '1st' ? '11th' : '12th'
+        };
+      });
+    });
+
+    // Calculate program breakdown by campus
+    const programBreakdown = {};
+    ['Boys', 'Girls'].forEach(campusType => {
+      programBreakdown[campusType.toLowerCase()] = {};
+      const campusRecords = records.filter(r => r.class.campus === campusType);
+      const programs = [...new Set(campusRecords.map(r => r.class.program).filter(Boolean))];
+      
+      programs.forEach(programType => {
+        const programRecords = campusRecords.filter(r => r.class.program === programType);
+        const programTotal = new Set(programRecords.map(r => r.studentId.toString())).size;
+        const programPresent = new Set(programRecords.filter(r => r.status === 'Present').map(r => r.studentId.toString())).size;
+        const programAbsent = programTotal - programPresent;
+        
+        programBreakdown[campusType.toLowerCase()][programType] = {
+          total: programTotal,
+          present: programPresent,
+          absent: programAbsent,
+          percentage: programTotal > 0 ? (programPresent / programTotal) * 100 : 0
+        };
+      });
+    });
+
+    // Calculate class breakdown
+    const classBreakdown = {};
+    const classes = [...new Set(records.map(r => r.classId.toString()))];
+    
+    classes.forEach(classIdStr => {
+      const classRecords = records.filter(r => r.classId.toString() === classIdStr);
+      const classTotal = new Set(classRecords.map(r => r.studentId.toString())).size;
+      const classPresent = new Set(classRecords.filter(r => r.status === 'Present').map(r => r.studentId.toString())).size;
+      const classAbsent = classTotal - classPresent;
+      
+      classBreakdown[classIdStr] = {
+        total: classTotal,
+        present: classPresent,
+        absent: classAbsent,
+        percentage: classTotal > 0 ? (classPresent / classTotal) * 100 : 0
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalStudents,
+        presentStudents: presentCount,  // Using record counts not unique students
+        absentStudents: absentCount,    // Using record counts not unique students  
+        totalRecords,
+        attendancePercentage,
+        campusBreakdown,
+        floorBreakdown,
+        programBreakdown,
+        classBreakdown,
+        dateRange: { 
+          startDate: queryStartDate.toISOString().split('T')[0], 
+          endDate: queryEndDate.toISOString().split('T')[0] 
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting attendance overview:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error getting attendance overview', 
+      error: error.message 
+    });
+  }
+});
+
+// Get detailed attendance records for IT/Admin (student records)
+router.get('/detailed', authenticate, async (req, res) => {
+  try {
+    const { 
+      startDate, 
+      endDate, 
+      campus, 
+      floor, 
+      program, 
+      classId,
+      page = 1,
+      limit = 50 
+    } = req.query;
+    
+    // Default to today if no date range provided
+    const today = new Date().toISOString().split('T')[0];
+    const queryStartDate = startDate || today;
+    const queryEndDate = endDate || today;
+
+    // Build match criteria
+    const matchCriteria = {
+      date: {
+        $gte: queryStartDate,
+        $lte: queryEndDate
+      }
+    };
+
+    // Build aggregation pipeline
+    const pipeline = [
+      { $match: matchCriteria },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'studentId',
+          foreignField: '_id',
+          as: 'student'
+        }
+      },
+      { $unwind: '$student' },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'classId',
+          foreignField: '_id',
+          as: 'class'
+        }
+      },
+      { $unwind: '$class' },
+      {
+        $match: {
+          'student.role': 'Student',
+          ...(campus && campus !== 'all' ? { 'class.campus': campus } : {}),
+          ...(floor && floor !== 'all' ? { 'class.grade': floor === '1st' ? '11th' : '12th' } : {}),
+          ...(program && program !== 'all' ? { 'class.program': program } : {}),
+          ...(classId && classId !== 'all' ? { 'classId': new mongoose.Types.ObjectId(classId) } : {})
+        }
+      },
+      {
+        $project: {
+          date: 1,
+          status: 1,
+          student: {
+            _id: '$student._id',
+            fullName: '$student.fullName',
+            email: '$student.email',
+            phoneNumber: '$student.phoneNumber',
+            studentId: '$student.studentId'
+          },
+          className: '$class.className',
+          campus: '$class.campus',
+          floor: {
+            $cond: {
+              if: { $eq: ['$class.grade', '11th'] },
+              then: '1st',
+              else: '2nd'
+            }
+          },
+          program: '$class.program'
+        }
+      },
+      { $sort: { date: -1, 'student.fullName.firstName': 1 } }
+    ];
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get total count
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const countResult = await Attendance.aggregate(countPipeline);
+    const totalRecords = countResult[0]?.total || 0;
+    
+    // Get paginated results
+    const records = await Attendance.aggregate([
+      ...pipeline,
+      { $skip: skip },
+      { $limit: parseInt(limit) }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        studentRecords: records,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalRecords / parseInt(limit)),
+          totalRecords,
+          recordsPerPage: parseInt(limit)
+        },
+        dateRange: { startDate: queryStartDate, endDate: queryEndDate }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting detailed attendance:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error getting detailed attendance records', 
       error: error.message 
     });
   }

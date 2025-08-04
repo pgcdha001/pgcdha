@@ -30,24 +30,24 @@ const PrincipalDashboard = () => {
       description: 'Manage student correspondence and communications'
     },
     {
-      id: 'student-reports',
-      title: 'Student Reports', 
-      href: '/reports?section=students', 
-      icon: 'BarChart3', 
+      id: 'student-attendance',
+      title: 'Student Attendance', 
+      href: '/student-attendance', 
+      icon: 'UserCheck', 
       bgGradient: 'from-orange-500 to-orange-600',
       type: 'normal',
       permission: null,
-      description: 'View comprehensive student reports'
+      description: 'View student attendance reports and analytics'
     },
     {
-      id: 'attendance-reports',
-      title: 'Attendance Reports', 
-      href: '/reports?section=attendance', 
-      icon: 'UserCheck', 
+      id: 'teacher-attendance',
+      title: 'Teacher Attendance', 
+      href: '/principal/attendance-reports', 
+      icon: 'Users', 
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
       permission: null,
-      description: 'View attendance statistics and reports'
+      description: 'View teacher attendance reports and analytics'
     },
     {
       id: 'class-statistics',

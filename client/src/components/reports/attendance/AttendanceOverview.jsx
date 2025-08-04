@@ -1,0 +1,334 @@
+import React, { useState } from 'react';
+import { Calendar, Users, TrendingUp, Building, GraduationCap } from 'lucide-react';
+import { Button } from '../../ui/button';
+
+// Import sub-components
+import AttendanceStatsCards from './AttendanceStatsCards';
+import FloorDistribution from './FloorDistribution';
+import ProgramDistribution from './ProgramDistribution';
+import ClassDistribution from './ClassDistribution';
+import DateRangeSelector from './DateRangeSelector';
+
+/**
+ * Attendance Overview Component for Principal
+ * Shows hierarchical view: Overall -> Campus -> Floor/Program -> Class
+ */
+const AttendanceOverview = ({
+  attendanceData,
+  classesData,
+  selectedCampus,
+  selectedFloor,
+  selectedProgram,
+  selectedClass,
+  dateRange,
+  onFilterChange,
+  onRefresh,
+  loading
+}) => {
+  const [currentView, setCurrentView] = useState('overview'); // overview, campus, floor, program, class
+
+  // Calculate overall statistics
+  const calculateOverallStats = () => {
+    if (!attendanceData) return { total: 0, present: 0, absent: 0, percentage: 0 };
+    
+    const totalStudents = attendanceData.totalStudents || 0;
+    const presentRecords = attendanceData.presentStudents || 0; // This is actually record count now
+    const absentRecords = attendanceData.absentStudents || 0;   // This is actually record count now
+    const totalRecords = attendanceData.totalRecords || (presentRecords + absentRecords);
+    
+    return {
+      total: totalStudents,           // Total unique students
+      present: presentRecords,        // Total present records
+      absent: absentRecords,          // Total absent records  
+      totalRecords: totalRecords,     // Total attendance records
+      percentage: attendanceData.attendancePercentage || 0
+    };
+  };
+
+  const overallStats = calculateOverallStats();
+
+  const handleViewChange = (view, options = {}) => {
+    console.log('handleViewChange called:', view, options); // Debug log
+    setCurrentView(view);
+    
+    // Apply any filters passed in options
+    if (options.campus) {
+      console.log('Setting campus filter:', options.campus); // Debug log
+      onFilterChange('campus', options.campus);
+    }
+    if (options.floor) {
+      onFilterChange('floor', options.floor);
+    }
+    if (options.program) {
+      onFilterChange('program', options.program);
+    }
+    if (options.classId) {
+      onFilterChange('classId', options.classId);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">
+                Monitor attendance across campus, floors, programs, and classes
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <DateRangeSelector
+              dateRange={dateRange}
+              onDateRangeChange={(range) => onFilterChange('dateRange', range)}
+            />
+            <Button 
+              onClick={onRefresh} 
+              disabled={loading}
+              variant="outline"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Overall Statistics */}
+      <AttendanceStatsCards
+        stats={overallStats}
+        title="Student Attendance Statistics"
+        showPercentage={true}
+      />
+
+      {/* Navigation Breadcrumb */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4">
+        <nav className="flex items-center space-x-2 text-sm text-gray-600">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              handleViewChange('overview');
+            }}
+            className={`px-3 py-1 rounded-lg transition-colors ${
+              currentView === 'overview' 
+                ? 'bg-blue-100 text-blue-700 font-medium' 
+                : 'hover:bg-gray-100'
+            }`}
+          >
+            Overview
+          </button>
+          
+          {selectedCampus !== 'all' && (
+            <>
+              <span>/</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleViewChange('campus');
+                }}
+                className={`px-3 py-1 rounded-lg transition-colors ${
+                  currentView === 'campus' 
+                    ? 'bg-blue-100 text-blue-700 font-medium' 
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                {selectedCampus} Campus
+              </button>
+            </>
+          )}
+          
+          {selectedFloor !== 'all' && (
+            <>
+              <span>/</span>
+              <span className="px-3 py-1 bg-gray-100 rounded-lg">
+                {selectedFloor} Floor
+              </span>
+            </>
+          )}
+          
+          {selectedProgram !== 'all' && (
+            <>
+              <span>/</span>
+              <span className="px-3 py-1 bg-gray-100 rounded-lg">
+                {selectedProgram}
+              </span>
+            </>
+          )}
+          
+          {selectedClass !== 'all' && (
+            <>
+              <span>/</span>
+              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg">
+                Class View
+              </span>
+            </>
+          )}
+        </nav>
+      </div>
+
+      {/* Main Content based on current view */}
+      {currentView === 'overview' && (
+        <div className="space-y-6">
+          {/* Boys Campus Row */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <Building className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Boys Campus</h3>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleViewChange('campus', { campus: 'Boys' });
+                }}
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              >
+                View Details →
+              </button>
+            </div>
+            {attendanceData?.campusBreakdown?.boys && (
+              <div className="grid grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">
+                    {attendanceData.campusBreakdown.boys.total || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Students</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {attendanceData.campusBreakdown.boys.present || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Present Records</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {attendanceData.campusBreakdown.boys.absent || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Absent Records</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {attendanceData.campusBreakdown.boys.percentage?.toFixed(1) || '0.0'}%
+                  </div>
+                  <div className="text-sm text-gray-600">Attendance Rate</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Girls Campus Row */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg flex items-center justify-center">
+                  <Building className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Girls Campus</h3>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleViewChange('campus', { campus: 'Girls' });
+                }}
+                className="text-pink-600 hover:text-pink-700 text-sm font-medium"
+              >
+                View Details →
+              </button>
+            </div>
+            {attendanceData?.campusBreakdown?.girls && (
+              <div className="grid grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">
+                    {attendanceData.campusBreakdown.girls.total || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Students</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {attendanceData.campusBreakdown.girls.present || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Present Records</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {attendanceData.campusBreakdown.girls.absent || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Absent Records</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-pink-600">
+                    {attendanceData.campusBreakdown.girls.percentage?.toFixed(1) || '0.0'}%
+                  </div>
+                  <div className="text-sm text-gray-600">Attendance Rate</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {currentView === 'campus' && selectedCampus !== 'all' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <FloorDistribution
+            attendanceData={attendanceData}
+            campus={selectedCampus}
+            selectedFloor={selectedFloor}
+            onFloorSelect={(floor) => handleViewChange('floor', { floor })}
+          />
+          <ProgramDistribution
+            attendanceData={attendanceData}
+            campus={selectedCampus}
+            selectedProgram={selectedProgram}
+            onProgramSelect={(program) => handleViewChange('program', { program })}
+          />
+        </div>
+      )}
+
+      {(currentView === 'floor' || currentView === 'program') && (
+        <ClassDistribution
+          attendanceData={attendanceData}
+          classesData={classesData}
+          filters={{
+            campus: selectedCampus,
+            floor: selectedFloor,
+            program: selectedProgram
+          }}
+          selectedClass={selectedClass}
+          onClassSelect={(classId) => handleViewChange('class', { class: classId })}
+        />
+      )}
+
+      {/* Help Text */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Users className="h-4 w-4 text-blue-600" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-blue-900 mb-1">How to navigate</h3>
+            <p className="text-sm text-blue-700">
+              Start with the overall view, then click on campus tabs to see Boys/Girls distribution. 
+              From there, explore floor-wise or program-wise breakdowns, and finally drill down to individual classes.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AttendanceOverview;

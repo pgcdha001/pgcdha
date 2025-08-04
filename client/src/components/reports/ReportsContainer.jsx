@@ -5,7 +5,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import PermissionGuard from '../PermissionGuard';
 import ReportsNavigation from './ReportsNavigation';
 import EnquiryReports from './EnquiryReports';
-import StudentAttendanceReports from './StudentAttendanceReports';
+import StudentAttendanceManagement from './StudentAttendanceManagement';
 import LectureAttendanceReports from './LectureAttendanceReports';
 import AttendanceReports from './AttendanceReports';
 import ExaminationReports from './ExaminationReports';
@@ -60,7 +60,7 @@ const ReportsContainer = () => {
       case 'attendance':
         return (
           <PermissionGuard permission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}>
-            <StudentAttendanceReports config={config} />
+            <StudentAttendanceManagement config={config} />
           </PermissionGuard>
         );
       case 'lecture-attendance':

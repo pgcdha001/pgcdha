@@ -23,14 +23,25 @@ router.get('/', authenticate, async (req, res) => {
       .populate('teachers.teacherId', 'fullName userName email')
       .sort({ floor: 1, grade: 1, program: 1, name: 1 });
 
-    // Update student count for each class
+    // Update student count for each class and format floor display
     for (const classDoc of classes) {
       await classDoc.updateStudentCount();
     }
 
+    // Transform classes to include frontend-expected floor format
+    const transformedClasses = classes.map(cls => {
+      const classObj = cls.toObject();
+      return {
+        ...classObj,
+        className: cls.fullName, // Use the full descriptive name
+        floor: cls.grade === '11th' ? '1st' : '2nd' // Transform floor to frontend format
+      };
+    });
+
     res.json({
       success: true,
-      classes
+      classes: transformedClasses,
+      data: transformedClasses // Also include 'data' field for compatibility
     });
 
   } catch (error) {

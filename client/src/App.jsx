@@ -40,6 +40,7 @@ import TeacherDashboard from './components/dashboard/TeacherDashboard';
 
 // Reports
 import ReportsContainer from './components/reports/ReportsContainer';
+import StudentAttendanceManagement from './components/reports/StudentAttendanceManagement';
 
 // Correspondence Management
 import { CorrespondenceManagement } from './components/correspondence';
@@ -118,6 +119,20 @@ const App = () => {
                       allowedRoles={['InstituteAdmin', 'IT', 'Receptionist', 'Coordinator']}
                     >
                       <EnquiryManagementContainer />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Dedicated Student Attendance Management Route */}
+              <Route path="/student-attendance" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      requiredPermission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}
+                      allowedRoles={['Principal', 'InstituteAdmin', 'IT']}
+                    >
+                      <StudentAttendanceManagement />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

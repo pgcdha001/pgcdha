@@ -161,6 +161,14 @@ ClassSchema.virtual('floorDescription').get(function() {
   return floorNames[this.floor] || 'Unknown Floor';
 });
 
+// Virtual for frontend floor format ('1st', '2nd')
+ClassSchema.virtual('floorDisplay').get(function() {
+  // Map numeric floor to grade-based display for frontend
+  if (this.grade === '11th') return '1st';
+  if (this.grade === '12th') return '2nd';
+  return '1st';
+});
+
 // Virtual to check if class is full
 ClassSchema.virtual('isFull').get(function() {
   return this.currentStudents >= this.maxStudents;
