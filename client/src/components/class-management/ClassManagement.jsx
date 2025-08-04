@@ -40,7 +40,7 @@ const ClassManagement = () => {
     campus: '',
     grade: '',
     program: '',
-    maxStudents: 50,
+    maxStudents: 100,
     classIncharge: '',
     floorIncharge: '',
     academicYear: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
@@ -159,7 +159,7 @@ const ClassManagement = () => {
       campus: classData.campus || '',
       grade: classData.grade || '',
       program: classData.program || '',
-      maxStudents: classData.maxStudents || 50,
+      maxStudents: classData.maxStudents || 100,
       classIncharge: classData.classIncharge || '',
       floorIncharge: classData.floorIncharge || '',
       academicYear: classData.academicYear || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
@@ -201,7 +201,7 @@ const ClassManagement = () => {
       campus: '',
       grade: '',
       program: '',
-      maxStudents: 50,
+      maxStudents: 100,
       classIncharge: '',
       floorIncharge: '',
       academicYear: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)

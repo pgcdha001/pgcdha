@@ -45,8 +45,10 @@ const PrincipalEnquiryManagement = () => {
   const [customDatesApplied, setCustomDatesApplied] = useState(false);
   const [customData, setCustomData] = useState(null);
   
-  // State for floating stats pill
+  // State for floating stats pill and background data loading
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [isGlimpseDataLoading, setIsGlimpseDataLoading] = useState(false);
+  const [hasMainDataLoaded, setHasMainDataLoaded] = useState(false);
   const [pillPosition, setPillPosition] = useState({ 
     x: window.innerWidth * 0.1, // 10% from left
     y: window.innerHeight * 0.9 - 100 // 10% from bottom (minus pill height)
@@ -204,8 +206,40 @@ const PrincipalEnquiryManagement = () => {
 
   // Effects
   useEffect(() => {
-    // Only fetch data on component mount
-    fetchComprehensiveData();
+    // Load main data immediately (this will use the hook's loading state)
+    // Then load additional glimpse data in background once main loading is done
+    const loadMainData = async () => {
+      try {
+        console.log('Loading main data...');
+        await fetchComprehensiveData();
+        setHasMainDataLoaded(true);
+        
+        // Start background glimpse data preparation
+        // This ensures glimpse data is fully ready for instant display
+        console.log('Preparing glimpse data in background...');
+        setIsGlimpseDataLoading(true);
+        
+        // Small delay to let main UI settle
+        setTimeout(async () => {
+          try {
+            // Force a fresh fetch to ensure glimpse has latest data
+            await fetchComprehensiveData(true);
+            console.log('Glimpse data prepared successfully');
+          } catch (error) {
+            console.warn('Failed to prepare glimpse data:', error);
+          } finally {
+            setIsGlimpseDataLoading(false);
+          }
+        }, 300); // Shorter delay since main data is already loaded
+        
+      } catch (error) {
+        console.error('Failed to load main data:', error);
+        setHasMainDataLoaded(false);
+        setIsGlimpseDataLoading(false);
+      }
+    };
+    
+    loadMainData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - only run on mount
 
@@ -275,7 +309,7 @@ const PrincipalEnquiryManagement = () => {
           selectedLevel={selectedLevel}
           onLevelChange={setSelectedLevel}
           levelStats={levelStats}
-          loading={loading}
+          loading={isInitialLoading}
         />
 
         {/* Today's Statistics */}
@@ -290,7 +324,7 @@ const PrincipalEnquiryManagement = () => {
             selectedGender={selectedGender}
             selectedLevel={selectedLevel}
             onCardClick={handleCardClick}
-            loading={loading}
+            loading={isInitialLoading}
           />
         ) : (
           <ProgramBreakdownCards 
@@ -298,19 +332,21 @@ const PrincipalEnquiryManagement = () => {
             selectedGender={selectedGender}
             currentData={currentData}
             onBackClick={handleBackClick}
-            loading={loading}
+            loading={isInitialLoading}
           />
         )}
 
-        {/* Floating Stats Pill */}
-        <FloatingStatsPill 
-          position={pillPosition}
-          loading={loading}
-          isDragging={isDragging}
-          onShowStats={() => setShowStatsModal(true)}
-          onMouseDown={handleMouseDown}
-          pillRef={pillRef}
-        />
+        {/* Floating Stats Pill - Only show when main data is loaded */}
+        {hasMainDataLoaded && (
+          <FloatingStatsPill 
+            position={pillPosition}
+            loading={isGlimpseDataLoading} // Show loading state for glimpse data preparation
+            isDragging={isDragging}
+            onShowStats={() => setShowStatsModal(true)}
+            onMouseDown={handleMouseDown}
+            pillRef={pillRef}
+          />
+        )}
 
         {/* Stats Modal */}
         <StatsModal 
@@ -326,7 +362,7 @@ const PrincipalEnquiryManagement = () => {
           onStartDateChange={setCustomStartDate}
           onEndDateChange={setCustomEndDate}
           onApplyFilters={handleApplyFilters}
-          loading={loading}
+          loading={isInitialLoading}
           currentData={currentData}
           lastUpdated={lastUpdated}
         />
