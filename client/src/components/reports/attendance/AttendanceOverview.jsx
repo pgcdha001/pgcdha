@@ -9,7 +9,8 @@ import FloorDistribution from './FloorDistribution';
 import ProgramDistribution from './ProgramDistribution';
 import ClassDistribution from './ClassDistribution';
 import DateRangeSelector from './DateRangeSelector';
-import StudentSearch from './StudentSearch';
+import StudentSearchPage from '../../attendance/StudentSearchPage';
+import StudentDetailsModal from '../../attendance/StudentDetailsModal';
 import AttendanceGlimpse from './AttendanceGlimpse';
 import AttendanceGlimpseButton from './AttendanceGlimpseButton';
 
@@ -40,6 +41,8 @@ const AttendanceOverview = ({
   const currentView = getCurrentView();
   const [showStudentSearch, setShowStudentSearch] = useState(false);
   const [showGlimpseModal, setShowGlimpseModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showStudentDetails, setShowStudentDetails] = useState(false);
   
   // Get auth context for role checking
   const { user } = useAuth();
@@ -364,9 +367,24 @@ const AttendanceOverview = ({
 
       {/* Student Search Modal */}
       {showStudentSearch && (
-        <StudentSearch 
+        <StudentSearchPage 
           onClose={() => setShowStudentSearch(false)}
-          dateRange={dateRange}
+          onStudentSelect={(student) => {
+            setSelectedStudent(student);
+            setShowStudentDetails(true);
+            setShowStudentSearch(false);
+          }}
+        />
+      )}
+
+      {/* Student Details Modal */}
+      {showStudentDetails && selectedStudent && (
+        <StudentDetailsModal 
+          student={selectedStudent}
+          onClose={() => {
+            setShowStudentDetails(false);
+            setSelectedStudent(null);
+          }}
         />
       )}
 

@@ -639,6 +639,67 @@ router.get('/student/:studentId', async (req, res) => {
   }
 });
 
+// Get student attendance summary
+router.get('/student/:studentId/summary', authenticate, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    console.log('Fetching attendance summary for student:', studentId);
+    
+    // Get all attendance records for this student using the correct field name
+    const attendanceRecords = await Attendance.find({
+      studentId: studentId
+    }).lean();
+    
+    console.log(`Found ${attendanceRecords.length} attendance records for student ${studentId}`);
+    
+    let totalDays = 0;
+    let presentDays = 0;
+    let absentDays = 0;
+    
+    attendanceRecords.forEach(record => {
+      totalDays++;
+      // Check for different possible status values (case-insensitive)
+      const status = record.status?.toLowerCase();
+      if (status === 'present') {
+        presentDays++;
+      } else if (status === 'absent') {
+        absentDays++;
+      }
+      // Note: Any other status (like 'late', 'excused', etc.) will be counted as neither present nor absent
+    });
+    
+    // Calculate absent days as total minus present (in case some records don't have explicit 'absent' status)
+    const calculatedAbsentDays = totalDays - presentDays;
+    
+    // Use the calculated absent days for consistency
+    const finalAbsentDays = calculatedAbsentDays;
+    
+    const attendancePercentage = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
+    
+    const summary = {
+      totalDays,
+      presentDays,
+      absentDays: finalAbsentDays,
+      attendancePercentage
+    };
+    
+    console.log('Attendance summary:', summary);
+    
+    res.json({
+      success: true,
+      data: summary,
+      message: 'Attendance summary fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching student attendance summary:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 // Monthly attendance statistics for Principal
 router.get('/monthly-stats/:year', authenticate, async (req, res) => {
   try {

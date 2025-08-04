@@ -180,6 +180,55 @@ router.get('/',
 );
 
 /**
+ * @route   GET /api/users/all-students
+ * @desc    Get all students for the search page
+ * @access  Private
+ */
+router.get('/all-students', 
+  authenticate,
+  asyncHandler(async (req, res) => {
+    try {
+      console.log('Fetching all students...');
+      
+      const studentsData = await User.find({
+        role: 'Student',
+        status: { $ne: 3 } // Exclude deleted users
+      })
+      .populate('classId', 'name grade') // Populate class information
+      .select('_id fullName email username role status admissionInfo program classId createdAt dob fatherName address')
+      .sort({ 'fullName.firstName': 1 })
+      .lean();
+      
+      // Transform the data to match the expected academicInfo structure
+      const students = studentsData.map(student => ({
+        ...student,
+        academicInfo: {
+          currentClass: student.classId ? student.classId.name : (student.admissionInfo?.className || null),
+          session: student.admissionInfo?.grade || null,
+          rollNumber: null, // This field doesn't exist in the current schema
+          program: student.program || null,
+          fatherName: student.fatherName || null,
+          dateOfBirth: student.dob || null,
+          address: student.address || null
+        }
+      }));
+      
+      console.log(`Found ${students.length} total students`);
+      
+      sendSuccessResponse(res, { students }, 'Students fetched successfully');
+      
+    } catch (error) {
+      console.error('Error fetching all students:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching students',
+        error: error.message
+      });
+    }
+  })
+);
+
+/**
  * @route   GET /api/users/:id
  * @desc    Get user by ID
  * @access  Private
@@ -977,37 +1026,5 @@ router.put('/:id/enquiry-level', asyncHandler(async (req, res) => {
 
   sendSuccessResponse(res, { user: userResponse }, 'Enquiry level updated successfully');
 }));
-
-/**
- * @route   GET /api/users/search-students
- * @desc    Search for students by name for attendance lookup
- * @access  Private
- */
-router.get('/search-students', 
-  asyncHandler(async (req, res) => {
-    const { query = '', limit = 10 } = req.query;
-    
-    if (!query || query.trim().length < 2) {
-      return sendSuccessResponse(res, { students: [] }, 'Search query too short');
-    }
-    
-    // Search for students (role = 3 for Student)
-    const students = await User.find({
-      role: 3, // Student role
-      status: { $ne: 3 }, // Not deleted
-      $or: [
-        { 'fullName.firstName': new RegExp(query, 'i') },
-        { 'fullName.lastName': new RegExp(query, 'i') },
-        { email: new RegExp(query, 'i') },
-        { username: new RegExp(query, 'i') }
-      ]
-    })
-    .select('_id fullName email username academicInfo.grade academicInfo.programme academicInfo.campus')
-    .limit(parseInt(limit))
-    .sort({ 'fullName.firstName': 1 });
-    
-    sendSuccessResponse(res, { students }, 'Students found successfully');
-  })
-);
 
 module.exports = router;

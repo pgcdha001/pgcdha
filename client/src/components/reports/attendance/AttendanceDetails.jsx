@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Search, Filter, Download, Users, Phone, Mail, Building } from 'lucide-react';
 import { Button } from '../../ui/button';
 import DateRangeSelector from './DateRangeSelector';
-import StudentSearch from './StudentSearch';
+import StudentSearchPage from '../../attendance/StudentSearchPage';
+import StudentDetailsModal from '../../attendance/StudentDetailsModal';
 
 /**
  * Attendance Details Component for IT/Admin roles
@@ -25,6 +26,8 @@ const AttendanceDetails = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage] = useState(50);
   const [showStudentSearch, setShowStudentSearch] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showStudentDetails, setShowStudentDetails] = useState(false);
 
   // Get student records from attendance data
   const getStudentRecords = () => {
@@ -404,9 +407,24 @@ const AttendanceDetails = ({
 
       {/* Student Search Modal */}
       {showStudentSearch && (
-        <StudentSearch 
+        <StudentSearchPage 
           onClose={() => setShowStudentSearch(false)}
-          dateRange={dateRange}
+          onStudentSelect={(student) => {
+            setSelectedStudent(student);
+            setShowStudentDetails(true);
+            setShowStudentSearch(false);
+          }}
+        />
+      )}
+
+      {/* Student Details Modal */}
+      {showStudentDetails && selectedStudent && (
+        <StudentDetailsModal 
+          student={selectedStudent}
+          onClose={() => {
+            setShowStudentDetails(false);
+            setSelectedStudent(null);
+          }}
         />
       )}
     </div>
