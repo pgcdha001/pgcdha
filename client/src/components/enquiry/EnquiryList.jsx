@@ -47,7 +47,7 @@ const EnquiryList = ({ config }) => {
       // Build query parameters
       const params = new URLSearchParams();
       
-      // IMPORTANT: Only show students who are NOT assigned to a class
+      // Only show students who are NOT assigned to a class
       // Students assigned to classes should not appear in enquiry list
       params.append('assignmentFilter', 'unassigned');
       

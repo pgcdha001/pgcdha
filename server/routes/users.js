@@ -57,27 +57,42 @@ router.get('/',
       } else {
         // Handle predefined date filters
         const now = new Date();
-        let filterStartDate;
+        let filterStartDate, filterEndDate;
 
         switch (dateFilter) {
           case 'today':
+            // Use same calculation as comprehensive-data for consistency
             filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            filterEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
             break;
           case 'week':
             filterStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            filterEndDate = new Date();
             break;
           case 'month':
             filterStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            filterEndDate = new Date();
             break;
           case 'year':
             filterStartDate = new Date(now.getFullYear(), 0, 1);
+            filterEndDate = new Date();
             break;
           default:
             filterStartDate = null;
+            filterEndDate = null;
         }
 
         if (filterStartDate) {
-          filter.createdOn = { $gte: filterStartDate };
+          if (dateFilter === 'today') {
+            // For today, use exact range like comprehensive-data
+            filter.createdOn = { 
+              $gte: filterStartDate,
+              $lt: filterEndDate 
+            };
+          } else {
+            // For other ranges, use >= start date
+            filter.createdOn = { $gte: filterStartDate };
+          }
         }
       }
     }

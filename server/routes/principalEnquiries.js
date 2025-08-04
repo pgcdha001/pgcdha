@@ -530,7 +530,9 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
       {
         $match: {
           role: 'Student',
-          prospectusStage: { $gte: 1, $lte: 5 }
+          prospectusStage: { $gte: 1, $lte: 5 },
+          // Only include students who are NOT assigned to a class (same as enquiry lists)
+          classId: { $exists: false }
         }
       },
       {
