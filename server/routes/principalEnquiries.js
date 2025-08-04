@@ -790,6 +790,170 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * @route   GET /api/enquiries/level-history-data
+ * @desc    Get enquiry data based on level history progression (when levels were achieved)
+ * @access  Private (Principal, InstituteAdmin, IT)
+ */
+router.get('/level-history-data', asyncHandler(async (req, res) => {
+  console.log('Level history data requested by user:', req.user.email, 'Role:', req.user.role);
+  
+  // Allow Principal, InstituteAdmin, and IT users
+  if (!['Principal', 'InstituteAdmin', 'ITAdmin', 'SystemAdmin'].includes(req.user.role)) {
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. Insufficient privileges. Your role: ${req.user.role}`
+    });
+  }
+
+  try {
+    const { minLevel, dateFilter, startDate, endDate } = req.query;
+    
+    // Build aggregation pipeline for level history filtering
+    let levelHistoryMatch = {
+      role: 'Student',
+      levelHistory: { $exists: true, $ne: [] }
+    };
+
+    // Apply date filter to level achievements
+    let dateMatch = {};
+    if (dateFilter && dateFilter !== 'all') {
+      if (dateFilter === 'custom' && startDate && endDate) {
+        const customStartDate = new Date(startDate);
+        const customEndDate = new Date(endDate);
+        customEndDate.setHours(23, 59, 59, 999);
+        
+        dateMatch['levelHistory.achievedOn'] = {
+          $gte: customStartDate,
+          $lte: customEndDate
+        };
+        console.log('Applied custom date filter to level history:', customStartDate, 'to', customEndDate);
+      } else {
+        const now = new Date();
+        let filterStartDate;
+
+        switch (dateFilter) {
+          case 'today':
+            filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+          case 'week':
+            filterStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case 'month':
+            filterStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case 'year':
+            filterStartDate = new Date(now.getFullYear(), 0, 1);
+            break;
+          default:
+            filterStartDate = null;
+        }
+
+        if (filterStartDate) {
+          dateMatch['levelHistory.achievedOn'] = { $gte: filterStartDate };
+          console.log('Applied date filter to level history:', dateFilter, 'Start date:', filterStartDate);
+        }
+      }
+    }
+
+    // Apply level filter
+    if (minLevel && minLevel !== 'all') {
+      dateMatch['levelHistory.level'] = { $gte: parseInt(minLevel) };
+    }
+
+    // Main aggregation pipeline
+    const pipeline = [
+      { $match: levelHistoryMatch },
+      { $unwind: '$levelHistory' },
+      { $match: dateMatch },
+      {
+        $group: {
+          _id: '$_id',
+          student: { $first: '$$ROOT' },
+          maxLevel: { $max: '$levelHistory.level' },
+          levelAchievements: { $push: '$levelHistory' }
+        }
+      },
+      {
+        $project: {
+          _id: '$student._id',
+          fullName: '$student.fullName',
+          userName: '$student.userName',
+          email: '$student.email',
+          gender: '$student.gender',
+          program: '$student.program',
+          prospectusStage: '$maxLevel',
+          createdOn: '$student.createdOn',
+          updatedOn: '$student.updatedOn',
+          campus: '$student.campus',
+          levelHistory: '$levelAchievements'
+        }
+      },
+      { $sort: { updatedOn: -1 } }
+    ];
+
+    console.log('Level history aggregation pipeline:', JSON.stringify(pipeline, null, 2));
+
+    const students = await User.aggregate(pipeline);
+    
+    // Calculate statistics
+    const totalEnquiries = students.length;
+    const admittedStudents = students.filter(s => s.prospectusStage >= 5).length;
+    
+    // Level breakdown (cumulative)
+    const levelBreakdown = {};
+    for (let i = 1; i <= 5; i++) {
+      levelBreakdown[`level${i}`] = students.filter(s => s.prospectusStage >= i).length;
+    }
+
+    // Gender breakdown by level
+    const genderLevelBreakdown = {
+      boys: {},
+      girls: {}
+    };
+
+    for (let i = 1; i <= 5; i++) {
+      genderLevelBreakdown.boys[`level${i}`] = students.filter(s => 
+        s.prospectusStage >= i && s.gender === 'Male'
+      ).length;
+      genderLevelBreakdown.girls[`level${i}`] = students.filter(s => 
+        s.prospectusStage >= i && s.gender === 'Female'
+      ).length;
+    }
+
+    const responseData = {
+      totalEnquiries,
+      admittedStudents,
+      levelBreakdown,
+      genderLevelBreakdown,
+      students: students.slice(0, 100), // Limit for performance
+      totalStudents: students.length,
+      dataSource: 'levelHistory', // Indicates this uses level history tracking
+      message: 'Data based on when levels were actually achieved, not when students were created'
+    };
+
+    console.log('Level history data response summary:', {
+      total: totalEnquiries,
+      admitted: admittedStudents,
+      levels: levelBreakdown,
+      dataSource: 'levelHistory'
+    });
+
+    res.json({
+      success: true,
+      data: responseData
+    });
+
+  } catch (error) {
+    console.error('Error fetching level history data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching level history data',
+      error: error.message
+    });
+  }
+}));
+
+/**
  * @route   GET /api/enquiries/monthly-stats
  * @desc    Get monthly level progression statistics for the current year
  * @access  Private (Principal only)
@@ -823,29 +987,69 @@ router.get('/monthly-stats', asyncHandler(async (req, res) => {
       });
     }
 
-    // Aggregate data for each month and level
+    // Aggregate data for each month and level using level history
     const monthlyData = {};
     
     for (const month of months) {
-      const monthData = {};
+      console.log(`Processing ${month.name} ${currentYear}...`);
       
-      // Get statistics for each level (1-5) with cumulative counting
-      for (let level = 1; level <= 5; level++) {
-        // Count students who are at this level OR HIGHER
-        const count = await User.countDocuments({
-          role: 'Student',
-          prospectusStage: { $gte: level }, // Greater than or equal to this level
-          createdOn: {
-            $gte: month.start,
-            $lte: month.end
+      // Use aggregation to get level achievements for this month
+      const pipeline = [
+        {
+          $match: {
+            role: 'Student',
+            levelHistory: { $exists: true, $ne: [] }
           }
-        });
+        },
+        {
+          $unwind: '$levelHistory'
+        },
+        {
+          $match: {
+            'levelHistory.achievedOn': {
+              $gte: month.start,
+              $lte: month.end
+            }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              level: '$levelHistory.level'
+            },
+            count: { $sum: 1 }
+          }
+        }
+      ];
+      
+      const monthResults = await User.aggregate(pipeline);
+      console.log(`${month.name} level achievements:`, monthResults);
+      
+      // Initialize month data
+      const monthData = {
+        level1: 0,
+        level2: 0,
+        level3: 0,
+        level4: 0,
+        level5: 0
+      };
+      
+      // Fill in the counts with cumulative logic
+      monthResults.forEach(result => {
+        const achievedLevel = result._id.level;
+        const count = result.count;
         
-        monthData[`level${level}`] = count;
-      }
+        if (achievedLevel >= 1 && achievedLevel <= 5) {
+          // Add this count to all levels from 1 up to the achieved level
+          // This maintains the cumulative nature (Level 3+ includes Level 1+ and Level 2+)
+          for (let level = 1; level <= achievedLevel; level++) {
+            monthData[`level${level}`] += count;
+          }
+        }
+      });
       
       monthlyData[month.name] = monthData;
-      console.log(`${month.name} data (cumulative):`, monthData);
+      console.log(`${month.name} final data (cumulative):`, monthData);
     }
 
     console.log('Final monthly data structure:', JSON.stringify(monthlyData, null, 2));
@@ -922,12 +1126,21 @@ router.get('/daily-stats', asyncHandler(async (req, res) => {
     
     console.log(`Fetching daily data for ${month} ${year} (${daysInMonth} days)`);
     
-    // Use a single aggregation query to get all data at once
+    // Use a more sophisticated aggregation query that considers level history
+    // This will track when students achieved each level, not just when they were created
     const pipeline = [
       {
         $match: {
           role: 'Student',
-          createdOn: {
+          levelHistory: { $exists: true, $ne: [] }
+        }
+      },
+      {
+        $unwind: '$levelHistory'
+      },
+      {
+        $match: {
+          'levelHistory.achievedOn': {
             $gte: monthStart,
             $lte: monthEnd
           }
@@ -936,8 +1149,8 @@ router.get('/daily-stats', asyncHandler(async (req, res) => {
       {
         $group: {
           _id: {
-            day: { $dayOfMonth: '$createdOn' },
-            level: '$prospectusStage'
+            day: { $dayOfMonth: '$levelHistory.achievedOn' },
+            level: '$levelHistory.level'
           },
           count: { $sum: 1 }
         }
@@ -945,7 +1158,7 @@ router.get('/daily-stats', asyncHandler(async (req, res) => {
     ];
     
     const results = await User.aggregate(pipeline);
-    console.log('Aggregation results:', results);
+    console.log('Level history aggregation results:', results);
     
     // Initialize daily data structure
     const dailyData = {};
@@ -964,12 +1177,13 @@ router.get('/daily-stats', asyncHandler(async (req, res) => {
     // Fill in the actual counts from aggregation results with cumulative logic
     results.forEach(result => {
       const day = result._id.day;
-      const studentLevel = result._id.level;
+      const achievedLevel = result._id.level;
       const count = result.count;
       
-      if (day >= 1 && day <= daysInMonth && studentLevel >= 1 && studentLevel <= 5) {
-        // Add this count to all levels from 1 up to the student's level
-        for (let level = 1; level <= studentLevel; level++) {
+      if (day >= 1 && day <= daysInMonth && achievedLevel >= 1 && achievedLevel <= 5) {
+        // Add this count to all levels from 1 up to the achieved level
+        // This maintains the cumulative nature (Level 3+ includes Level 1+ and Level 2+)
+        for (let level = 1; level <= achievedLevel; level++) {
           dailyData[day][`level${level}`] += count;
         }
       }
@@ -998,5 +1212,99 @@ router.get('/daily-stats', asyncHandler(async (req, res) => {
     });
   }
 }));
+
+// Get students with level history date filtering for reports
+router.get('/level-history-students', async (req, res) => {
+  try {
+    const { dateFilter, startDate, endDate, nonProgression, progressionLevel } = req.query;
+    
+    let matchCondition = {
+      role: 'Student'
+    };
+    
+    // Add date filtering based on level history
+    if (dateFilter && dateFilter !== 'all') {
+      let dateCondition = {};
+      const now = new Date();
+      
+      switch (dateFilter) {
+        case 'today':
+          const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+          const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+          dateCondition = {
+            $gte: startOfDay,
+            $lte: endOfDay
+          };
+          break;
+          
+        case 'week':
+          const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          dateCondition = {
+            $gte: startOfWeek,
+            $lte: now
+          };
+          break;
+          
+        case 'month':
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          dateCondition = {
+            $gte: startOfMonth,
+            $lte: now
+          };
+          break;
+          
+        case 'year':
+          const startOfYear = new Date(now.getFullYear(), 0, 1);
+          dateCondition = {
+            $gte: startOfYear,
+            $lte: now
+          };
+          break;
+          
+        case 'custom':
+          if (startDate && endDate) {
+            dateCondition = {
+              $gte: new Date(startDate),
+              $lte: new Date(endDate)
+            };
+          }
+          break;
+      }
+      
+      // Add condition to match students who achieved any level within the date range
+      if (Object.keys(dateCondition).length > 0) {
+        matchCondition['levelHistory.achievedAt'] = dateCondition;
+      }
+    }
+    
+    // Add non-progression filtering
+    if (nonProgression === 'true' && progressionLevel) {
+      const levelNum = parseInt(progressionLevel);
+      const sinceDate = new Date();
+      sinceDate.setMonth(sinceDate.getMonth() - 1); // 1 month ago
+      
+      matchCondition.prospectusStage = { $lte: levelNum };
+      matchCondition.createdOn = { $lte: sinceDate };
+    }
+    
+    const students = await User.find(matchCondition)
+      .sort({ createdOn: -1 })
+      .lean();
+    
+    res.json({
+      success: true,
+      data: {
+        users: students
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching level history students:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch students with level history filtering'
+    });
+  }
+});
 
 module.exports = router;

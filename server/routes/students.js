@@ -164,19 +164,38 @@ router.post('/register', authenticate, requireIT, async (req, res) => {
 // Update student progression (IT only)
 router.patch('/:id/progress', authenticate, requireIT, async (req, res) => {
   try {
-    const { prospectusStage, status, isPassedOut } = req.body;
+    const { prospectusStage, status, isPassedOut, decrementReason } = req.body;
     const update = {};
     if (prospectusStage !== undefined) update.prospectusStage = prospectusStage;
     if (status !== undefined) update.status = status;
     if (isPassedOut !== undefined) update.isPassedOut = isPassedOut;
-    const student = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: update },
-      { new: true, runValidators: true }
-    ).select('-password');
+    
+    // Find the student first to set updatedBy info for level tracking
+    const student = await User.findById(req.params.id);
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
-    res.json({ success: true, student });
+    
+    // Set the updatedBy information for level history tracking
+    if (prospectusStage !== undefined) {
+      student._updatedBy = req.user._id;
+      student._updatedByName = `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || req.user.userName;
+      
+      // If level is being decreased, set the reason
+      if (prospectusStage < student.prospectusStage && decrementReason) {
+        student._decrementReason = decrementReason;
+      }
+    }
+    
+    // Apply updates
+    Object.assign(student, update);
+    await student.save();
+    
+    // Remove sensitive fields
+    const studentResponse = student.toObject();
+    delete studentResponse.password;
+    
+    res.json({ success: true, student: studentResponse });
   } catch (err) {
+    console.error('Error updating student progress:', err);
     res.status(400).json({ success: false, message: err.message });
   }
 });

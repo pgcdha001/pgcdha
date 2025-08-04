@@ -140,6 +140,42 @@ const UserSchema = new mongoose.Schema({
     required: true
   }, // 1: Initial Enquiry, 2: Follow-up, 3: Serious Interest, 4: Documents Submitted, 5: Admitted
 
+  // Level History Tracking - tracks when each level was achieved
+  levelHistory: [{
+    level: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 5
+    },
+    achievedOn: {
+      type: Date,
+      required: true,
+      default: Date.now
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false // Can be null for system updates or initial creation
+    },
+    updatedByName: {
+      type: String,
+      required: false
+    },
+    isDecrement: {
+      type: Boolean,
+      default: false // True when this entry represents a level decrease
+    },
+    previousLevel: {
+      type: Number,
+      required: false // Only set when isDecrement is true
+    },
+    reason: {
+      type: String,
+      required: false // Optional reason for level changes, especially decrements
+    }
+  }],
+
   // Additional Information for Level 5 (Admitted) Students
   admissionInfo: {
     grade: {
@@ -246,6 +282,73 @@ UserSchema.pre('save', async function (next) {
       this.program = programMappings[this.program];
     }
   }
+
+  // Track level history for enquiry/prospectus stage changes
+  if (this.role === 'Student') {
+    const currentLevel = this.prospectusStage || this.enquiryLevel || 1;
+    
+    // If this is a new document (no levelHistory exists), initialize it with incremental approach
+    if (!this.levelHistory || this.levelHistory.length === 0) {
+      this.levelHistory = [];
+      const creationDate = this.createdOn || new Date();
+      
+      // Add entries for all levels from 1 up to the current level
+      // This ensures that a student created at Level 3 shows up in Level 1+, 2+, and 3+ stats
+      for (let level = 1; level <= currentLevel; level++) {
+        this.levelHistory.push({
+          level: level,
+          achievedOn: creationDate,
+          updatedBy: this._updatedBy || null,
+          updatedByName: this._updatedByName || 'System'
+        });
+      }
+      
+      console.log(`Initializing incremental level history for new student ${this.fullName?.firstName} ${this.fullName?.lastName}: Levels 1-${currentLevel} on ${creationDate.toISOString()}`);
+    } else {
+      // Check if level has changed from the most recent entry
+      const lastLevelEntry = this.levelHistory[this.levelHistory.length - 1];
+      if (lastLevelEntry.level !== currentLevel) {
+        const changeDate = new Date();
+        
+        if (currentLevel > lastLevelEntry.level) {
+          // Level increased - add entries for any missing intermediate levels and the new level
+          const startLevel = lastLevelEntry.level + 1;
+          
+          for (let level = startLevel; level <= currentLevel; level++) {
+            this.levelHistory.push({
+              level: level,
+              achievedOn: changeDate,
+              updatedBy: this._updatedBy || null,
+              updatedByName: this._updatedByName || 'System'
+            });
+          }
+          
+          console.log(`Level progression for student ${this.fullName?.firstName} ${this.fullName?.lastName}: Added levels ${startLevel}-${currentLevel} on ${changeDate.toISOString()}`);
+        } else {
+          // Level decreased - add a decrementation entry
+          this.levelHistory.push({
+            level: currentLevel,
+            achievedOn: changeDate,
+            updatedBy: this._updatedBy || null,
+            updatedByName: this._updatedByName || 'System',
+            isDecrement: true,
+            previousLevel: lastLevelEntry.level,
+            reason: this._decrementReason || 'Level decreased'
+          });
+          
+          console.log(`Level decremented for student ${this.fullName?.firstName} ${this.fullName?.lastName}: From level ${lastLevelEntry.level} to ${currentLevel} on ${changeDate.toISOString()}`);
+        }
+      }
+    }
+
+    // Sync prospectusStage with enquiryLevel if they differ
+    if (this.enquiryLevel && this.prospectusStage !== this.enquiryLevel) {
+      this.prospectusStage = this.enquiryLevel;
+    }
+  }
+
+  // Update the updatedOn timestamp
+  this.updatedOn = new Date();
 
   if (!this.isModified('password')) return next();
   try {

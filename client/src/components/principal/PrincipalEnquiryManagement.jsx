@@ -328,9 +328,6 @@ const PrincipalEnquiryManagement = () => {
           onApplyFilters={handleApplyFilters}
           loading={loading}
           currentData={currentData}
-          percentages={percentages}
-          levelStats={levelStats}
-          levelTabs={levelTabs}
           lastUpdated={lastUpdated}
         />
       </div>

@@ -545,8 +545,20 @@ router.put('/:id',
 
     // Handle enquiry level and admission info
     if (enquiryLevel !== undefined) {
-      updateData.enquiryLevel = parseInt(enquiryLevel);
-      updateData.prospectusStage = parseInt(enquiryLevel); // Keep both in sync
+      const newLevel = parseInt(enquiryLevel);
+      const oldLevel = user.enquiryLevel || user.prospectusStage;
+      
+      updateData.enquiryLevel = newLevel;
+      updateData.prospectusStage = newLevel; // Keep both in sync
+      
+      // Set updatedBy information for level history tracking
+      updateData._updatedBy = req.user._id;
+      updateData._updatedByName = `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || req.user.userName;
+      
+      // If level is being decreased, set the reason
+      if (newLevel < oldLevel && req.body.decrementReason) {
+        updateData._decrementReason = req.body.decrementReason;
+      }
     }
     if (admissionInfo) {
       updateData.admissionInfo = admissionInfo;

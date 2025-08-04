@@ -68,8 +68,6 @@ const StudentReport = () => {
     try {
       // Build query parameters
       const params = new URLSearchParams();
-      params.append('role', 'Student');
-      params.append('limit', '10000'); // Set high limit to show all records (no pagination)
       
       // Add date filter parameters (only if not custom, or if custom and dates are applied)
       if (selectedDate !== 'all' && selectedDate !== 'custom') {
@@ -87,10 +85,20 @@ const StudentReport = () => {
       }
       
       const queryString = params.toString();
-      const url = `/users?${queryString}`;
+      let url = '';
+      
+      // Use level history API for date-based filtering, otherwise use users API
+      if (selectedDate !== 'all' || (selectedDate === 'custom' && customDatesApplied)) {
+        url = `/enquiries/level-history-students?${queryString}`;
+      } else {
+        // For 'all time' or when no date filters are applied, use users API
+        params.append('role', 'Student');
+        params.append('limit', '10000');
+        url = `/users?${params.toString()}`;
+      }
       
       const res = await api.get(url);
-      setStudents(res.data?.data?.users || []);
+      setStudents(res.data?.data?.users || res.data?.data || []);
     } catch (err) {
       console.error('Failed to fetch students:', err);
       setError('Failed to fetch students');
