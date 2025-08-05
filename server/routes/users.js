@@ -561,7 +561,7 @@ router.put('/:id',
     // Handle enquiry level and admission info
     if (enquiryLevel !== undefined) {
       const newLevel = parseInt(enquiryLevel);
-      const oldLevel = user.enquiryLevel || user.prospectusStage;
+      const oldLevel = currentUser.enquiryLevel || currentUser.prospectusStage;
       
       updateData.enquiryLevel = newLevel;
       updateData.prospectusStage = newLevel; // Keep both in sync
