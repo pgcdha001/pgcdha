@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
 import useEnquiryData from '../../hooks/useEnquiryData';
 
 // Import all the smaller components
 import ErrorDisplay from './ErrorDisplay';
 import Header from './Header';
+import DateFilter from './DateFilter';
+import CustomDateRange from './CustomDateRange';
 import LevelTabs from './LevelTabs';
 import TodaysStats from './TodaysStats';
 import StatsCards from './StatsCards';
@@ -137,6 +139,19 @@ const PrincipalEnquiryManagement = () => {
     };
   }, []);
 
+  // Prepare all levels data for TodaysStats
+  const allLevelsData = useMemo(() => {
+    const levelsData = {};
+    for (let level = 1; level <= 5; level++) {
+      // Use 'today' filter to show today's achievements specifically
+      const levelData = getFilteredData(level, 'today');
+      levelsData[`level${level}`] = levelData;
+    }
+    return levelsData;
+  }, [getFilteredData]);
+
+  // No longer need time period data for AdvancedStatsTable (Glimpse)
+
   // Event handlers
   const handleCardClick = (view, gender = null) => {
     if (view === 'total') {
@@ -158,7 +173,8 @@ const PrincipalEnquiryManagement = () => {
     
     try {
       const response = await fetchCustomDateRange(customStartDate, customEndDate, selectedLevel);
-      setCustomData(response);
+      // Extract the actual data from the response
+      setCustomData(response.data);
       setCustomDatesApplied(true);
     } catch (error) {
       // Don't log errors for canceled requests
@@ -303,6 +319,46 @@ const PrincipalEnquiryManagement = () => {
           lastUpdated={lastUpdated}
         />
 
+        {/* Time Filter Section */}
+        <div className="bg-white rounded-xl shadow-lg mb-8 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">
+                Time Filter
+              </h2>
+              <p className="text-sm text-gray-600">
+                Select the time period for enquiry data analysis
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <DateFilter 
+                selectedDate={selectedDate}
+                dateFilters={dateFilters}
+                onDateChange={setSelectedDate}
+                loading={loading}
+              />
+            </div>
+          </div>
+          
+          {/* Custom Date Range in Main Page */}
+          {selectedDate === 'custom' && (
+            <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h3 className="text-lg font-semibold text-blue-800 mb-4">Custom Date Range</h3>
+              <CustomDateRange 
+                customStartDate={customStartDate}
+                customEndDate={customEndDate}
+                customDatesApplied={customDatesApplied}
+                isCustomDateLoading={isCustomDateLoading}
+                onStartDateChange={setCustomStartDate}
+                onEndDateChange={setCustomEndDate}
+                onApplyFilters={handleApplyFilters}
+                loading={loading}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Level Tabs */}
         <LevelTabs 
           levelTabs={levelTabs}
@@ -313,7 +369,13 @@ const PrincipalEnquiryManagement = () => {
         />
 
         {/* Today's Statistics */}
-        <TodaysStats />
+        <TodaysStats 
+          allTimeData={allLevelsData}
+          isLoading={isInitialLoading}
+          error={error}
+          lastUpdated={lastUpdated}
+          onRefresh={refreshData}
+        />
 
         {/* Stats Cards OR Program Breakdown Cards */}
         {currentView === 'default' ? (
@@ -352,18 +414,7 @@ const PrincipalEnquiryManagement = () => {
         <StatsModal 
           showStatsModal={showStatsModal}
           onCloseModal={() => setShowStatsModal(false)}
-          selectedDate={selectedDate}
-          dateFilters={dateFilters}
-          onDateChange={setSelectedDate}
-          customStartDate={customStartDate}
-          customEndDate={customEndDate}
-          customDatesApplied={customDatesApplied}
-          isCustomDateLoading={isCustomDateLoading}
-          onStartDateChange={setCustomStartDate}
-          onEndDateChange={setCustomEndDate}
-          onApplyFilters={handleApplyFilters}
           loading={isInitialLoading}
-          currentData={currentData}
           lastUpdated={lastUpdated}
         />
       </div>

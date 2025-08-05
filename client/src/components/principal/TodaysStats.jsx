@@ -1,18 +1,20 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Calendar, TrendingUp, RefreshCw, Clock } from 'lucide-react';
-import api from '../../services/api';
 
-const TodaysStats = () => {
-  const [todaysData, setTodaysData] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
+const TodaysStats = ({ 
+  allTimeData, 
+  isLoading = false, 
+  error = null, 
+  lastUpdated = null, 
+  onRefresh = null 
+}) => {
+  
   // Get current date information - ensuring we use local time zone
   const getCurrentDateInfo = () => {
     const now = new Date();
     // Ensure we're getting the local date, not UTC
     const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+    console.log(localDate);
     
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -32,63 +34,45 @@ const TodaysStats = () => {
     };
   };
 
-  // Fetch today's data from the daily-stats API
-  const fetchTodaysData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const dateInfo = getCurrentDateInfo();
-      console.log('Fetching today\'s data for:', dateInfo);
-      
-      const response = await api.get(`/enquiries/daily-stats?month=${dateInfo.month}&year=${dateInfo.year}`);
-      console.log('Today\'s data API response:', response.data);
-      
-      if (response.data.success) {
-        const dailyData = response.data.data.dailyData;
-        const todayData = dailyData[dateInfo.day] || {
-          level1: 0,
-          level2: 0,
-          level3: 0,
-          level4: 0,
-          level5: 0
-        };
-        
-        console.log(`Today's specific data for day ${dateInfo.day}:`, todayData);
-        console.log('Level History System: Showing level changes that happened today, not just student creations');
-        setTodaysData(todayData);
-        setLastUpdated(new Date());
-      } else {
-        console.error('Failed to fetch today\'s data:', response.data);
-        setTodaysData({
-          level1: 0,
-          level2: 0,
-          level3: 0,
-          level4: 0,
-          level5: 0
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching today\'s data:', err);
-      if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
-        setError(err.response?.data?.message || 'Failed to load today\'s statistics');
-        setTodaysData({
-          level1: 0,
-          level2: 0,
-          level3: 0,
-          level4: 0,
-          level5: 0
-        });
-      }
-    } finally {
-      setIsLoading(false);
+  // Get today's data from the passed props instead of making API calls
+  const getTodaysData = useCallback(() => {
+    // Use the allTimeData passed from parent component
+    if (!allTimeData) {
+      return {
+        level1: 0,
+        level2: 0,
+        level3: 0,
+        level4: 0,
+        level5: 0
+      };
     }
-  }, []); // Empty dependency array since getCurrentDateInfo is called inside
 
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchTodaysData();
-  }, [fetchTodaysData]);
+    // Extract current state data from the passed data structure
+    // For today's stats, we want to show students who achieved levels today
+    const result = {
+      level1: allTimeData.level1?.total || 0,  // Level 1+ students today
+      level2: allTimeData.level2?.total || 0,  // Level 2+ students today  
+      level3: allTimeData.level3?.total || 0,  // Level 3+ students today
+      level4: allTimeData.level4?.total || 0,  // Level 4+ students today
+      level5: allTimeData.level5?.total || 0,  // Level 5+ students today
+    };
+
+    console.log('Today\'s data from passed props (today filter):', result);
+    console.log('Raw allTime data structure for today:', allTimeData);
+    
+    // Debug: Check if any data exists
+    const hasAnyData = Object.values(result).some(val => val > 0);
+    if (!hasAnyData) {
+      console.log('WARNING: No data found for today. This could mean:');
+      console.log('1. No students achieved new levels today');
+      console.log('2. levelHistory system is not properly tracking achievements');
+      console.log('3. achievedOn dates are not being set correctly');
+    }
+    
+    return result;
+  }, [allTimeData]);
+
+  const todaysData = getTodaysData();
 
   const dateInfo = useMemo(() => getCurrentDateInfo(), []);
 
@@ -134,7 +118,7 @@ const TodaysStats = () => {
         <div className="flex items-center justify-center h-32">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-gray-600 text-sm">Loading today's statistics...</p>
+            <p className="text-gray-600 text-sm">Loading current statistics...</p>
           </div>
         </div>
       </div>
@@ -149,7 +133,7 @@ const TodaysStats = () => {
           <div>
             <div className="flex items-center space-x-2 mb-2">
               <Calendar className="w-5 h-5" />
-              <h2 className="text-xl font-bold">Today's Enquiry Statistics</h2>
+              <h2 className="text-xl font-bold">Today's Enquiry Activity</h2>
             </div>
             <p className="text-blue-100 text-sm">{dateInfo.dateString}</p>
             {lastUpdated && (
@@ -161,9 +145,9 @@ const TodaysStats = () => {
           
           <div className="text-right">
             <div className="text-3xl font-bold">{todayTotal.toLocaleString()}</div>
-            <div className="text-blue-100 text-sm">Total Today</div>
+            <div className="text-blue-100 text-sm">Today's Total</div>
             <button
-              onClick={fetchTodaysData}
+              onClick={onRefresh}
               disabled={isLoading}
               className="mt-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors duration-200 disabled:opacity-50"
             >
@@ -211,14 +195,14 @@ const TodaysStats = () => {
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-2 text-gray-600">
               <Clock className="w-4 h-4" />
-              <span>Live data for Day {dateInfo.day} of {dateInfo.month} {dateInfo.year}</span>
+              <span>Live data as of Day {dateInfo.day} of {dateInfo.month} {dateInfo.year}</span>
             </div>
             <div className="flex items-center space-x-2 text-gray-500">
               <TrendingUp className="w-4 h-4" />
-              <span>Real-time enquiry tracking</span>
+              <span>Today's level achievements</span>
               {todayTotal === 0 && (
                 <span className="text-xs text-yellow-600 ml-2">
-                  (No enquiries recorded today yet)
+                  (No level progressions recorded today)
                 </span>
               )}
             </div>

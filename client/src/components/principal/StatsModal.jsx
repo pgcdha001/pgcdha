@@ -1,25 +1,12 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import DateFilter from './DateFilter';
-import CustomDateRange from './CustomDateRange';
 import LoadingOverlay from './LoadingOverlay';
 import AdvancedStatsTable from './AdvancedStatsTable';
 
 const StatsModal = ({
   showStatsModal,
   onCloseModal,
-  selectedDate,
-  dateFilters,
-  onDateChange,
-  customStartDate,
-  customEndDate,
-  customDatesApplied,
-  isCustomDateLoading,
-  onStartDateChange,
-  onEndDateChange,
-  onApplyFilters,
   loading,
-  currentData,
   lastUpdated
 }) => {
   if (!showStatsModal) return null;
@@ -48,14 +35,6 @@ const StatsModal = ({
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Date Filter */}
-              <DateFilter 
-                selectedDate={selectedDate}
-                dateFilters={dateFilters}
-                onDateChange={onDateChange}
-                loading={loading}
-              />
-              
               <button
                 onClick={onCloseModal}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -71,26 +50,8 @@ const StatsModal = ({
           {/* Loading Overlay */}
           {loading && <LoadingOverlay />}
           
-          {/* Custom Date Range in Modal */}
-          {selectedDate === 'custom' && (
-            <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h3 className="text-lg font-semibold text-blue-800 mb-4">Custom Date Range</h3>
-              <CustomDateRange 
-                customStartDate={customStartDate}
-                customEndDate={customEndDate}
-                customDatesApplied={customDatesApplied}
-                isCustomDateLoading={isCustomDateLoading}
-                onStartDateChange={onStartDateChange}
-                onEndDateChange={onEndDateChange}
-                onApplyFilters={onApplyFilters}
-                loading={loading}
-              />
-            </div>
-          )}
-          
           {/* Advanced Statistics Table */}
           <AdvancedStatsTable 
-            data={currentData}
             loading={loading}
           />
         </div>

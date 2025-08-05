@@ -43,6 +43,8 @@ const AdvancedStatistics = () => {
   const [dailyActivities, setDailyActivities] = useState([]);
   const [systemMetrics, setSystemMetrics] = useState([]);
   const [enquiryTrends, setEnquiryTrends] = useState([]);
+  const [monthlyBreakdown, setMonthlyBreakdown] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [performanceData, setPerformanceData] = useState([]);
   
   // Summary stats
@@ -75,6 +77,10 @@ const AdvancedStatistics = () => {
     fetchAdvancedStatistics();
   }, [selectedTimeFilter]);
 
+  useEffect(() => {
+    fetchMonthlyBreakdown();
+  }, [selectedYear]);
+
   const filterDataByTime = (items, timeField = 'createdAt') => {
     if (!selectedTimeFilter.value) return items;
     
@@ -103,6 +109,9 @@ const AdvancedStatistics = () => {
       processSystemMetrics(allUsers, filteredUsers);
       processEnquiryTrends(allUsers, filteredUsers);
       processPerformanceMetrics(allUsers, filteredUsers);
+      
+      // Fetch monthly breakdown data
+      await fetchMonthlyBreakdown();
       
       // Fetch correspondence statistics
       await fetchCorrespondenceStatistics();
@@ -134,6 +143,44 @@ const AdvancedStatistics = () => {
     } catch (error) {
       console.error('Error fetching correspondence statistics:', error);
       // Don't show error toast for correspondence stats if main stats work
+    }
+  };
+
+  const debugDatabaseData = async () => {
+    try {
+      const response = await api.get('/enquiries/debug-data');
+      if (response.data.success) {
+        console.log('Debug Data:', response.data.data);
+        toast.success('Debug data logged to console');
+      }
+    } catch (error) {
+      console.error('Error fetching debug data:', error);
+      toast.error('Failed to fetch debug data');
+    }
+  };
+
+  const fetchMonthlyBreakdown = async () => {
+    try {
+      const response = await api.get(`/enquiries/monthly-breakdown/${selectedYear}`);
+      
+      if (response.data.success) {
+        const monthlyData = response.data.data.months.map(month => ({
+          month: month.name,
+          monthNumber: month.month,
+          totalEnquiries: month.monthlyTotal,
+          level1: month.level1,
+          level2: month.level2,
+          level3: month.level3,
+          level4: month.level4,
+          level5: month.level5
+        }));
+        
+        setMonthlyBreakdown(monthlyData);
+      }
+    } catch (error) {
+      console.error('Error fetching monthly breakdown:', error);
+      // Set empty data on error
+      setMonthlyBreakdown([]);
     }
   };
 
@@ -666,16 +713,51 @@ const AdvancedStatistics = () => {
         </div>
       </Card>
 
-      {/* Enquiry Trends */}
+      {/* Monthly Enquiry Breakdown */}
       <Card className="bg-white/60 backdrop-blur-xl border-border/50 p-6">
-        <h3 className="text-xl font-bold text-primary mb-6 flex items-center gap-2">
-          <Activity className="h-5 w-5" />
-          Enquiry Trends (24 Hours)
-        </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={enquiryTrends}>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-primary flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Monthly Enquiry Breakdown ({selectedYear})
+          </h3>
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedYear}
+              onChange={(e) => {
+                setSelectedYear(parseInt(e.target.value));
+                // Refresh data when year changes
+                setTimeout(() => fetchMonthlyBreakdown(), 100);
+              }}
+              className="px-3 py-2 bg-white/70 border border-border/50 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+            <Button
+              onClick={fetchMonthlyBreakdown}
+              size="sm"
+              variant="outline"
+              className="bg-white/70 hover:bg-white/90"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button
+              onClick={debugDatabaseData}
+              size="sm"
+              variant="outline"
+              className="bg-yellow-100/70 hover:bg-yellow-200/90 text-yellow-800"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Debug DB
+            </Button>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={400}>
+          <ComposedChart data={monthlyBreakdown}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="hour" stroke="#64748b" />
+            <XAxis dataKey="month" stroke="#64748b" />
             <YAxis stroke="#64748b" />
             <Tooltip 
               contentStyle={{ 
@@ -686,10 +768,42 @@ const AdvancedStatistics = () => {
               }} 
             />
             <Legend />
-            <Bar dataKey="enquiries" fill="#3b82f6" name="Enquiries" />
-            <Line type="monotone" dataKey="conversions" stroke="#10b981" strokeWidth={2} name="Conversions" />
+            <Bar dataKey="level1" stackId="levels" fill="#1f77b4" name="Level 1" />
+            <Bar dataKey="level2" stackId="levels" fill="#ff7f0e" name="Level 2" />
+            <Bar dataKey="level3" stackId="levels" fill="#2ca02c" name="Level 3" />
+            <Bar dataKey="level4" stackId="levels" fill="#d62728" name="Level 4" />
+            <Bar dataKey="level5" stackId="levels" fill="#9467bd" name="Level 5" />
+            <Line 
+              type="monotone" 
+              dataKey="totalEnquiries" 
+              stroke="#10b981" 
+              strokeWidth={3} 
+              name="Total Enquiries"
+              dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+            />
           </ComposedChart>
         </ResponsiveContainer>
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[
+            { level: 'Level 1', key: 'level1', color: '#1f77b4' },
+            { level: 'Level 2', key: 'level2', color: '#ff7f0e' },
+            { level: 'Level 3', key: 'level3', color: '#2ca02c' },
+            { level: 'Level 4', key: 'level4', color: '#d62728' },
+            { level: 'Level 5', key: 'level5', color: '#9467bd' }
+          ].map(({ level, key, color }) => {
+            const total = monthlyBreakdown.reduce((sum, month) => sum + (month[key] || 0), 0);
+            return (
+              <div key={level} className="text-center">
+                <div 
+                  className="w-4 h-4 rounded mx-auto mb-1" 
+                  style={{ backgroundColor: color }}
+                ></div>
+                <p className="text-sm font-medium text-muted-foreground">{level}</p>
+                <p className="text-lg font-bold text-primary">{total}</p>
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
       {/* Performance KPIs */}
