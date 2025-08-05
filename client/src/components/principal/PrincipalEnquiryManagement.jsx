@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
 import useEnquiryData from '../../hooks/useEnquiryData';
 
@@ -78,36 +78,68 @@ const PrincipalEnquiryManagement = () => {
     { value: 'custom', label: 'Custom Range' }
   ];
 
-  // Get current data based on selected filters
-  const getCurrentData = useCallback(() => {
-    const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
-    const level = parseInt(selectedLevel);
-    
-    let currentData;
-    if (dateFilter === 'custom' && customData) {
-      currentData = getFilteredData(level, dateFilter, customData);
-    } else {
-      currentData = getFilteredData(level, dateFilter);
-    }
-    
-    // Debug: Log the data structure to understand what we're getting
-    console.log('getCurrentData - dateFilter:', dateFilter, 'level:', level);
-    console.log('getCurrentData - currentData:', currentData);
-    console.log('getCurrentData - has levelProgression?', currentData?.levelProgression ? 'YES' : 'NO');
-    
-    return currentData;
-  }, [selectedLevel, selectedDate, customDatesApplied, customData, getFilteredData]);
+  // State for current data
+  const [currentData, setCurrentData] = useState(null);
+  const [isLoadingCurrentData, setIsLoadingCurrentData] = useState(false);
+
+  // State for level statistics  
+  const [levelStats, setLevelStats] = useState({});
 
   // Get current level statistics
-  const getCurrentLevelStats = useCallback(() => {
-    const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
-    
-    if (dateFilter === 'custom' && customData) {
-      return getLevelStatistics(dateFilter, customData);
-    } else {
-      return getLevelStatistics(dateFilter);
+  const fetchLevelStats = useCallback(async () => {
+    try {
+      const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
+      
+      let stats;
+      if (dateFilter === 'custom' && customData) {
+        stats = await getLevelStatistics(dateFilter, customData);
+      } else {
+        stats = await getLevelStatistics(dateFilter);
+      }
+      
+      console.log('fetchLevelStats - Stats:', stats);
+      setLevelStats(stats);
+    } catch (error) {
+      console.error('Error fetching level stats:', error);
+      setLevelStats({});
     }
   }, [selectedDate, customDatesApplied, customData, getLevelStatistics]);
+
+  // Effect to fetch level stats when filters change
+  useEffect(() => {
+    fetchLevelStats();
+  }, [fetchLevelStats]);
+
+  // Get current data based on selected filters
+  const fetchCurrentData = useCallback(async () => {
+    setIsLoadingCurrentData(true);
+    try {
+      const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
+      const level = parseInt(selectedLevel);
+      
+      let data;
+      if (dateFilter === 'custom' && customData) {
+        data = await getFilteredData(level, dateFilter, customData);
+      } else {
+        data = await getFilteredData(level, dateFilter);
+      }
+      
+      console.log('fetchCurrentData - dateFilter:', dateFilter, 'level:', level);
+      console.log('fetchCurrentData - data:', data);
+      
+      setCurrentData(data);
+    } catch (error) {
+      console.error('Error fetching current data:', error);
+      setCurrentData(null);
+    } finally {
+      setIsLoadingCurrentData(false);
+    }
+  }, [selectedLevel, selectedDate, customDatesApplied, customData, getFilteredData]);
+
+  // Effect to fetch data when filters change
+  useEffect(() => {
+    fetchCurrentData();
+  }, [fetchCurrentData]);
 
   // Calculate percentages from current data
   const calculatePercentages = useCallback((data) => {
@@ -139,16 +171,29 @@ const PrincipalEnquiryManagement = () => {
     };
   }, []);
 
-  // Prepare all levels data for TodaysStats
-  const allLevelsData = useMemo(() => {
-    const levelsData = {};
-    for (let level = 1; level <= 5; level++) {
-      // Use 'today' filter to show today's achievements specifically
-      const levelData = getFilteredData(level, 'today');
-      levelsData[`level${level}`] = levelData;
+  // State for today's stats data
+  const [allLevelsData, setAllLevelsData] = useState({});
+
+  // Fetch today's data for all levels (used by TodaysStats)
+  const fetchTodaysData = useCallback(async () => {
+    try {
+      const levelsData = {};
+      for (let level = 1; level <= 5; level++) {
+        const levelData = await getFilteredData(level, 'today');
+        levelsData[`level${level}`] = levelData?.total || 0; // TodaysStats expects just the count
+      }
+      console.log('fetchTodaysData - All levels today data:', levelsData);
+      setAllLevelsData(levelsData);
+    } catch (error) {
+      console.error('Error fetching today\'s data:', error);
+      setAllLevelsData({});
     }
-    return levelsData;
   }, [getFilteredData]);
+
+  // Effect to fetch today's data when component mounts
+  useEffect(() => {
+    fetchTodaysData();
+  }, [fetchTodaysData]);
 
   // No longer need time period data for AdvancedStatsTable (Glimpse)
 
@@ -278,10 +323,10 @@ const PrincipalEnquiryManagement = () => {
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Compute current state
-  const currentData = getCurrentData() || { total: 0, boys: 0, girls: 0, programs: { boys: {}, girls: {} } };
-  const levelStats = getCurrentLevelStats();
-  const percentages = calculatePercentages(currentData);
-  const loading = isInitialLoading || (selectedDate === 'custom' && isCustomDateLoading);
+  // Data for the current filters
+  const displayData = currentData || { total: 0, boys: 0, girls: 0, programs: { boys: {}, girls: {} } };
+  const percentages = calculatePercentages(displayData);
+  const loading = isInitialLoading || (selectedDate === 'custom' && isCustomDateLoading) || isLoadingCurrentData;
 
   // Show simple error state if data fetch fails and no cached data
   if (error && loading) {
@@ -380,21 +425,21 @@ const PrincipalEnquiryManagement = () => {
         {/* Stats Cards OR Program Breakdown Cards */}
         {currentView === 'default' ? (
           <StatsCards 
-            currentData={currentData}
+            currentData={displayData}
             percentages={percentages}
             currentView={currentView}
             selectedGender={selectedGender}
             selectedLevel={selectedLevel}
             onCardClick={handleCardClick}
-            loading={isInitialLoading}
+            loading={loading}
           />
         ) : (
           <ProgramBreakdownCards 
             currentView={currentView}
             selectedGender={selectedGender}
-            currentData={currentData}
+            currentData={displayData}
             onBackClick={handleBackClick}
-            loading={isInitialLoading}
+            loading={loading}
           />
         )}
 

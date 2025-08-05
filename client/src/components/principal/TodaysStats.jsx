@@ -49,12 +49,13 @@ const TodaysStats = ({
 
     // Extract current state data from the passed data structure
     // For today's stats, we want to show students who achieved levels today
+    // The data is already in the format {level1: 3, level2: 3, ...}
     const result = {
-      level1: allTimeData.level1?.total || 0,  // Level 1+ students today
-      level2: allTimeData.level2?.total || 0,  // Level 2+ students today  
-      level3: allTimeData.level3?.total || 0,  // Level 3+ students today
-      level4: allTimeData.level4?.total || 0,  // Level 4+ students today
-      level5: allTimeData.level5?.total || 0,  // Level 5+ students today
+      level1: allTimeData.level1 || 0,  // Level 1+ students today
+      level2: allTimeData.level2 || 0,  // Level 2+ students today  
+      level3: allTimeData.level3 || 0,  // Level 3+ students today
+      level4: allTimeData.level4 || 0,  // Level 4+ students today
+      level5: allTimeData.level5 || 0,  // Level 5+ students today
     };
 
     console.log('Today\'s data from passed props (today filter):', result);

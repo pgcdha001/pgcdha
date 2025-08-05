@@ -38,9 +38,9 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
   
   console.log('Base query:', query);
 
-  // Apply level filter - show students AT LEAST this level (as client requested)
+  // Apply level filter - show students AT EXACT this level (not cumulative)
   if (minLevel && minLevel !== 'all') {
-    query.prospectusStage = { $gte: parseInt(minLevel), $lte: 5 };
+    query.prospectusStage = parseInt(minLevel);
   }
 
   // Apply date filter
@@ -159,8 +159,7 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
         levelQuery.createdOn = query.createdOn;
       }
       
-      // Get boys count for current level (cumulative - includes higher levels)
-      // Level 2 includes Level 3 students, Level 3 includes Level 4 students, etc.
+      // Get boys count for current level (exact level only)
       const boysCurrentLevel = await User.countDocuments({
         ...levelQuery,
         gender: { $in: ['Male', 'male', 'M'] }
@@ -171,7 +170,7 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       if (i > 1) {
         let prevLevelQuery = {
           role: 'Student',
-          prospectusStage: { $gte: i - 1 },
+          prospectusStage: i - 1, // Exact previous level
           gender: { $in: ['Male', 'male', 'M'] }
         };
         if (query.createdOn) {
@@ -183,8 +182,7 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
         boysPreviousLevel = boysCurrentLevel;
       }
       
-      // Get girls count for current level (cumulative - includes higher levels)
-      // Level 2 includes Level 3 students, Level 3 includes Level 4 students, etc.
+      // Get girls count for current level (exact level only)
       const girlsCurrentLevel = await User.countDocuments({
         ...levelQuery,
         gender: { $in: ['Female', 'female', 'F'] }
@@ -195,7 +193,7 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       if (i > 1) {
         let prevLevelQuery = {
           role: 'Student',
-          prospectusStage: { $gte: i - 1 },
+          prospectusStage: i - 1, // Exact previous level
           gender: { $in: ['Female', 'female', 'F'] }
         };
         if (query.createdOn) {
@@ -230,7 +228,7 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       // Build base query for level calculations (same date filter)
       let levelQuery = {
         role: 'Student',
-        prospectusStage: { $gte: i }
+        prospectusStage: i // Exact level only
       };
       
       // Apply same date filter to level calculations
@@ -238,7 +236,7 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
         levelQuery.createdOn = query.createdOn;
       }
       
-      // Get count for current level (cumulative - includes higher levels)
+      // Get count for current level (exact level only)
       const currentLevelCount = await User.countDocuments(levelQuery);
       
       // Get count for previous level
@@ -246,7 +244,7 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       if (i > 1) {
         let prevLevelQuery = {
           role: 'Student',
-          prospectusStage: { $gte: i - 1 }
+          prospectusStage: i - 1 // Exact previous level
         };
         if (query.createdOn) {
           prevLevelQuery.createdOn = query.createdOn;
@@ -421,11 +419,11 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
     for (let level = 1; level <= 5; level++) {
       const levelQuery = {
         role: 'Student',
-        prospectusStage: { $gte: level, $lte: 5 },
+        prospectusStage: level, // Exact level, not cumulative
         ...dateQuery
       };
       levelBreakdown[level] = await User.countDocuments(levelQuery);
-      console.log(`Level ${level}+ count:`, levelBreakdown[level], 'with query:', levelQuery);
+      console.log(`Level ${level} count:`, levelBreakdown[level], 'with query:', levelQuery);
     }
 
     // Get total enquiries (Level 1) with date filtering
@@ -841,61 +839,6 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     });
     } // Close the else block
 
-    // Calculate cumulative counts for levels (level 1+ includes all levels 1-5, level 2+ includes 2-5, etc.)
-    for (let level = 1; level <= 5; level++) {
-      let cumulativeTotal = 0, cumulativeBoys = 0, cumulativeGirls = 0;
-      const cumulativePrograms = { boys: {}, girls: {} };
-      
-      // Sum up all levels from current level to 5
-      for (let l = level; l <= 5; l++) {
-        cumulativeTotal += data.allTime.levelData[l].total;
-        cumulativeBoys += data.allTime.levelData[l].boys;
-        cumulativeGirls += data.allTime.levelData[l].girls;
-        
-        // Aggregate programs
-        Object.entries(data.allTime.levelData[l].programs.boys).forEach(([prog, count]) => {
-          cumulativePrograms.boys[prog] = (cumulativePrograms.boys[prog] || 0) + count;
-        });
-        Object.entries(data.allTime.levelData[l].programs.girls).forEach(([prog, count]) => {
-          cumulativePrograms.girls[prog] = (cumulativePrograms.girls[prog] || 0) + count;
-        });
-      }
-      
-      // Update with cumulative data
-      data.allTime.levelData[level] = {
-        total: cumulativeTotal,
-        boys: cumulativeBoys,
-        girls: cumulativeGirls,
-        programs: cumulativePrograms
-      };
-      
-      // Do the same for date ranges
-      Object.keys(data.dateRanges).forEach(dateRange => {
-        let cumulativeTotal = 0, cumulativeBoys = 0, cumulativeGirls = 0;
-        const cumulativePrograms = { boys: {}, girls: {} };
-        
-        for (let l = level; l <= 5; l++) {
-          cumulativeTotal += data.dateRanges[dateRange].levelData[l].total;
-          cumulativeBoys += data.dateRanges[dateRange].levelData[l].boys;
-          cumulativeGirls += data.dateRanges[dateRange].levelData[l].girls;
-          
-          Object.entries(data.dateRanges[dateRange].levelData[l].programs.boys).forEach(([prog, count]) => {
-            cumulativePrograms.boys[prog] = (cumulativePrograms.boys[prog] || 0) + count;
-          });
-          Object.entries(data.dateRanges[dateRange].levelData[l].programs.girls).forEach(([prog, count]) => {
-            cumulativePrograms.girls[prog] = (cumulativePrograms.girls[prog] || 0) + count;
-          });
-        }
-        
-        data.dateRanges[dateRange].levelData[level] = {
-          total: cumulativeTotal,
-          boys: cumulativeBoys,
-          girls: cumulativeGirls,
-          programs: cumulativePrograms
-        };
-      });
-    }
-
     // Calculate progression data for all levels
     console.log('Calculating progression data...');
     
@@ -1092,7 +1035,7 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
 
     // Apply level filter
     if (minLevel && minLevel !== 'all') {
-      dateMatch['levelHistory.level'] = { $gte: parseInt(minLevel) };
+      dateMatch['levelHistory.level'] = parseInt(minLevel); // Exact level, not cumulative
     }
 
     // Main aggregation pipeline
@@ -1512,6 +1455,10 @@ router.get('/monthly-breakdown/:year', asyncHandler(async (req, res) => {
     ];
 
     const result = await User.aggregate(pipeline);
+    
+    console.log('=== MONTHLY BREAKDOWN AGGREGATION RESULT ===');
+    console.log('Raw aggregation result:', JSON.stringify(result, null, 2));
+    console.log('Number of result items:', result.length);
     
     // Process the result to ensure all months are included (1-12)
     const months = [];
