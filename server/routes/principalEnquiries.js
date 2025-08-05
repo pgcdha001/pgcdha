@@ -533,7 +533,7 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     console.log('Month start:', monthStart);
     console.log('Year start:', yearStart);
     
-    // NEW PIPELINE: Use levelHistory and achievedOn dates instead of createdOn
+    // FIXED PIPELINE: Use user.createdOn for date filtering with levelHistory for level checking
     const pipeline = [
       {
         $match: {
@@ -543,28 +543,26 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
           levelHistory: { $exists: true, $ne: [] }
         }
       },
-      // Unwind levelHistory array to work with individual achievements
-      { $unwind: '$levelHistory' },
-      // Add time period categorization based on achievedOn dates
+      // Add time period categorization based on USER CREATION dates (NOT levelHistory.achievedOn)
       {
         $addFields: {
           timePeriod: {
             $switch: {
               branches: [
                 {
-                  case: { $gte: ['$levelHistory.achievedOn', todayStart] },
+                  case: { $gte: ['$createdOn', todayStart] },
                   then: 'today'
                 },
                 {
-                  case: { $gte: ['$levelHistory.achievedOn', weekStart] },
+                  case: { $gte: ['$createdOn', weekStart] },
                   then: 'week'
                 },
                 {
-                  case: { $gte: ['$levelHistory.achievedOn', monthStart] },
+                  case: { $gte: ['$createdOn', monthStart] },
                   then: 'month'
                 },
                 {
-                  case: { $gte: ['$levelHistory.achievedOn', yearStart] },
+                  case: { $gte: ['$createdOn', yearStart] },
                   then: 'year'
                 }
               ],
@@ -573,23 +571,25 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
           }
         }
       },
-      // Group by student and time period to get the highest level achieved in each period
+      // Unwind levelHistory to check what levels each user has achieved
+      { $unwind: '$levelHistory' },
+      // Group by user, time period, and level to get unique user-level combinations
       {
         $group: {
           _id: {
             studentId: '$_id',
-            timePeriod: '$timePeriod'
+            timePeriod: '$timePeriod',
+            level: '$levelHistory.level'
           },
-          maxLevel: { $max: '$levelHistory.level' },
           gender: { $first: '$gender' },
           program: { $first: '$program' }
         }
       },
-      // Group by level and time period to count students
+      // Group by level and time period to count students who have achieved each level
       {
         $group: {
           _id: {
-            level: '$maxLevel',
+            level: '$_id.level',
             timePeriod: '$_id.timePeriod'
           },
           count: { $sum: 1 },
@@ -614,25 +614,20 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     });
     console.log(`Found ${studentsWithLevelHistory} students with levelHistory data`);
     
-    // Check for students with recent level achievements
+    // Check for students created today (using createdOn, not achievedOn)
     const recentAchievements = await User.aggregate([
       {
         $match: {
           role: 'Student',
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
-          levelHistory: { $exists: true, $ne: [] }
-        }
-      },
-      { $unwind: '$levelHistory' },
-      {
-        $match: {
-          'levelHistory.achievedOn': { $gte: todayStart }
+          levelHistory: { $exists: true, $ne: [] },
+          createdOn: { $gte: todayStart }
         }
       },
       { $count: 'todayCount' }
     ]);
-    console.log('Students with achievements today:', recentAchievements);
+    console.log('Students created today:', recentAchievements);
     
     const results = await User.aggregate(pipeline);
     console.log(`Level history aggregation returned ${results.length} result groups`);
@@ -992,19 +987,18 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
       levelHistory: { $exists: true, $ne: [] }
     };
 
-    // Apply date filter to level achievements
-    let dateMatch = {};
+    // FIXED: Apply date filter to USER CREATION (not level achievements)
     if (dateFilter && dateFilter !== 'all') {
       if (dateFilter === 'custom' && startDate && endDate) {
         const customStartDate = new Date(startDate);
         const customEndDate = new Date(endDate);
         customEndDate.setHours(23, 59, 59, 999);
         
-        dateMatch['levelHistory.achievedOn'] = {
+        levelHistoryMatch['createdOn'] = {
           $gte: customStartDate,
           $lte: customEndDate
         };
-        console.log('Applied custom date filter to level history:', customStartDate, 'to', customEndDate);
+        console.log('Applied custom date filter to user creation:', customStartDate, 'to', customEndDate);
       } else {
         const now = new Date();
         let filterStartDate;
@@ -1027,22 +1021,23 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
         }
 
         if (filterStartDate) {
-          dateMatch['levelHistory.achievedOn'] = { $gte: filterStartDate };
-          console.log('Applied date filter to level history:', dateFilter, 'Start date:', filterStartDate);
+          levelHistoryMatch['createdOn'] = { $gte: filterStartDate };
+          console.log('Applied date filter to user creation:', dateFilter, 'Start date:', filterStartDate);
         }
       }
     }
 
-    // Apply level filter
+    // Apply level filter to the initial match (if needed)
     if (minLevel && minLevel !== 'all') {
-      dateMatch['levelHistory.level'] = parseInt(minLevel); // Exact level, not cumulative
+      // For level filtering, we can optionally filter users who have at least this level
+      // But based on the ultimate analysis, we should count users who have achieved specific levels
     }
 
-    // Main aggregation pipeline
+    // FIXED: Main aggregation pipeline using createdOn for date filtering
     const pipeline = [
       { $match: levelHistoryMatch },
       { $unwind: '$levelHistory' },
-      { $match: dateMatch },
+      // No additional date matching needed since we filtered by createdOn in levelHistoryMatch
       {
         $group: {
           _id: '$_id',
@@ -1077,13 +1072,18 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
     const totalEnquiries = students.length;
     const admittedStudents = students.filter(s => s.prospectusStage >= 5).length;
     
-    // Level breakdown (cumulative)
+    // FIXED: Level breakdown based on users who have achieved each specific level
+    // This matches the winning formula from ultimate analysis: users created in date range who have achieved levels 1-5
     const levelBreakdown = {};
     for (let i = 1; i <= 5; i++) {
-      levelBreakdown[`level${i}`] = students.filter(s => s.prospectusStage >= i).length;
+      // Count users who have achieved this specific level (not cumulative)
+      levelBreakdown[`level${i}`] = students.filter(s => {
+        // Check if the user has achieved this level in their levelHistory
+        return s.levelHistory && s.levelHistory.some(lh => lh.level === i);
+      }).length;
     }
 
-    // Gender breakdown by level
+    // FIXED: Gender breakdown by level (also using specific level achievement, not cumulative)
     const genderLevelBreakdown = {
       boys: {},
       girls: {}
@@ -1091,10 +1091,10 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
 
     for (let i = 1; i <= 5; i++) {
       genderLevelBreakdown.boys[`level${i}`] = students.filter(s => 
-        s.prospectusStage >= i && s.gender === 'Male'
+        s.gender === 'Male' && s.levelHistory && s.levelHistory.some(lh => lh.level === i)
       ).length;
       genderLevelBreakdown.girls[`level${i}`] = students.filter(s => 
-        s.prospectusStage >= i && s.gender === 'Female'
+        s.gender === 'Female' && s.levelHistory && s.levelHistory.some(lh => lh.level === i)
       ).length;
     }
 
@@ -1106,7 +1106,7 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
       students: students.slice(0, 100), // Limit for performance
       totalStudents: students.length,
       dataSource: 'levelHistory', // Indicates this uses level history tracking
-      message: 'Data based on when levels were actually achieved, not when students were created'
+      message: 'FIXED: Data based on users created in date range who have achieved specific levels (1-5)'
     };
 
     console.log('Level history data response summary:', {
@@ -1258,7 +1258,7 @@ router.get('/monthly-breakdown/:year', asyncHandler(async (req, res) => {
     console.log('Year start:', yearStart);
     console.log('Year end:', yearEnd);
     
-    // Pipeline to get monthly breakdown
+    // FIXED: Pipeline to get monthly breakdown using createdOn dates
     const pipeline = [
       {
         $match: {
@@ -1266,26 +1266,20 @@ router.get('/monthly-breakdown/:year', asyncHandler(async (req, res) => {
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
           levelHistory: { $exists: true, $ne: [] },
-          // Filter by the requested year
-          'levelHistory.achievedOn': { $gte: yearStart, $lte: yearEnd }
+          // FIXED: Filter by user creation date in the requested year
+          createdOn: { $gte: yearStart, $lte: yearEnd }
         }
       },
-      // Unwind levelHistory array to work with individual achievements
-      { $unwind: '$levelHistory' },
-      // Filter again to ensure we only get achievements from the requested year
-      {
-        $match: {
-          'levelHistory.achievedOn': { $gte: yearStart, $lte: yearEnd }
-        }
-      },
-      // Add month extraction for grouping
+      // Add month and day extraction for grouping based on user creation date
       {
         $addFields: {
-          month: { $month: '$levelHistory.achievedOn' },
-          day: { $dayOfMonth: '$levelHistory.achievedOn' }
+          month: { $month: '$createdOn' },
+          day: { $dayOfMonth: '$createdOn' }
         }
       },
-      // Group by level and month to count students
+      // Unwind levelHistory to check what levels each user has achieved
+      { $unwind: '$levelHistory' },
+      // Group by level and month to count students who have achieved each level
       {
         $group: {
           _id: {
@@ -1612,7 +1606,7 @@ router.get('/daily-breakdown/:year/:month', asyncHandler(async (req, res) => {
     console.log('Month start:', monthStart);
     console.log('Month end:', monthEnd);
     
-    // Pipeline to get daily breakdown
+    // FIXED: Pipeline to get daily breakdown using createdOn dates
     const pipeline = [
       {
         $match: {
@@ -1620,25 +1614,19 @@ router.get('/daily-breakdown/:year/:month', asyncHandler(async (req, res) => {
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
           levelHistory: { $exists: true, $ne: [] },
-          // Filter by the requested month
-          'levelHistory.achievedOn': { $gte: monthStart, $lte: monthEnd }
+          // FIXED: Filter by user creation date in the requested month
+          createdOn: { $gte: monthStart, $lte: monthEnd }
         }
       },
-      // Unwind levelHistory array to work with individual achievements
-      { $unwind: '$levelHistory' },
-      // Filter again to ensure we only get achievements from the requested month
-      {
-        $match: {
-          'levelHistory.achievedOn': { $gte: monthStart, $lte: monthEnd }
-        }
-      },
-      // Add day extraction for grouping
+      // Add day extraction for grouping based on user creation date
       {
         $addFields: {
-          day: { $dayOfMonth: '$levelHistory.achievedOn' }
+          day: { $dayOfMonth: '$createdOn' }
         }
       },
-      // Group by level and day to count students
+      // Unwind levelHistory to check what levels each user has achieved
+      { $unwind: '$levelHistory' },
+      // Group by level and day to count students who have achieved each level
       {
         $group: {
           _id: {
