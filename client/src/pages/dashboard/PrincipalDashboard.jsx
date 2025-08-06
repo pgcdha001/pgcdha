@@ -60,6 +60,16 @@ const PrincipalDashboard = () => {
       description: 'View class performance and statistics'
     },
     {
+      id: 'student-examination-report',
+      title: 'Student Examination Report', 
+      href: '/principal/student-examination-report', 
+      icon: 'FileText', 
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      permission: null,
+      description: 'View comprehensive student examination performance with matriculation comparison'
+    },
+    {
       id: 'examination-management',
       title: 'Examination Management', 
       href: '/examinations', 

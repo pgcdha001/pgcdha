@@ -533,7 +533,7 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     console.log('Month start:', monthStart);
     console.log('Year start:', yearStart);
     
-    // FIXED PIPELINE: Use user.createdOn for date filtering with levelHistory for level checking
+    // NEW PIPELINE: Use levelHistory and achievedOn dates instead of createdOn
     const pipeline = [
       {
         $match: {

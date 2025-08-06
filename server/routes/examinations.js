@@ -755,4 +755,304 @@ router.get('/calendar', authenticate, async (req, res) => {
   }
 });
 
+// Get student examination results (Principal report)
+router.get('/student/:studentId/results', authenticate, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    // Verify student exists
+    const student = await User.findById(studentId);
+    if (!student || student.role !== 'Student') {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+    
+    // Get all test results for this student
+    const results = await TestResult.find({ 
+      studentId: studentId,
+      isAbsent: false 
+    })
+    .populate({
+      path: 'testId',
+      select: 'title subject testDate testType totalMarks classId',
+      populate: {
+        path: 'classId',
+        select: 'name grade program'
+      }
+    })
+    .sort({ 'testId.testDate': -1 });
+    
+    // Transform results to include test information
+    const transformedResults = results.map(result => ({
+      _id: result._id,
+      testId: result.testId._id,
+      testTitle: result.testId.title,
+      subject: result.testId.subject,
+      testDate: result.testId.testDate,
+      testType: result.testId.testType,
+      totalMarks: result.testId.totalMarks,
+      obtainedMarks: result.obtainedMarks,
+      percentage: result.percentage,
+      grade: result.grade,
+      enteredOn: result.enteredOn,
+      remarks: result.remarks
+    }));
+    
+    res.json({
+      success: true,
+      data: transformedResults,
+      studentInfo: {
+        _id: student._id,
+        name: `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`,
+        rollNumber: student.rollNumber,
+        program: student.admissionInfo?.program || student.program,
+        grade: student.admissionInfo?.grade || student.grade
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching student results:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching student results', 
+      error: error.message 
+    });
+  }
+});
+
+// Get comprehensive student examination report (Principal dashboard)
+router.get('/student-examination-report', authenticate, async (req, res) => {
+  try {
+    console.log('Fetching comprehensive student examination report...');
+    
+    // Fetch all admitted students (Level 5) with academic records
+    const students = await User.find({
+      role: 'Student',
+      $or: [
+        { prospectusStage: 5 },
+        { enquiryLevel: 5 }
+      ]
+    }).select('-password').lean();
+
+    console.log(`Found ${students.length} admitted students`);
+
+    // Get all test results for these students in one query
+    const studentIds = students.map(s => s._id);
+    const allTestResults = await TestResult.find({
+      studentId: { $in: studentIds },
+      isAbsent: false
+    }).populate({
+      path: 'testId',
+      select: 'title subject testDate testType totalMarks',
+      populate: {
+        path: 'classId',
+        select: 'name grade program'
+      }
+    }).lean();
+
+    console.log(`Found ${allTestResults.length} test results across all students`);
+
+    // Subject configurations based on program
+    const PROGRAM_SUBJECTS = {
+      'ICS': ['English', 'Math', 'Urdu', 'Computer', 'Pak Study', 'T.Quran', 'Stats'],
+      'FSC': ['English', 'Math', 'Urdu', 'Biology', 'Pak Study', 'T.Quran', 'Physics'],
+      'Pre Medical': ['English', 'Math', 'Urdu', 'Biology', 'Pak Study', 'T.Quran', 'Physics'],
+      'Pre Engineering': ['English', 'Math', 'Urdu', 'Computer', 'Pak Study', 'T.Quran', 'Physics'],
+      'ICS-PHY': ['English', 'Math', 'Urdu', 'Computer', 'Pak Study', 'T.Quran', 'Physics'],
+      'default': ['English', 'Math', 'Urdu', 'Pak Study', 'T.Quran', 'Physics']
+    };
+
+    // Process data for each student
+    const processedStudents = students.map(student => {
+      const program = student.admissionInfo?.program || student.program || 'default';
+      const subjects = PROGRAM_SUBJECTS[program] || PROGRAM_SUBJECTS.default;
+      
+      // Get test results for this student
+      const studentTestResults = allTestResults.filter(
+        result => result.studentId.toString() === student._id.toString()
+      );
+
+      // Initialize exam data structure
+      const examData = [];
+      
+      // Add matriculation data as first row
+      if (student.academicRecords?.matriculation) {
+        const matriculationRow = {
+          examName: 'Matriculation',
+          type: 'matriculation',
+          isEditable: false,
+          data: {}
+        };
+        
+        // Populate matriculation subjects
+        subjects.forEach(subject => {
+          const matricSubject = student.academicRecords.matriculation.subjects?.find(
+            s => s.name?.toLowerCase() === subject.toLowerCase()
+          );
+          matriculationRow.data[subject] = matricSubject?.obtainedMarks || '-';
+        });
+        
+        examData.push(matriculationRow);
+      }
+
+      // Group test results by exam/test
+      const testsByName = {};
+      studentTestResults.forEach(result => {
+        const testName = result.testId?.title || 'Unknown Test';
+        const subject = result.testId?.subject;
+        
+        if (!testsByName[testName]) {
+          testsByName[testName] = {
+            examName: testName,
+            type: 'test',
+            isEditable: true,
+            data: {},
+            testId: result.testId?._id,
+            testDate: result.testId?.testDate
+          };
+        }
+        
+        if (subject && subjects.includes(subject)) {
+          testsByName[testName].data[subject] = result.obtainedMarks;
+        }
+      });
+
+      // Add test results to exam data
+      Object.values(testsByName).forEach(test => {
+        examData.push(test);
+      });
+
+      // Calculate performance metrics
+      const matriculationPercentage = parseFloat(student.academicRecords?.matriculation?.percentage || 0);
+      const currentAvgPercentage = studentTestResults.length > 0 
+        ? studentTestResults.reduce((sum, r) => sum + (r.percentage || 0), 0) / studentTestResults.length 
+        : 0;
+
+      // Calculate performance trend
+      let performanceTrend = { trend: 'no-data', value: 'No data', color: 'gray' };
+      
+      if (studentTestResults.length > 0) {
+        if (matriculationPercentage > 0) {
+          const difference = currentAvgPercentage - matriculationPercentage;
+          if (difference > 0) {
+            performanceTrend = { trend: 'up', value: `+${difference.toFixed(1)}%`, color: 'green' };
+          } else if (difference < 0) {
+            performanceTrend = { trend: 'down', value: `${difference.toFixed(1)}%`, color: 'red' };
+          } else {
+            performanceTrend = { trend: 'stable', value: '0%', color: 'gray' };
+          }
+        } else {
+          performanceTrend = { trend: 'no-baseline', value: 'No baseline', color: 'gray' };
+        }
+      }
+
+      // Calculate card color based on performance
+      let cardColor = 'gray';
+      if (studentTestResults.length > 0) {
+        if (currentAvgPercentage >= 75) cardColor = 'green';
+        else if (currentAvgPercentage >= 70) cardColor = 'yellow';
+        else if (currentAvgPercentage >= 60) cardColor = 'blue';
+        else cardColor = 'red';
+      }
+
+      return {
+        ...student,
+        examData,
+        performanceTrend,
+        cardColor,
+        currentAvgPercentage: currentAvgPercentage.toFixed(1),
+        testResultsCount: studentTestResults.length
+      };
+    });
+
+    console.log('Successfully processed student examination data');
+
+    res.json({
+      success: true,
+      data: processedStudents,
+      summary: {
+        totalStudents: students.length,
+        totalTestResults: allTestResults.length,
+        studentsWithTests: processedStudents.filter(s => s.testResultsCount > 0).length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching student examination report:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching student examination report', 
+      error: error.message 
+    });
+  }
+});
+
+// Update individual test result (for inline editing)
+router.put('/tests/:testId/results/:studentId', authenticate, requireExaminationAccess('enter_marks'), async (req, res) => {
+  try {
+    const { testId, studentId } = req.params;
+    const { obtainedMarks, remarks } = req.body;
+    
+    // Verify test and student exist
+    const test = await Test.findById(testId);
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
+    }
+    
+    const student = await User.findById(studentId);
+    if (!student || student.role !== 'Student') {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+    
+    // Check if marks entry is allowed
+    const canEnter = test.canEnterMarks();
+    if (!canEnter.allowed) {
+      return res.status(400).json({
+        success: false,
+        message: canEnter.reason
+      });
+    }
+    
+    // Validate marks
+    if (obtainedMarks < 0 || obtainedMarks > test.totalMarks) {
+      return res.status(400).json({
+        success: false,
+        message: `Marks must be between 0 and ${test.totalMarks}`
+      });
+    }
+    
+    // Update the test result
+    const testResult = await TestResult.findOneAndUpdate(
+      { testId, studentId },
+      {
+        obtainedMarks: parseFloat(obtainedMarks),
+        remarks: remarks || '',
+        enteredBy: req.user._id,
+        updatedOn: new Date()
+      },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+    
+    if (!testResult) {
+      return res.status(404).json({ success: false, message: 'Test result not found' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Test result updated successfully',
+      data: testResult
+    });
+    
+  } catch (error) {
+    console.error('Error updating test result:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating test result', 
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;
