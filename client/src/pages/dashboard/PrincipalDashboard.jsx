@@ -50,16 +50,6 @@ const PrincipalDashboard = () => {
       description: 'View teacher attendance reports and analytics'
     },
     {
-      id: 'class-statistics',
-      title: 'Class Statistics', 
-      href: '/reports?section=classes', 
-      icon: 'School', 
-      bgGradient: 'from-cyan-500 to-cyan-600',
-      type: 'normal',
-      permission: null,
-      description: 'View class performance and statistics'
-    },
-    {
       id: 'student-examination-report',
       title: 'Student Examination Report', 
       href: '/principal/student-examination-report', 
@@ -69,16 +59,7 @@ const PrincipalDashboard = () => {
       permission: null,
       description: 'View comprehensive student examination performance with matriculation comparison'
     },
-    {
-      id: 'examination-management',
-      title: 'Examination Management', 
-      href: '/examinations', 
-      icon: 'FileText', 
-      bgGradient: 'from-purple-500 to-purple-600',
-      type: 'normal',
-      permission: null,
-      description: 'Manage tests, view results and examination analytics'
-    },
+
     {
       id: 'timetable-view',
       title: 'Timetable View', 

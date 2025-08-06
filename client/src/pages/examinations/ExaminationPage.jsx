@@ -17,19 +17,19 @@ const ExaminationPage = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
               {view === 'teacher' ? 'My Tests & Marks Entry' : 
-               view === 'principal' ? 'Examination Analytics' : 
+               view === 'principal' ? 'Examination Management' : 
                'Examination Management'}
             </h1>
             <p className="text-gray-600 mt-1">
               {view === 'teacher' ? 'Enter marks for your assigned tests and view student performance' :
-               view === 'principal' ? 'View comprehensive academic performance analytics and reports' :
+               view === 'principal' ? 'Manage academic records and view student examination reports' :
                'Manage tests, academic records, and examination system'}
             </p>
           </div>
           <div className="flex items-center space-x-2">
             <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
               {view === 'teacher' ? 'Teacher View' :
-               view === 'principal' ? 'Analytics View' :
+               view === 'principal' ? 'Principal View' :
                'Management View'}
             </span>
           </div>

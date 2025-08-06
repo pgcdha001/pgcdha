@@ -1,11 +1,6 @@
 // Academic programs offered by the institution
 export const PROGRAMS = [
   {
-    value: 'ICS',
-    label: 'ICS (Computer Science)',
-    shortLabel: 'ICS'
-  },
-  {
     value: 'ICS-PHY',
     label: 'ICS-PHY (Computer Science with Physics)',
     shortLabel: 'ICS-PHY'

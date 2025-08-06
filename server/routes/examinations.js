@@ -17,7 +17,6 @@ function requireExaminationAccess(permission) {
       'edit_test': ['IT', 'InstituteAdmin'],
       'delete_test': ['IT', 'InstituteAdmin'],
       'enter_marks': ['Teacher', 'IT', 'InstituteAdmin'],
-      'view_analytics': ['Principal', 'IT', 'InstituteAdmin'],
       'manage_academic_records': ['IT', 'InstituteAdmin']
     };
     
@@ -620,40 +619,6 @@ router.get('/tests/difficulty/:difficulty', authenticate, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching tests by difficulty', 
-      error: error.message 
-    });
-  }
-});
-
-// Get advanced statistics
-router.get('/stats/advanced', authenticate, requireExaminationAccess('view_analytics'), async (req, res) => {
-  try {
-    const filters = {
-      academicYear: req.query.academicYear,
-      classId: req.query.classId,
-      subject: req.query.subject,
-      testType: req.query.testType,
-      difficulty: req.query.difficulty,
-      assignedTeacher: req.query.assignedTeacher
-    };
-    
-    // Remove undefined filters
-    Object.keys(filters).forEach(key => {
-      if (filters[key] === undefined) delete filters[key];
-    });
-    
-    const stats = await Test.getAdvancedStats(filters);
-    
-    res.json({
-      success: true,
-      data: stats
-    });
-    
-  } catch (error) {
-    console.error('Error fetching advanced statistics:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching advanced statistics', 
       error: error.message 
     });
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   GraduationCap, 
   Save, 
@@ -46,29 +46,26 @@ const AcademicRecordsManagement = () => {
   const [showRecordForm, setShowRecordForm] = useState(false);
   const [academicRecord, setAcademicRecord] = useState({
     matriculation: {
-      totalMarks: '',
-      obtainedMarks: '',
       percentage: '',
       passingYear: new Date().getFullYear(),
       board: '',
       subjects: []
     },
     previousGrade: {
-      totalMarks: '',
-      obtainedMarks: '',
       percentage: '',
-      grade: '',
+      grade: '11th', // Default to 11th grade
+      academicYear: '',
       subjects: []
     }
   });
 
-  const { showToast } = useToast();
+  const toast = useToast();
 
   useEffect(() => {
     fetchStudents();
   }, []);
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch all Level 5 students (admitted students)
@@ -84,15 +81,24 @@ const AcademicRecordsManagement = () => {
       setStudents(admittedStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
-      showToast('Failed to fetch students', 'error');
+      toast.error('Failed to fetch students');
       setStudents([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
 
   // Helper functions for matriculation subjects
   const addMatriculationSubject = () => {
+    if (academicRecord.matriculation.subjects.length >= 9) {
+      toast.warning('Maximum 9 subjects allowed for matriculation records');
+      return;
+    }
+    
     setAcademicRecord(prev => ({
       ...prev,
       matriculation: {
@@ -124,6 +130,51 @@ const AcademicRecordsManagement = () => {
     }));
   };
 
+  // Previous Grade Subject Functions
+  const addPreviousGradeSubject = () => {
+    if (academicRecord.previousGrade.subjects.length >= 9) {
+      toast.warning('Maximum 9 subjects allowed for previous grade records');
+      return;
+    }
+    
+    const newSubject = {
+      name: '',
+      totalMarks: 100,
+      obtainedMarks: '',
+      term: ''
+    };
+    
+    setAcademicRecord(prev => ({
+      ...prev,
+      previousGrade: {
+        ...prev.previousGrade,
+        subjects: [...prev.previousGrade.subjects, newSubject]
+      }
+    }));
+  };
+
+  const updatePreviousGradeSubject = (index, field, value) => {
+    setAcademicRecord(prev => ({
+      ...prev,
+      previousGrade: {
+        ...prev.previousGrade,
+        subjects: prev.previousGrade.subjects.map((subject, i) => 
+          i === index ? { ...subject, [field]: value } : subject
+        )
+      }
+    }));
+  };
+
+  const removePreviousGradeSubject = (index) => {
+    setAcademicRecord(prev => ({
+      ...prev,
+      previousGrade: {
+        ...prev.previousGrade,
+        subjects: prev.previousGrade.subjects.filter((_, i) => i !== index)
+      }
+    }));
+  };
+
   // Form submission handler
   const handleSubmitRecord = async (e) => {
     e.preventDefault();
@@ -138,18 +189,15 @@ const AcademicRecordsManagement = () => {
     
     setAcademicRecord({
       matriculation: {
-        totalMarks: existingRecord.matriculation?.totalMarks || '',
-        obtainedMarks: existingRecord.matriculation?.obtainedMarks || '',
         percentage: existingRecord.matriculation?.percentage || '',
         passingYear: existingRecord.matriculation?.passingYear || new Date().getFullYear() - 1,
         board: existingRecord.matriculation?.board || '',
         subjects: existingRecord.matriculation?.subjects || []
       },
       previousGrade: {
-        totalMarks: existingRecord.previousGrade?.totalMarks || '',
-        obtainedMarks: existingRecord.previousGrade?.obtainedMarks || '',
         percentage: existingRecord.previousGrade?.percentage || '',
-        grade: existingRecord.previousGrade?.grade || '',
+        grade: existingRecord.previousGrade?.grade || '11th', // Default to 11th grade for previous grade records
+        academicYear: existingRecord.previousGrade?.academicYear || '',
         subjects: existingRecord.previousGrade?.subjects || []
       }
     });
@@ -157,63 +205,21 @@ const AcademicRecordsManagement = () => {
     setShowRecordForm(true);
   };
 
-  const addSubject = (recordType) => {
-    const newSubject = {
-      name: '',
-      totalMarks: 100,
-      obtainedMarks: '',
-      percentage: ''
-    };
-    
-    setAcademicRecord(prev => ({
-      ...prev,
-      [recordType]: {
-        ...prev[recordType],
-        subjects: [...prev[recordType].subjects, newSubject]
-      }
-    }));
-  };
-
-  const updateSubject = (recordType, index, field, value) => {
-    setAcademicRecord(prev => {
-      const subjects = [...prev[recordType].subjects];
-      subjects[index] = { ...subjects[index], [field]: value };
-      
-      // Auto-calculate percentage if marks are provided
-      if (field === 'obtainedMarks' || field === 'totalMarks') {
-        const obtained = parseFloat(field === 'obtainedMarks' ? value : subjects[index].obtainedMarks);
-        const total = parseFloat(field === 'totalMarks' ? value : subjects[index].totalMarks);
-        
-        if (obtained && total && total > 0) {
-          subjects[index].percentage = ((obtained / total) * 100).toFixed(2);
-        }
-      }
-      
-      return {
-        ...prev,
-        [recordType]: {
-          ...prev[recordType],
-          subjects
-        }
-      };
-    });
-  };
-
-  const removeSubject = (recordType, index) => {
-    setAcademicRecord(prev => ({
-      ...prev,
-      [recordType]: {
-        ...prev[recordType],
-        subjects: prev[recordType].subjects.filter((_, i) => i !== index)
-      }
-    }));
-  };
-
   const calculateOverallPercentage = (recordType) => {
     const record = academicRecord[recordType];
-    if (record.obtainedMarks && record.totalMarks) {
-      const percentage = (parseFloat(record.obtainedMarks) / parseFloat(record.totalMarks)) * 100;
-      return percentage.toFixed(2);
+    if (record.subjects && record.subjects.length > 0) {
+      const totalMarks = record.subjects.reduce((sum, subject) => {
+        return sum + (parseFloat(subject.totalMarks) || 0);
+      }, 0);
+      
+      const obtainedMarks = record.subjects.reduce((sum, subject) => {
+        return sum + (parseFloat(subject.obtainedMarks) || 0);
+      }, 0);
+      
+      if (totalMarks > 0) {
+        const percentage = (obtainedMarks / totalMarks) * 100;
+        return percentage.toFixed(2);
+      }
     }
     return '';
   };
@@ -227,23 +233,63 @@ const AcademicRecordsManagement = () => {
       const matriculationPercentage = calculateOverallPercentage('matriculation');
       const previousGradePercentage = calculateOverallPercentage('previousGrade');
       
+      // Helper function to clean empty strings from object
+      const cleanEmptyFields = (obj) => {
+        const cleaned = {};
+        Object.keys(obj).forEach(key => {
+          if (obj[key] !== '' && obj[key] !== null && obj[key] !== undefined) {
+            if (Array.isArray(obj[key])) {
+              cleaned[key] = obj[key];
+            } else if (typeof obj[key] === 'object') {
+              cleaned[key] = cleanEmptyFields(obj[key]);
+            } else {
+              cleaned[key] = obj[key];
+            }
+          }
+        });
+        return cleaned;
+      };
+      
+      // Helper function to calculate totals from subjects
+      const calculateTotalsFromSubjects = (subjects) => {
+        const totalMarks = subjects.reduce((sum, subject) => {
+          return sum + (parseFloat(subject.totalMarks) || 0);
+        }, 0);
+        
+        const obtainedMarks = subjects.reduce((sum, subject) => {
+          return sum + (parseFloat(subject.obtainedMarks) || 0);
+        }, 0);
+        
+        return { totalMarks, obtainedMarks };
+      };
+      
+      // Calculate totals for matriculation
+      const matriculationTotals = calculateTotalsFromSubjects(academicRecord.matriculation.subjects || []);
+      
+      // Calculate totals for previous grade
+      const previousGradeTotals = calculateTotalsFromSubjects(academicRecord.previousGrade.subjects || []);
+      
       const payload = {
         academicRecords: {
-          matriculation: {
+          matriculation: cleanEmptyFields({
             ...academicRecord.matriculation,
+            totalMarks: matriculationTotals.totalMarks,
+            obtainedMarks: matriculationTotals.obtainedMarks,
             percentage: matriculationPercentage || academicRecord.matriculation.percentage
-          },
-          previousGrade: {
+          }),
+          previousGrade: cleanEmptyFields({
             ...academicRecord.previousGrade,
+            totalMarks: previousGradeTotals.totalMarks,
+            obtainedMarks: previousGradeTotals.obtainedMarks,
             percentage: previousGradePercentage || academicRecord.previousGrade.percentage
-          }
+          })
         }
       };
       
       const response = await api.patch(`/students/${selectedStudent._id}/academic-records`, payload);
       
       if (response.data.success) {
-        showToast('Academic records saved successfully!', 'success');
+        toast.success('Academic records saved successfully!');
         
         // Update local student data
         setStudents(prev => prev.map(student => 
@@ -257,7 +303,7 @@ const AcademicRecordsManagement = () => {
       }
     } catch (error) {
       console.error('Error saving academic records:', error);
-      showToast('Failed to save academic records', 'error');
+      toast.error('Failed to save academic records');
     } finally {
       setSaving(false);
     }
@@ -504,60 +550,43 @@ const AcademicRecordsManagement = () => {
                   </div>
                   
                   {/* Basic Matriculation Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Total Marks
+                        Total Marks (Auto-calculated)
                       </label>
                       <input
-                        type="number"
-                        value={academicRecord.matriculation.totalMarks}
-                        onChange={(e) => setAcademicRecord(prev => ({
-                          ...prev,
-                          matriculation: {
-                            ...prev.matriculation,
-                            totalMarks: e.target.value
-                          }
-                        }))}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., 1100"
+                        type="text"
+                        value={academicRecord.matriculation.subjects.reduce((sum, subject) => 
+                          sum + (parseFloat(subject.totalMarks) || 0), 0) || '0'}
+                        readOnly
+                        className="w-full p-2 border border-gray-300 rounded-md bg-gray-100 font-semibold text-blue-700"
+                        placeholder="Sum of all subjects"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Obtained Marks
+                        Obtained Marks (Auto-calculated)
                       </label>
                       <input
-                        type="number"
-                        value={academicRecord.matriculation.obtainedMarks}
-                        onChange={(e) => {
-                          const obtained = e.target.value;
-                          const total = academicRecord.matriculation.totalMarks;
-                          const percentage = total ? ((obtained / total) * 100).toFixed(2) : '';
-                          
-                          setAcademicRecord(prev => ({
-                            ...prev,
-                            matriculation: {
-                              ...prev.matriculation,
-                              obtainedMarks: obtained,
-                              percentage: percentage
-                            }
-                          }));
-                        }}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., 950"
+                        type="text"
+                        value={academicRecord.matriculation.subjects.reduce((sum, subject) => 
+                          sum + (parseFloat(subject.obtainedMarks) || 0), 0) || '0'}
+                        readOnly
+                        className="w-full p-2 border border-gray-300 rounded-md bg-gray-100 font-semibold text-green-700"
+                        placeholder="Sum of all subjects"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Percentage
+                        Percentage (Auto-calculated)
                       </label>
                       <input
                         type="text"
                         value={academicRecord.matriculation.percentage}
                         readOnly
-                        className="w-full p-2 border border-gray-300 rounded-md bg-gray-100"
-                        placeholder="Auto-calculated"
+                        className="w-full p-2 border border-gray-300 rounded-md bg-gray-100 font-semibold text-purple-700"
+                        placeholder="Calculated from subjects"
                       />
                     </div>
                     <div>
@@ -602,16 +631,29 @@ const AcademicRecordsManagement = () => {
                   {/* Subject-wise Marks */}
                   <div className="mb-4">
                     <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-md font-medium text-gray-700">Subject-wise Marks</h4>
+                      <h4 className="text-md font-medium text-gray-700">
+                        Subject-wise Marks 
+                        <span className="text-sm text-gray-500 ml-2">
+                          ({academicRecord.matriculation.subjects.length}/9 subjects)
+                        </span>
+                      </h4>
                       <Button
                         type="button"
                         onClick={addMatriculationSubject}
                         variant="outline"
                         size="sm"
-                        className="flex items-center"
+                        disabled={academicRecord.matriculation.subjects.length >= 9}
+                        className={`flex items-center ${
+                          academicRecord.matriculation.subjects.length >= 9 
+                            ? 'opacity-50 cursor-not-allowed' 
+                            : ''
+                        }`}
                       >
                         <Plus className="h-4 w-4 mr-1" />
                         Add Subject
+                        {academicRecord.matriculation.subjects.length >= 9 && (
+                          <span className="ml-1 text-xs">(Max)</span>
+                        )}
                       </Button>
                     </div>
                     
@@ -683,76 +725,152 @@ const AcademicRecordsManagement = () => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Total Marks
+                          Total Marks (Auto-calculated)
                         </label>
                         <input
-                          type="number"
-                          value={academicRecord.previousGrade.totalMarks}
-                          onChange={(e) => setAcademicRecord(prev => ({
-                            ...prev,
-                            previousGrade: {
-                              ...prev.previousGrade,
-                              totalMarks: e.target.value
-                            }
-                          }))}
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                          placeholder="e.g., 1100"
+                          type="text"
+                          value={academicRecord.previousGrade.subjects.reduce((sum, subject) => 
+                            sum + (parseFloat(subject.totalMarks) || 0), 0) || '0'}
+                          readOnly
+                          className="w-full p-2 border border-gray-300 rounded-md bg-gray-100 font-semibold text-blue-700"
+                          placeholder="Sum of all subjects"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Obtained Marks
+                          Obtained Marks (Auto-calculated)
                         </label>
                         <input
-                          type="number"
-                          value={academicRecord.previousGrade.obtainedMarks}
-                          onChange={(e) => {
-                            const obtained = e.target.value;
-                            const total = academicRecord.previousGrade.totalMarks;
-                            const percentage = total ? ((obtained / total) * 100).toFixed(2) : '';
-                            
-                            setAcademicRecord(prev => ({
-                              ...prev,
-                              previousGrade: {
-                                ...prev.previousGrade,
-                                obtainedMarks: obtained,
-                                percentage: percentage
-                              }
-                            }));
-                          }}
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                          placeholder="e.g., 980"
+                          type="text"
+                          value={academicRecord.previousGrade.subjects.reduce((sum, subject) => 
+                            sum + (parseFloat(subject.obtainedMarks) || 0), 0) || '0'}
+                          readOnly
+                          className="w-full p-2 border border-gray-300 rounded-md bg-gray-100 font-semibold text-green-700"
+                          placeholder="Sum of all subjects"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Percentage
+                          Percentage (Auto-calculated)
                         </label>
                         <input
                           type="text"
                           value={academicRecord.previousGrade.percentage}
                           readOnly
-                          className="w-full p-2 border border-gray-300 rounded-md bg-gray-100"
-                          placeholder="Auto-calculated"
+                          className="w-full p-2 border border-gray-300 rounded-md bg-gray-100 font-semibold text-purple-700"
+                          placeholder="Calculated from subjects"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Grade
+                          Academic Year
                         </label>
                         <input
                           type="text"
-                          value={academicRecord.previousGrade.grade}
+                          value={academicRecord.previousGrade.academicYear || ''}
                           onChange={(e) => setAcademicRecord(prev => ({
                             ...prev,
                             previousGrade: {
                               ...prev.previousGrade,
-                              grade: e.target.value
+                              academicYear: e.target.value
                             }
                           }))}
                           className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                          placeholder="e.g., A+, A, B+"
+                          placeholder="e.g., 2023-2024"
                         />
+                      </div>
+                    </div>
+                    
+                    {/* Previous Grade Subjects */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-md font-medium text-gray-700">
+                          11th Grade Subjects
+                          <span className="text-sm text-gray-500 ml-2">
+                            ({academicRecord.previousGrade.subjects.length}/9 subjects)
+                          </span>
+                        </h4>
+                        <Button
+                          type="button"
+                          onClick={addPreviousGradeSubject}
+                          variant="outline"
+                          size="sm"
+                          disabled={academicRecord.previousGrade.subjects.length >= 9}
+                          className={`text-green-600 border-green-300 hover:bg-green-50 ${
+                            academicRecord.previousGrade.subjects.length >= 9 
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : ''
+                          }`}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Subject
+                          {academicRecord.previousGrade.subjects.length >= 9 && (
+                            <span className="ml-1 text-xs">(Max)</span>
+                          )}
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {academicRecord.previousGrade.subjects.map((subject, index) => (
+                          <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center bg-white p-3 rounded-md border">
+                            <div>
+                              <input
+                                type="text"
+                                value={subject.name}
+                                onChange={(e) => updatePreviousGradeSubject(index, 'name', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                                placeholder="Subject Name"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                type="number"
+                                value={subject.totalMarks}
+                                onChange={(e) => updatePreviousGradeSubject(index, 'totalMarks', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                                placeholder="Total Marks"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                type="number"
+                                value={subject.obtainedMarks}
+                                onChange={(e) => updatePreviousGradeSubject(index, 'obtainedMarks', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                                placeholder="Obtained Marks"
+                              />
+                            </div>
+                            <div>
+                              <select
+                                value={subject.term || ''}
+                                onChange={(e) => updatePreviousGradeSubject(index, 'term', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                              >
+                                <option value="">Select Term</option>
+                                <option value="1st Term">1st Term</option>
+                                <option value="2nd Term">2nd Term</option>
+                                <option value="Annual">Annual</option>
+                              </select>
+                            </div>
+                            <div className="flex items-center">
+                              <span className="text-sm text-gray-600 mr-2">
+                                {subject.obtainedMarks && subject.totalMarks ? 
+                                  `${((subject.obtainedMarks / subject.totalMarks) * 100).toFixed(1)}%` : 
+                                  '-%'
+                                }
+                              </span>
+                              <Button
+                                type="button"
+                                onClick={() => removePreviousGradeSubject(index)}
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

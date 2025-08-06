@@ -3,21 +3,19 @@ import {
   BookOpen, 
   FileText,
   GraduationCap,
-  UserCheck,
-  BarChart3
+  UserCheck
 } from 'lucide-react';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 import AcademicRecordsManagement from './AcademicRecordsManagement';
 import TestManagementComponent from './TestManagementComponent';
 import MarksEntryComponent from './MarksEntryComponent';
-import AnalyticsComponent from './AnalyticsComponent';
 
 const ExaminationDashboard = ({ initialView = null }) => {
   // Set default active tab based on initial view
   const getInitialTab = () => {
     if (initialView === 'teacher') return 'marks-entry';
-    if (initialView === 'principal') return 'analytics';
+    if (initialView === 'principal') return 'academic-records';
     return 'tests';
   };
 
@@ -91,23 +89,6 @@ const ExaminationDashboard = ({ initialView = null }) => {
                   </div>
                 </button>
               </PermissionGuard>
-              
-              {/* Principal Analytics Tab */}
-              <PermissionGuard permission={PERMISSIONS.EXAMINATION.VIEW_ANALYTICS}>
-                <button
-                  onClick={() => setActiveTab('analytics')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === 'analytics'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>Analytics</span>
-                  </div>
-                </button>
-              </PermissionGuard>
             </nav>
           </div>
         </div>
@@ -127,11 +108,6 @@ const ExaminationDashboard = ({ initialView = null }) => {
         {/* Marks Entry Tab Content */}
         {activeTab === 'marks-entry' && (
           <MarksEntryComponent />
-        )}
-        
-        {/* Analytics Tab Content */}
-        {activeTab === 'analytics' && (
-          <AnalyticsComponent />
         )}
       </div>
     </div>

@@ -520,7 +520,12 @@ router.patch('/:id/academic-records', authenticate, async (req, res) => {
       
       // Validate previous grade records
       if (academicRecords.previousGrade) {
-        const { totalMarks, obtainedMarks } = academicRecords.previousGrade;
+        const { totalMarks, obtainedMarks, grade } = academicRecords.previousGrade;
+        
+        // Remove empty grade field to avoid enum validation error
+        if (grade === '' || grade === null || grade === undefined) {
+          delete academicRecords.previousGrade.grade;
+        }
         
         if (totalMarks && obtainedMarks) {
           const calculatedPercentage = (parseFloat(obtainedMarks) / parseFloat(totalMarks)) * 100;
