@@ -64,8 +64,8 @@ const AcademicRecordsManagement = () => {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all Level 5 students (admitted students)
-      const response = await api.get('/students?assignmentFilter=all');
+      // Fetch all Level 5 students (admitted students) with class information
+      const response = await api.get('/students?assignmentFilter=all&populateClass=true');
       const allStudents = response.data?.data || [];
       
       // Filter for Level 5 students only
@@ -540,7 +540,9 @@ const AcademicRecordsManagement = () => {
                   </div>
                   <div>
                     <span className="font-semibold text-gray-600">Class:</span>
-                    <p className="text-gray-800">{selectedStudent.classId?.name || 'Not assigned'}</p>
+                    <p className="text-gray-800">
+                      {selectedStudent.classId?.name || selectedStudent.admissionInfo?.className || 'Not assigned'}
+                    </p>
                   </div>
                   <div>
                     <span className="font-semibold text-gray-600">Campus:</span>

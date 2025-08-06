@@ -14,7 +14,7 @@ function requireIT(req, res, next) {
 // Get all students/enquiries (authenticated users)
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { dateFilter, startDate, endDate, nonProgression, progressionLevel, includeAssigned, assignmentFilter } = req.query;
+    const { dateFilter, startDate, endDate, nonProgression, progressionLevel, includeAssigned, assignmentFilter, populateClass } = req.query;
     
     // Build query for students
     let query = { role: 'Student' };
@@ -105,7 +105,14 @@ router.get('/', authenticate, async (req, res) => {
       }
     }
     
-    const students = await User.find(query).select('-password');
+    let studentsQuery = User.find(query).select('-password');
+    
+    // Populate class information if requested
+    if (populateClass === 'true') {
+      studentsQuery = studentsQuery.populate('classId', 'name grade program campus');
+    }
+    
+    const students = await studentsQuery;
     
     // Log potential duplicates for debugging
     const nameGroups = {};
