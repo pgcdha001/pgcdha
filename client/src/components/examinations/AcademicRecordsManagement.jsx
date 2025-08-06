@@ -59,11 +59,7 @@ const AcademicRecordsManagement = () => {
     }
   });
 
-  const toast = useToast();
-
-  useEffect(() => {
-    fetchStudents();
-  }, []);
+  const { toast } = useToast();
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -275,16 +271,30 @@ const AcademicRecordsManagement = () => {
             ...academicRecord.matriculation,
             totalMarks: matriculationTotals.totalMarks,
             obtainedMarks: matriculationTotals.obtainedMarks,
-            percentage: matriculationPercentage || academicRecord.matriculation.percentage
+            percentage: matriculationPercentage || academicRecord.matriculation.percentage,
+            // Ensure subject marks are numbers
+            subjects: academicRecord.matriculation.subjects?.map(subject => ({
+              ...subject,
+              totalMarks: parseFloat(subject.totalMarks) || 0,
+              obtainedMarks: parseFloat(subject.obtainedMarks) || 0
+            })) || []
           }),
           previousGrade: cleanEmptyFields({
             ...academicRecord.previousGrade,
             totalMarks: previousGradeTotals.totalMarks,
             obtainedMarks: previousGradeTotals.obtainedMarks,
-            percentage: previousGradePercentage || academicRecord.previousGrade.percentage
+            percentage: previousGradePercentage || academicRecord.previousGrade.percentage,
+            // Ensure subject marks are numbers
+            subjects: academicRecord.previousGrade.subjects?.map(subject => ({
+              ...subject,
+              totalMarks: parseFloat(subject.totalMarks) || 0,
+              obtainedMarks: parseFloat(subject.obtainedMarks) || 0
+            })) || []
           })
         }
       };
+      
+      console.log('Payload being sent to server:', JSON.stringify(payload, null, 2));
       
       const response = await api.patch(`/students/${selectedStudent._id}/academic-records`, payload);
       
@@ -303,7 +313,10 @@ const AcademicRecordsManagement = () => {
       }
     } catch (error) {
       console.error('Error saving academic records:', error);
-      toast.error('Failed to save academic records');
+      
+      // Show specific server error message if available
+      const errorMessage = error.response?.data?.message || 'Failed to save academic records';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

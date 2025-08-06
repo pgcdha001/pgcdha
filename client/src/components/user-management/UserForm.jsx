@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, CreditCard } from 'lucide-react';
+import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, EyeOff, CreditCard, GraduationCap, BookOpen } from 'lucide-react';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import api from '../../services/api';
@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 import { ENQUIRY_LEVELS } from '../../constants/enquiryLevels';
+import AcademicRecordsManagement from '../examinations/AcademicRecordsManagement';
 
 /**
  * User Form Component
@@ -27,6 +28,9 @@ const UserForm = ({
   
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState([]);
+  const [createdStudent, setCreatedStudent] = useState(null); // Store created student info
+  const [showSuccessActions, setShowSuccessActions] = useState(false); // Show success actions
+  const [showAcademicRecords, setShowAcademicRecords] = useState(false); // Show academic records modal
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -113,6 +117,34 @@ const UserForm = ({
       setFormData(prev => ({ ...prev, role: defaultRole }));
     }
   }, [user, mode, userRole, userType]);
+
+  // Clear class selection when program or gender changes to avoid mismatches
+  useEffect(() => {
+    if (formData.admissionInfo.className && (formData.program || formData.gender)) {
+      // Check if the currently selected class matches the program and gender
+      const selectedClass = classes.find(cls => cls.name === formData.admissionInfo.className);
+      if (selectedClass) {
+        const programMismatch = formData.program && selectedClass.program !== formData.program;
+        const genderMismatch = formData.gender && 
+          ((formData.gender === 'Male' && selectedClass.campus !== 'Boys') ||
+           (formData.gender === 'Female' && selectedClass.campus !== 'Girls'));
+        
+        if (programMismatch || genderMismatch) {
+          // Clear the class selection if it doesn't match the program or gender
+          setFormData(prev => ({
+            ...prev,
+            admissionInfo: {
+              ...prev.admissionInfo,
+              className: ''
+            }
+          }));
+          
+          const reason = programMismatch ? 'program change' : 'gender change';
+          toast.warning(`Class selection cleared due to ${reason}. Please select a compatible class.`);
+        }
+      }
+    }
+  }, [formData.program, formData.gender, formData.admissionInfo.className, classes, toast]);
 
   // Get available roles based on permissions
   const getAvailableRoles = () => {
@@ -278,6 +310,17 @@ const UserForm = ({
         if (!formData.admissionInfo.grade) {
           newErrors['admissionInfo.grade'] = 'Grade is required for admitted students';
         }
+        if (formData.admissionInfo.grade && (!formData.admissionInfo.className || !formData.program || !formData.gender)) {
+          if (!formData.program) {
+            newErrors['program'] = 'Program is required for class assignment';
+          }
+          if (!formData.gender) {
+            newErrors['gender'] = 'Gender is required for class assignment';  
+          }
+          if (!formData.admissionInfo.className) {
+            newErrors['admissionInfo.className'] = 'Class assignment is required for admitted students';
+          }
+        }
       }
     }
 
@@ -317,7 +360,8 @@ const UserForm = ({
         program: 'Program',
         phoneNumber: 'Phone Number',
         enquiryLevel: 'Enquiry Level',
-        'admissionInfo.grade': 'Grade'
+        'admissionInfo.grade': 'Grade',
+        'admissionInfo.className': 'Class Assignment'
       };
 
       const missingFieldNames = missingFields.map(field => fieldLabels[field] || field);
@@ -428,7 +472,57 @@ const UserForm = ({
         }
 
         toast.success(`User ${mode === 'create' ? 'created' : 'updated'} successfully`);
-        onSave();
+        
+        // Check if it's a new student with class assignment
+        if (mode === 'create' && isStudentRole() && submitData.admissionInfo?.className) {
+          const createdStudent = response.data.user || response.data;
+          
+          // Find the class by name to get its ID
+          try {
+            const selectedClass = classes.find(cls => cls.name === submitData.admissionInfo.className);
+            if (selectedClass) {
+              console.log('Assigning student to class:', selectedClass.name, selectedClass._id);
+              
+              // Call the assign-class API
+              const assignResponse = await api.post(`/students/${createdStudent._id}/assign-class`, {
+                classId: selectedClass._id,
+                grade: submitData.admissionInfo.grade,
+                program: submitData.program
+              });
+              
+              if (assignResponse.data.success) {
+                console.log('Student successfully assigned to class');
+                toast.success(`Student assigned to ${selectedClass.name} successfully`);
+                
+                // Update the created student data with class assignment
+                setCreatedStudent({
+                  ...createdStudent,
+                  classId: selectedClass._id,
+                  admissionInfo: {
+                    ...createdStudent.admissionInfo,
+                    className: selectedClass.name
+                  }
+                });
+              } else {
+                console.error('Failed to assign student to class:', assignResponse.data.message);
+                toast.error('Student created but class assignment failed. Please assign manually.');
+                setCreatedStudent(createdStudent);
+              }
+            } else {
+              console.error('Selected class not found in available classes');
+              toast.error('Student created but class assignment failed. Please assign manually.');
+              setCreatedStudent(createdStudent);
+            }
+          } catch (assignError) {
+            console.error('Error assigning student to class:', assignError);
+            toast.error('Student created but class assignment failed. Please assign manually.');
+            setCreatedStudent(createdStudent);
+          }
+          
+          setShowSuccessActions(true);
+        } else {
+          onSave();
+        }
       } else {
         console.error('User creation/update failed:', response);
         toast.error(response.message || `Failed to ${mode} user`);
@@ -847,6 +941,54 @@ const UserForm = ({
                   </div>
                 )}
 
+                {/* Class Assignment - Only for Level 5 students with grade, program and gender selected */}
+                {isStudentRole() && formData.enquiryLevel >= 5 && formData.admissionInfo.grade && formData.program && formData.gender && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <span className="flex items-center gap-2">
+                        Class Assignment *
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          Grade {formData.admissionInfo.grade}
+                        </span>
+                      </span>
+                    </label>
+                    <select
+                      name="admissionInfo.className"
+                      value={formData.admissionInfo.className}
+                      onChange={handleInputChange}
+                      disabled={isReadOnly}
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors['admissionInfo.className'] ? 'border-red-300' : 'border-gray-300'
+                        } ${isReadOnly ? 'bg-gray-50' : ''}`}
+                    >
+                      <option value="">Select Class</option>
+                      {classes
+                        .filter(cls => {
+                          // Filter by grade and program
+                          const matchesGradeAndProgram = cls.grade === formData.admissionInfo.grade && 
+                                                        cls.program === formData.program;
+                          
+                          // Filter by gender/campus if gender is selected
+                          let matchesGender = true;
+                          if (formData.gender) {
+                            const requiredCampus = formData.gender === 'Male' ? 'Boys' : 'Girls';
+                            matchesGender = cls.campus === requiredCampus;
+                          }
+                          
+                          return matchesGradeAndProgram && matchesGender;
+                        })
+                        .map(cls => (
+                          <option key={cls._id} value={cls.name}>
+                            {cls.name} - {cls.campus} Campus ({cls.capacity ? `${cls.enrolled || 0}/${cls.capacity} students` : 'No capacity limit'})
+                          </option>
+                        ))}
+                    </select>
+                    {errors['admissionInfo.className'] && <p className="text-red-500 text-xs mt-1">{errors['admissionInfo.className']}</p>}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select a class for the admitted student based on their grade, program ({formData.program || 'No program selected'}) and gender ({formData.gender || 'No gender selected'})
+                    </p>
+                  </div>
+                )}
+
                 {/* Previous School - Only for students */}
                 {isStudentRole() && (
                   <div>
@@ -1105,6 +1247,95 @@ const UserForm = ({
           </div>
         </form>
       </div>
+
+      {/* Success Actions Modal for Students with Class Assignment */}
+      {showSuccessActions && createdStudent && (
+        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-60 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-gray-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <GraduationCap className="h-8 w-8 text-green-600" />
+              </div>
+              
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Student Created Successfully!
+              </h3>
+              
+              <p className="text-gray-600 mb-4">
+                <strong>{createdStudent.fullName?.firstName} {createdStudent.fullName?.lastName}</strong> has been 
+                assigned to <strong>{createdStudent.admissionInfo?.className}</strong> in 
+                <strong> {createdStudent.admissionInfo?.grade} Grade</strong>.
+              </p>
+              
+              <div className="text-sm text-gray-500 mb-6">
+                <p>Roll Number: {createdStudent.rollNumber || 'Will be assigned automatically'}</p>
+                <p>Student ID: {createdStudent._id}</p>
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <Button
+                  onClick={() => setShowAcademicRecords(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Add Academic Background
+                </Button>
+                
+                <Button
+                  onClick={() => {
+                    setShowSuccessActions(false);
+                    setCreatedStudent(null);
+                    onSave();
+                  }}
+                  variant="outline"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Close & Continue
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Academic Records Modal */}
+      {showAcademicRecords && createdStudent && (
+        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-70 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 border border-gray-200 max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Academic Background - {createdStudent.fullName?.firstName} {createdStudent.fullName?.lastName}
+              </h3>
+              <Button
+                onClick={() => {
+                  setShowAcademicRecords(false);
+                  setShowSuccessActions(false);
+                  setCreatedStudent(null);
+                  onSave();
+                }}
+                variant="outline"
+                size="sm"
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="p-4">
+              <AcademicRecordsManagement 
+                preSelectedStudent={createdStudent}
+                onClose={() => {
+                  setShowAcademicRecords(false);
+                  setShowSuccessActions(false);
+                  setCreatedStudent(null);
+                  onSave();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

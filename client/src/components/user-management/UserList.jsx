@@ -131,7 +131,8 @@ const UserList = ({
       const params = {
         search: debouncedSearchTerm,
         role: filterRole,
-        status: filterStatus
+        status: filterStatus,
+        limit: 10000 // Show all users without pagination
       };
 
       // Apply userType-based filtering
