@@ -11,7 +11,7 @@ class ZoneAnalyticsService {
    * @returns {string} Zone classification (green, blue, yellow, red)
    */
   static calculateZone(percentage) {
-    if (percentage >= 76 && percentage <= 84) return 'green';
+    if (percentage >= 76) return 'green';  // 76% and above (high performance)
     if (percentage >= 71 && percentage <= 75) return 'blue';
     if (percentage >= 66 && percentage <= 70) return 'yellow';
     return 'red'; // Below 66%

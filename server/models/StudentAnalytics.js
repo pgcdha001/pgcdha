@@ -191,7 +191,7 @@ StudentAnalyticsSchema.virtual('overallAnalytics.zoneColor').get(function() {
 
 // Methods
 StudentAnalyticsSchema.methods.calculateOverallZone = function(percentage) {
-  if (percentage >= 76 && percentage <= 84) return 'green';
+  if (percentage >= 76) return 'green';  // 76% and above (high performance)
   if (percentage >= 71 && percentage <= 75) return 'blue';
   if (percentage >= 66 && percentage <= 70) return 'yellow';
   return 'red'; // Below 66%
@@ -481,9 +481,17 @@ StudentAnalyticsSchema.statics.calculateForStudent = async function(studentId, a
   const Test = mongoose.model('Test');
   const User = mongoose.model('User');
   const Class = mongoose.model('Class');
+  const AnalyticsPrerequisiteChecker = require('../services/analyticsPrerequisiteChecker');
   
   try {
-    // Get student information
+    // Validate and auto-fix student data before calculation
+    const validationResult = await AnalyticsPrerequisiteChecker.validateAndFix(studentId);
+    if (!validationResult.success) {
+      console.warn(`Analytics calculation for student ${studentId} has data quality issues:`, validationResult);
+      // Continue with calculation despite issues, but log them
+    }
+
+    // Get student information (re-fetch after potential fixes)
     const student = await User.findById(studentId).populate('classId');
     if (!student) {
       throw new Error('Student not found');

@@ -94,6 +94,11 @@ router.post('/register', asyncHandler(async (req, res) => {
  */
 router.post('/login', asyncHandler(async (req, res) => {
   const { login, password } = req.body;
+  
+  if (!login || !password) {
+    throw new AppError('Login and password are required', 400, 'MISSING_CREDENTIALS');
+  }
+  
   const userAgent = req.headers['user-agent'] || 'Unknown';
   const ipAddress = req.ip || req.connection.remoteAddress;
 
