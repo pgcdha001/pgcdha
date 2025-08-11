@@ -61,14 +61,14 @@ const PrincipalDashboard = () => {
     },
 
     {
-      id: 'timetable-view',
-      title: 'Timetable View', 
-      href: '/timetable/view', 
+      id: 'timetable-overview',
+      title: 'Timetable Overview', 
+      href: '/principal/timetable', 
       icon: 'Calendar', 
       bgGradient: 'from-rose-500 to-rose-600',
       type: 'normal',
       permission: null,
-      description: 'View timetable information'
+      description: 'Real-time timetable with teacher attendance status for all classes'
     }
   ];
 

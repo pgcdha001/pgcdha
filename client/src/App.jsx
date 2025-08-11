@@ -31,6 +31,7 @@ import ClassManagement from './components/class-management/ClassManagement';
 import StudentAssignment from './components/class-management/StudentAssignment';
 import PrincipalEnquiryManagement from './components/principal/PrincipalEnquiryManagement';
 import PrincipalAttendanceReports from './components/principal/PrincipalAttendanceReports';
+import PrincipalTimetablePage from './pages/timetable/PrincipalTimetablePage';
 
 // Attendance Management
 import AttendanceManagement from './components/attendance/AttendanceManagement';
@@ -108,6 +109,19 @@ const App = () => {
                       requiredPermission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}
                     >
                       <PrincipalAttendanceReports />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Principal Timetable Overview */}
+              <Route path="/principal/timetable" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      allowedRoles={['Principal']}
+                    >
+                      <PrincipalTimetablePage />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

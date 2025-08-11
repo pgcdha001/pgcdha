@@ -160,6 +160,14 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
     },
     {
+      id: 'principal-timetable',
+      title: 'Timetable Overview',
+      href: '/principal/timetable',
+      icon: 'Calendar',
+      bgGradient: 'from-blue-500 to-blue-600',
+      type: 'normal'
+    },
+    {
       id: 'examination-analytics',
       title: 'Examination Analytics',
       href: '/analytics?view=examinations',
@@ -626,6 +634,13 @@ export const QUICK_MANAGEMENT_ACCESS = {
       icon: 'TrendingUp',
       description: 'View teacher attendance reports and analytics',
       permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
+    },
+    {
+      title: 'Timetable Overview',
+      href: '/principal/timetable',
+      icon: 'Calendar',
+      description: 'View real-time timetable with teacher attendance status',
+      permission: null
     },
     {
       title: 'Correspondence Management',
