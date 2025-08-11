@@ -31,7 +31,6 @@ import ClassManagement from './components/class-management/ClassManagement';
 import StudentAssignment from './components/class-management/StudentAssignment';
 import PrincipalEnquiryManagement from './components/principal/PrincipalEnquiryManagement';
 import PrincipalAttendanceReports from './components/principal/PrincipalAttendanceReports';
-import StudentExaminationReport from './components/principal/StudentExaminationReport';
 
 // Attendance Management
 import AttendanceManagement from './components/attendance/AttendanceManagement';
@@ -51,6 +50,9 @@ import TimetableManagement from './pages/timetable/TimetableManagement';
 
 // Examination Management
 import ExaminationPage from './pages/examinations/ExaminationPage';
+
+// Analytics
+import AnalyticsPage from './pages/analytics/AnalyticsPage';
 
 const App = () => {
   return (
@@ -106,19 +108,6 @@ const App = () => {
                       requiredPermission={PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS}
                     >
                       <PrincipalAttendanceReports />
-                    </ProtectedRoute>
-                  </Layout>
-                </AuthenticatedRoute>
-              } />
-
-              {/* Principal Student Examination Report */}
-              <Route path="/principal/student-examination-report" element={
-                <AuthenticatedRoute>
-                  <Layout>
-                    <ProtectedRoute
-                      allowedRoles={['Principal']}
-                    >
-                      <StudentExaminationReport />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>
@@ -323,6 +312,19 @@ const App = () => {
                       allowedRoles={['InstituteAdmin', 'IT', 'Teacher', 'Principal']}
                     >
                       <ExaminationPage />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Analytics */}
+              <Route path="/analytics" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      allowedRoles={['InstituteAdmin', 'IT', 'Principal', 'Teacher', 'Coordinator']}
+                    >
+                      <AnalyticsPage />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>

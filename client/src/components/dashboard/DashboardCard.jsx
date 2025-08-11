@@ -224,4 +224,4 @@ const DashboardCard = ({
   );
 };
 
-export default DashboardCard;
+export default React.memo(DashboardCard);

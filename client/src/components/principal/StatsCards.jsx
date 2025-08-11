@@ -109,4 +109,4 @@ const StatsCards = ({
   );
 };
 
-export default StatsCards;
+export default React.memo(StatsCards);

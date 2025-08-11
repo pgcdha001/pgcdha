@@ -1300,8 +1300,8 @@ const UserForm = ({
 
       {/* Academic Records Modal */}
       {showAcademicRecords && createdStudent && (
-        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-70 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 border border-gray-200 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 backdrop-blur-md flex items-start justify-center z-[9999] p-4 overflow-y-auto" style={{top: 0, left: 0, right: 0, bottom: 0, position: 'fixed'}}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 border border-gray-200 max-h-[90vh] overflow-y-auto mt-4">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />

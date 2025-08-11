@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 const ZoneStatisticsCard = ({ 
   data, 
@@ -9,6 +9,16 @@ const ZoneStatisticsCard = ({
   className = '',
   isLoading = false
 }) => {
+  const zones = useMemo(() => [
+    { key: 'green', label: 'Green Zone', color: 'bg-green-500', description: 'High Performance (76-84%)' },
+    { key: 'blue', label: 'Blue Zone', color: 'bg-blue-500', description: 'Good Performance (71-75%)' },
+    { key: 'yellow', label: 'Yellow Zone', color: 'bg-yellow-500', description: 'Average Performance (66-70%)' },
+    { key: 'red', label: 'Red Zone', color: 'bg-red-500', description: 'Needs Improvement (<66%)' }
+  ], []);
+
+  const getPercentage = useMemo(() => (count) => {
+    return data?.total > 0 ? ((count / data.total) * 100).toFixed(1) : 0;
+  }, [data?.total]);
   if (isLoading) {
     return (
       <div className={`bg-white rounded-lg shadow-md p-6 ${className}`}>
@@ -36,18 +46,10 @@ const ZoneStatisticsCard = ({
     );
   }
 
-  const zones = [
-    { key: 'green', label: 'Green Zone', color: 'bg-green-500', description: 'High Performance (76-84%)' },
-    { key: 'blue', label: 'Blue Zone', color: 'bg-blue-500', description: 'Good Performance (71-75%)' },
-    { key: 'yellow', label: 'Yellow Zone', color: 'bg-yellow-500', description: 'Average Performance (66-70%)' },
-    { key: 'red', label: 'Red Zone', color: 'bg-red-500', description: 'Needs Improvement (<66%)' }
-  ];
-
-  const getPercentage = (count) => {
-    return data.total > 0 ? ((count / data.total) * 100).toFixed(1) : 0;
-  };
-
-  const handleCardClick = () => {
+  const handleCardClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (allowDrillDown && onDrillDown) {
       onDrillDown(data);
     }
@@ -131,4 +133,4 @@ const ZoneStatisticsCard = ({
   );
 };
 
-export default ZoneStatisticsCard;
+export default React.memo(ZoneStatisticsCard);

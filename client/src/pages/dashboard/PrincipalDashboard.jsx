@@ -52,12 +52,12 @@ const PrincipalDashboard = () => {
     {
       id: 'student-examination-report',
       title: 'Student Examination Report', 
-      href: '/principal/student-examination-report', 
+      href: '/analytics', 
       icon: 'FileText', 
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',
       permission: null,
-      description: 'View comprehensive student examination performance with matriculation comparison'
+      description: 'View comprehensive student examination performance with advanced analytics'
     },
 
     {

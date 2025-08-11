@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useAnalyticsAccess } from './AnalyticsAccessProvider';
 import ZoneStatisticsCard from './ZoneStatisticsCard';
 import StudentPerformanceMatrix from './StudentPerformanceMatrix';
+import api from '../../services/api';
 
 const BaseAnalyticsView = ({ 
   dataLevel = 'college', // college, campus, grade, class, student
   initialFilters = {},
   allowedActions = ['view'],
+  onDrillDown,
   children 
 }) => {
-  const { accessScope, hasPermission, canAccessCampus, canAccessGrade, canAccessClass } = useAnalyticsAccess();
+  const { hasPermission, canAccessCampus, canAccessGrade, canAccessClass } = useAnalyticsAccess();
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,75 +28,72 @@ const BaseAnalyticsView = ({
   const [view, setView] = useState('overview'); // overview, students, matrix
 
   useEffect(() => {
-    fetchAnalyticsData();
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        let endpoint = '/analytics/overview';
+        
+        // Build endpoint based on data level
+        switch (dataLevel) {
+          case 'campus':
+            if (filters.campus) {
+              endpoint = `/analytics/campus/${filters.campus}`;
+            }
+            break;
+          case 'grade':
+            if (filters.campus && filters.grade) {
+              endpoint = `/analytics/campus/${filters.campus}/grade/${filters.grade}`;
+            }
+            break;
+          case 'class':
+            if (filters.classId) {
+              endpoint = `/analytics/class/${filters.classId}`;
+            }
+            break;
+          case 'student':
+            if (filters.studentId) {
+              endpoint = `/analytics/student/${filters.studentId}`;
+            }
+            break;
+          default:
+            endpoint = '/analytics/overview';
+        }
+
+        // Build query parameters
+        const queryParams = new URLSearchParams();
+        Object.keys(filters).forEach(key => {
+          if (filters[key] && key !== 'studentId' && key !== 'classId') {
+            queryParams.append(key, filters[key]);
+          }
+        });
+
+        if (queryParams.toString()) {
+          endpoint += `?${queryParams.toString()}`;
+        }
+
+        const response = await api.get(endpoint);
+        
+        if (response.data.success) {
+          setAnalyticsData(response.data.data);
+        } else {
+          setError(response.data.message);
+        }
+      } catch (err) {
+        setError('Error fetching analytics data');
+        console.error('Analytics fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [dataLevel, filters]);
 
-  const fetchAnalyticsData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      let endpoint = '/api/analytics/overview';
-      
-      // Build endpoint based on data level
-      switch (dataLevel) {
-        case 'campus':
-          if (filters.campus) {
-            endpoint = `/api/analytics/campus/${filters.campus}`;
-          }
-          break;
-        case 'grade':
-          if (filters.campus && filters.grade) {
-            endpoint = `/api/analytics/campus/${filters.campus}/grade/${filters.grade}`;
-          }
-          break;
-        case 'class':
-          if (filters.classId) {
-            endpoint = `/api/analytics/class/${filters.classId}`;
-          }
-          break;
-        case 'student':
-          if (filters.studentId) {
-            endpoint = `/api/analytics/student/${filters.studentId}`;
-          }
-          break;
-        default:
-          endpoint = '/api/analytics/overview';
-      }
-
-      // Build query parameters
-      const queryParams = new URLSearchParams();
-      Object.keys(filters).forEach(key => {
-        if (filters[key] && key !== 'studentId' && key !== 'classId') {
-          queryParams.append(key, filters[key]);
-        }
-      });
-
-      if (queryParams.toString()) {
-        endpoint += `?${queryParams.toString()}`;
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setAnalyticsData(result.data);
-      } else {
-        setError(result.message);
-      }
-    } catch (err) {
-      setError('Error fetching analytics data');
-      console.error('Analytics fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const refreshData = () => {
+    // Trigger a re-fetch by updating a dependency
+    setFilters(prev => ({ ...prev }));
   };
 
   const updateFilters = (newFilters) => {
@@ -102,24 +101,40 @@ const BaseAnalyticsView = ({
   };
 
   const handleDrillDown = (data, type) => {
+    console.log('Drill down clicked:', { data, type });
+    
+    // Use external drill-down handler if provided
+    if (onDrillDown) {
+      onDrillDown(data, type);
+      return;
+    }
+    
+    // Fallback to internal logic
     if (!hasPermission('view')) return;
 
     switch (type) {
-      case 'campus':
-        if (canAccessCampus(data.campus)) {
-          updateFilters({ campus: data.campus });
+      case 'campus': {
+        const campusName = data.campusName || data.campus;
+        console.log('Campus drill down:', { campusName, canAccess: canAccessCampus(campusName) });
+        if (canAccessCampus(campusName)) {
+          updateFilters({ campus: campusName });
         }
         break;
-      case 'grade':
-        if (canAccessGrade(data.grade)) {
-          updateFilters({ grade: data.grade });
+      }
+      case 'grade': {
+        const gradeName = data.gradeName || data.grade;
+        if (canAccessGrade(gradeName)) {
+          updateFilters({ grade: gradeName });
         }
         break;
-      case 'class':
-        if (canAccessClass(data.classId)) {
-          updateFilters({ classId: data.classId });
+      }
+      case 'class': {
+        const classId = data.classId || data.id;
+        if (canAccessClass(classId)) {
+          updateFilters({ classId: classId });
         }
         break;
+      }
     }
   };
 
@@ -140,7 +155,7 @@ const BaseAnalyticsView = ({
           <div className="text-red-400 text-6xl mb-4">⚠️</div>
           <p className="text-red-600 text-lg mb-4">{error}</p>
           <button 
-            onClick={fetchAnalyticsData}
+            onClick={refreshData}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
           >
             Retry
@@ -166,10 +181,10 @@ const BaseAnalyticsView = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {analyticsData.campusStats.map(campus => (
                   <ZoneStatisticsCard
-                    key={campus.campus}
-                    data={campus.campusZoneDistribution}
-                    title={`${campus.campus} Campus`}
-                    allowDrillDown={canAccessCampus(campus.campus)}
+                    key={campus.campusName || campus.campus}
+                    data={campus.campusZoneDistribution || campus.stats}
+                    title={`${campus.campusName || campus.campus || 'Campus'} Campus`}
+                    allowDrillDown={canAccessCampus(campus.campusName || campus.campus)}
                     onDrillDown={() => handleDrillDown(campus, 'campus')}
                   />
                 ))}
@@ -183,7 +198,7 @@ const BaseAnalyticsView = ({
           <div className="space-y-6">
             <ZoneStatisticsCard 
               data={analyticsData.campusZoneDistribution}
-              title={`${analyticsData.campus} Campus Overview`}
+              title={`${analyticsData.campusName || 'Campus'} Overview`}
               showPercentages={true}
             />
             
@@ -191,10 +206,10 @@ const BaseAnalyticsView = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {analyticsData.gradeStats.map(grade => (
                   <ZoneStatisticsCard
-                    key={grade.grade}
-                    data={grade.gradeZoneDistribution}
-                    title={`${grade.grade} Grade`}
-                    allowDrillDown={canAccessGrade(grade.grade)}
+                    key={grade.gradeName || grade.grade}
+                    data={grade.gradeZoneDistribution || grade.stats}
+                    title={`${grade.gradeName || grade.grade || 'Grade'} Overview`}
+                    allowDrillDown={canAccessGrade(grade.gradeName || grade.grade)}
                     onDrillDown={() => handleDrillDown(grade, 'grade')}
                   />
                 ))}
@@ -208,7 +223,7 @@ const BaseAnalyticsView = ({
           <div className="space-y-6">
             <ZoneStatisticsCard 
               data={analyticsData.gradeZoneDistribution}
-              title={`${analyticsData.grade} Grade Overview`}
+              title={`${analyticsData.gradeName || analyticsData.grade || 'Grade'} Overview`}
               showPercentages={true}
             />
             
@@ -216,10 +231,10 @@ const BaseAnalyticsView = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {analyticsData.classStats.map(classData => (
                   <ZoneStatisticsCard
-                    key={classData.classId}
-                    data={classData.zoneDistribution}
-                    title={classData.className}
-                    allowDrillDown={canAccessClass(classData.classId)}
+                    key={classData.classId || classData.id}
+                    data={classData.zoneDistribution || classData.stats}
+                    title={classData.className || classData.name || 'Class'}
+                    allowDrillDown={canAccessClass(classData.classId || classData.id)}
                     onDrillDown={() => handleDrillDown(classData, 'class')}
                   />
                 ))}
@@ -232,8 +247,8 @@ const BaseAnalyticsView = ({
         return (
           <div className="space-y-6">
             <ZoneStatisticsCard 
-              data={analyticsData.zoneDistribution}
-              title={`${analyticsData.classInfo?.name} Performance`}
+              data={analyticsData.zoneDistribution || analyticsData.stats}
+              title={`${analyticsData.classInfo?.name || analyticsData.className || 'Class'} Performance`}
               showPercentages={true}
             />
             
@@ -356,7 +371,7 @@ const BaseAnalyticsView = ({
 
           <div className="flex items-end">
             <button
-              onClick={fetchAnalyticsData}
+              onClick={refreshData}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               Refresh

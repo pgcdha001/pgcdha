@@ -36,14 +36,14 @@ const MATRICULATION_SUBJECTS = [
   'Business Studies'
 ];
 
-const AcademicRecordsManagement = () => {
+const AcademicRecordsManagement = ({ preSelectedStudent = null, onClose = null }) => {
   const [students, setStudents] = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(preSelectedStudent);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState('');
-  const [showRecordForm, setShowRecordForm] = useState(false);
+  const [showRecordForm, setShowRecordForm] = useState(!!preSelectedStudent);
   const [academicRecord, setAcademicRecord] = useState({
     matriculation: {
       percentage: '',
@@ -87,6 +87,14 @@ const AcademicRecordsManagement = () => {
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
+
+  // Handle preselected student
+  useEffect(() => {
+    if (preSelectedStudent) {
+      setSelectedStudent(preSelectedStudent);
+      setShowRecordForm(true);
+    }
+  }, [preSelectedStudent]);
 
   // Helper functions for matriculation subjects
   const addMatriculationSubject = () => {
@@ -308,8 +316,13 @@ const AcademicRecordsManagement = () => {
             : student
         ));
         
-        setShowRecordForm(false);
-        setSelectedStudent(null);
+        // If this is called from a modal (preSelectedStudent exists), close it
+        if (preSelectedStudent && onClose) {
+          onClose();
+        } else {
+          setShowRecordForm(false);
+          setSelectedStudent(null);
+        }
       }
     } catch (error) {
       console.error('Error saving academic records:', error);
@@ -895,7 +908,13 @@ const AcademicRecordsManagement = () => {
                 <div className="flex justify-end space-x-3 pt-4 border-t">
                   <Button 
                     type="button"
-                    onClick={() => setShowRecordForm(false)} 
+                    onClick={() => {
+                      if (preSelectedStudent && onClose) {
+                        onClose();
+                      } else {
+                        setShowRecordForm(false);
+                      }
+                    }} 
                     variant="outline"
                     disabled={saving}
                   >

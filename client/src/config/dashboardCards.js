@@ -73,11 +73,12 @@ export const DASHBOARD_CARDS = {
     {
       id: 'examinations',
       title: 'Examination Reports',
-      href: '/reports?section=examinations',
+      href: '/analytics?view=examinations',
       icon: 'ClipboardList',
       bgGradient: 'from-orange-500 to-orange-600',
       type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_EXAMINATION_REPORTS
+      recentActivity: null,
+      todayCount: null
     },
     {
       id: 'appointments',
@@ -142,11 +143,12 @@ export const DASHBOARD_CARDS = {
     {
       id: 'student-statistics',
       title: 'Student Analytics',
-      href: '/reports?section=students',
+      href: '/analytics?view=students',
       icon: 'Users',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
+      recentActivity: null,
+      todayCount: null
     },
     {
       id: 'attendance-reports',
@@ -160,11 +162,30 @@ export const DASHBOARD_CARDS = {
     {
       id: 'examination-analytics',
       title: 'Examination Analytics',
-      href: '/examinations',
+      href: '/analytics?view=examinations',
       icon: 'GraduationCap',
       bgGradient: 'from-indigo-500 to-indigo-600',
       type: 'normal',
-      permission: PERMISSIONS.EXAMINATION.VIEW_ANALYTICS,
+      recentActivity: null,
+      todayCount: null
+    },
+    {
+      id: 'performance-analytics',
+      title: 'Performance Analytics',
+      href: '/analytics',
+      icon: 'TrendingUp',
+      bgGradient: 'from-purple-500 to-purple-600',
+      type: 'normal',
+      recentActivity: null,
+      todayCount: null
+    },
+    {
+      id: 'zone-analytics',
+      title: 'Zone-Based Analytics',
+      href: '/analytics?tab=zones',
+      icon: 'BarChart3',
+      bgGradient: 'from-emerald-500 to-emerald-600',
+      type: 'normal',
       recentActivity: null,
       todayCount: null
     },
@@ -276,6 +297,16 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.EXAMINATION.MANAGE_ACADEMIC_RECORDS,
       recentActivity: null,
       todayCount: null
+    },
+    {
+      id: 'system-analytics',
+      title: 'System Analytics',
+      href: '/analytics',
+      icon: 'Activity',
+      bgGradient: 'from-orange-500 to-orange-600',
+      type: 'normal',
+      recentActivity: null,
+      todayCount: null
     }
   ],
 
@@ -345,6 +376,16 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.EXAMINATION.ENTER_MARKS,
       recentActivity: null,
       todayCount: null
+    },
+    {
+      id: 'class-analytics',
+      title: 'Class Analytics',
+      href: '/analytics?view=class',
+      icon: 'BarChart3',
+      bgGradient: 'from-cyan-500 to-cyan-600',
+      type: 'normal',
+      recentActivity: null,
+      todayCount: null
     }
   ],
 
@@ -411,11 +452,12 @@ export const DASHBOARD_CARDS = {
     {
       id: 'student-reports',
       title: 'Student Reports',
-      href: '/reports?section=students',
+      href: '/analytics?view=students',
       icon: 'FileText',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
-      permission: PERMISSIONS.REPORTS.VIEW_STUDENT_REPORTS
+      recentActivity: null,
+      todayCount: null
     },
     {
       id: 'enquiry-management',
@@ -443,6 +485,16 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-rose-500 to-rose-600',
       type: 'normal',
       permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
+    },
+    {
+      id: 'campus-analytics',
+      title: 'Campus Analytics',
+      href: '/analytics?view=campus',
+      icon: 'Building',
+      bgGradient: 'from-violet-500 to-violet-600',
+      type: 'normal',
+      recentActivity: null,
+      todayCount: null
     }
   ]
 };

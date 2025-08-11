@@ -98,4 +98,4 @@ const DashboardGrid = ({
   );
 };
 
-export default DashboardGrid;
+export default React.memo(DashboardGrid);

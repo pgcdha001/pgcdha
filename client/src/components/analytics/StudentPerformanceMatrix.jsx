@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAnalyticsAccess } from './AnalyticsAccessProvider';
+import api from '../../services/api';
 
 const StudentPerformanceMatrix = ({ 
   studentId, 
@@ -22,20 +23,12 @@ const StudentPerformanceMatrix = ({
   const fetchMatrixData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/analytics/student/${studentId}/matrix`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
+      const response = await api.get(`/analytics/student/${studentId}/matrix`);
       
-      if (result.success) {
-        setMatrixData(result.data);
+      if (response.data.success) {
+        setMatrixData(response.data.data);
       } else {
-        setError(result.message);
+        setError(response.data.message);
       }
     } catch (err) {
       setError('Error fetching performance matrix');
@@ -80,17 +73,10 @@ const StudentPerformanceMatrix = ({
     }
 
     try {
-      const response = await fetch(`/api/analytics/export/student/${studentId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ format }),
-      });
+      const response = await api.post(`/analytics/export/student/${studentId}`, { format });
 
       if (format === 'csv') {
-        const csvData = await response.text();
+        const csvData = response.data;
         const blob = new Blob([csvData], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');

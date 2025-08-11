@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AnalyticsAccessProvider } from './AnalyticsAccessProvider';
 import BaseAnalyticsView from './BaseAnalyticsView';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const ZoneAnalyticsComponent = ({ 
   level = 'college',
@@ -9,6 +9,10 @@ const ZoneAnalyticsComponent = ({
   className = ''
 }) => {
   const { user } = useAuth();
+  
+  // State for navigation
+  const [currentLevel, setCurrentLevel] = useState(level);
+  const [currentFilters, setCurrentFilters] = useState(initialFilters);
 
   if (!user) {
     return (
@@ -48,7 +52,47 @@ const ZoneAnalyticsComponent = ({
     }
   };
 
-  const defaultLevel = level || getUserDefaultLevel();
+  // Handle drill-down navigation
+  const handleDrillDown = (data, type) => {
+    switch (type) {
+      case 'campus':
+        setCurrentLevel('campus');
+        setCurrentFilters(prev => ({ ...prev, campus: data.campusName || data.campus }));
+        break;
+      case 'grade':
+        setCurrentLevel('grade');
+        setCurrentFilters(prev => ({ ...prev, grade: data.gradeName || data.grade }));
+        break;
+      case 'class':
+        setCurrentLevel('class');
+        setCurrentFilters(prev => ({ ...prev, classId: data.classId || data.id }));
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Handle navigation back
+  const handleNavigateBack = () => {
+    switch (currentLevel) {
+      case 'class':
+        setCurrentLevel('grade');
+        setCurrentFilters(prev => ({ ...prev, classId: undefined }));
+        break;
+      case 'grade':
+        setCurrentLevel('campus');
+        setCurrentFilters(prev => ({ ...prev, grade: undefined }));
+        break;
+      case 'campus':
+        setCurrentLevel('college');
+        setCurrentFilters(prev => ({ ...prev, campus: undefined }));
+        break;
+      default:
+        break;
+    }
+  };
+
+  const defaultLevel = currentLevel || getUserDefaultLevel();
   const allowedActions = getUserAllowedActions();
 
   return (
@@ -62,12 +106,28 @@ const ZoneAnalyticsComponent = ({
             <p className="text-gray-600">
               Comprehensive student performance analysis based on academic achievements
             </p>
+            
+            {/* Breadcrumb navigation */}
+            {currentLevel !== 'college' && (
+              <div className="mt-4">
+                <button
+                  onClick={handleNavigateBack}
+                  className="inline-flex items-center px-3 py-2 text-sm text-blue-600 hover:text-blue-800"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to {currentLevel === 'campus' ? 'College' : currentLevel === 'grade' ? 'Campus' : 'Grade'} View
+                </button>
+              </div>
+            )}
           </div>
 
           <BaseAnalyticsView 
             dataLevel={defaultLevel}
-            initialFilters={initialFilters}
+            initialFilters={currentFilters}
             allowedActions={allowedActions}
+            onDrillDown={handleDrillDown}
           />
         </div>
       </div>
