@@ -577,7 +577,7 @@ router.post('/', authenticate, async (req, res) => {
       subject,
       message,
       staffMember: {
-        id: req.user.id,
+        id: req.user._id,
         name: `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || req.user.userName,
         role: req.user.role
       },

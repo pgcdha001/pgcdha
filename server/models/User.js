@@ -130,6 +130,7 @@ const UserSchema = new mongoose.Schema({
 
   // Class Assignment for Students
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
+  rollNumber: { type: String, required: false }, // Student's roll number in their assigned class
 
   // Enquiry Level System (1-5)
   enquiryLevel: {
@@ -182,6 +183,10 @@ const UserSchema = new mongoose.Schema({
       type: String,
       enum: ['11th', '12th'],
       required: function () { return this.enquiryLevel === 5; }
+    },
+    program: {
+      type: String,
+      required: false // Added for program assignment
     },
     className: {
       type: String,

@@ -48,7 +48,7 @@ router.post('/mark', authenticate, async (req, res) => {
       {
         classId,
         status,
-        markedBy: markedBy || req.user.id,
+        markedBy: markedBy || req.user._id,
         markedByRole: 'Floor Incharge'
       },
       { 
@@ -81,7 +81,7 @@ router.post('/mark', authenticate, async (req, res) => {
 router.post('/mark-bulk', authenticate, async (req, res) => {
   try {
     const { classId, date, attendanceData, subject } = req.body;
-    const markedBy = req.user.id;
+    const markedBy = req.user._id;
 
     // Validate class exists
     const classDoc = await Class.findById(classId).populate('classIncharge floorIncharge teachers.teacherId');

@@ -366,7 +366,7 @@ router.put('/:id/level', authenticate, async (req, res) => {
         message: `Student level updated from Level ${currentLevel} to Level ${level}. Notes: ${notes}`,
         studentLevel: level,
         staffMember: {
-          id: req.user.id,
+          id: req.user._id,
           name: `${req.user.fullName?.firstName || ''} ${req.user.fullName?.lastName || ''}`.trim() || 'Staff Member'
         },
         timestamp: new Date()

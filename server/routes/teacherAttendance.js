@@ -11,7 +11,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 router.post('/mark', authenticate, async (req, res) => {
   try {
     const { attendanceData, date, floor } = req.body;
-    const markedBy = req.user.id;
+    const markedBy = req.user._id;
 
     if (!Array.isArray(attendanceData) || attendanceData.length === 0) {
       return res.status(400).json({ message: 'Attendance data is required' });
@@ -538,7 +538,7 @@ router.get('/stats/punctuality/:teacherId', authenticate, async (req, res) => {
 router.post('/coordinator/mark', authenticate, async (req, res) => {
   try {
     const { attendanceRecords } = req.body;
-    const markedBy = req.user.id;
+    const markedBy = req.user._id;
 
     if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
       return res.status(400).json({ 

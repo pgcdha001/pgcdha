@@ -294,7 +294,8 @@ router.post('/',
       matricMarks,      // Updated from matriculationObtainedMarks
       matricTotal,      // Updated from matriculationTotalMarks
       coordinatorGrade, // For coordinator role
-      coordinatorCampus // For coordinator role
+      coordinatorCampus, // For coordinator role
+      classId           // For student class assignment
     } = req.body;
 
     // For students, if lastName is not provided, use fatherName as lastName
@@ -457,6 +458,56 @@ router.post('/',
       userData.campus = gender === 'Male' ? 'Boys' : 'Girls';
     }
 
+    // Handle class assignment for students
+    if (role === 'Student' && classId) {
+      // Validate that the class exists
+      const Class = require('../models/Class');
+      const classDoc = await Class.findById(classId);
+      
+      if (!classDoc) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected class does not exist'
+        });
+      }
+
+      // Validate that the class matches the student's gender/campus
+      if (userData.campus && classDoc.campus !== userData.campus) {
+        return res.status(400).json({
+          success: false,
+          message: `Selected class is for ${classDoc.campus} campus but student is ${userData.campus}`
+        });
+      }
+
+      // Check if class is full
+      const currentStudentCount = await User.countDocuments({
+        classId: classId,
+        role: 'Student'
+      });
+
+      if (currentStudentCount >= classDoc.maxStudents) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected class is full'
+        });
+      }
+
+      // If class is assigned, set student to level 5 (officially admitted)
+      userData.prospectusStage = 5;
+      userData.enquiryLevel = 5;
+      
+      // Assign the class
+      userData.classId = classId;
+      
+      // Set program and grade from class if not provided
+      if (!userData.program) userData.program = classDoc.program;
+      userData.admissionInfo = {
+        grade: classDoc.grade,
+        program: classDoc.program,
+        className: classDoc.name
+      };
+    }
+
     // Set status based on isActive and isApproved
     if (userData.isApproved && userData.isActive) {
       userData.status = 1; // Active
@@ -467,6 +518,39 @@ router.post('/',
     }
 
     const user = await User.create(userData);
+
+    // If a class was assigned, add the student to the class roster and generate roll number
+    if (role === 'Student' && classId && user._id) {
+      try {
+        const Class = require('../models/Class');
+        const classDoc = await Class.findById(classId);
+        
+        // Generate roll number
+        const rollNumber = await generateRollNumber(classId, classDoc);
+        
+        // Update the user with roll number
+        await User.findByIdAndUpdate(user._id, { rollNumber });
+        
+        // Add student to class roster
+        await Class.findByIdAndUpdate(
+          classId,
+          { $addToSet: { students: user._id } }, // Use $addToSet to avoid duplicates
+          { new: true }
+        );
+        
+        // Update class student count
+        await classDoc.updateStudentCount();
+        
+        console.log(`Successfully assigned student ${user._id} to class ${classId} with roll number ${rollNumber}`);
+        
+        // Add roll number to response
+        userResponse.rollNumber = rollNumber;
+      } catch (classUpdateError) {
+        console.error('Error updating class roster:', classUpdateError);
+        // Don't fail the user creation if class roster update fails
+        // The user still has the classId reference
+      }
+    }
 
     // Remove sensitive data from response
     const userResponse = user.toJSON();
@@ -1053,5 +1137,28 @@ router.put('/:id/enquiry-level', asyncHandler(async (req, res) => {
 
   sendSuccessResponse(res, { user: userResponse }, 'Enquiry level updated successfully');
 }));
+
+// Helper function to generate roll numbers
+async function generateRollNumber(classId, classDoc) {
+  // Get the highest roll number in the class
+  const lastStudent = await User.findOne({
+    classId: classId,
+    role: 'Student',
+    rollNumber: { $exists: true, $ne: null }
+  }).sort({ rollNumber: -1 });
+
+  let nextRollNumber;
+  if (lastStudent && lastStudent.rollNumber) {
+    // Extract numeric part and increment
+    const match = lastStudent.rollNumber.match(/(\d+)$/);
+    const lastNumber = match ? parseInt(match[1]) : 0;
+    nextRollNumber = `${classDoc.name.replace(/\s+/g, '')}-${String(lastNumber + 1).padStart(3, '0')}`;
+  } else {
+    // First student in class
+    nextRollNumber = `${classDoc.name.replace(/\s+/g, '')}-001`;
+  }
+
+  return nextRollNumber;
+}
 
 module.exports = router;
