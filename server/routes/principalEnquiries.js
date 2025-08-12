@@ -1135,10 +1135,25 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
 
 // Removed daily-stats route - now using comprehensive-data endpoint
 
-// Get students with level history date filtering for reports
+// Get students with level history date filtering for reports (with optional pagination)
 router.get('/level-history-students', async (req, res) => {
   try {
-    const { dateFilter, startDate, endDate, nonProgression, progressionLevel } = req.query;
+    const { 
+      dateFilter, 
+      startDate, 
+      endDate, 
+      nonProgression, 
+      progressionLevel,
+      // New optional pagination params
+      page,
+      limit,
+      search,
+      gender,
+      minLevel,
+      exactLevel,
+      sortBy,
+      sortOrder
+    } = req.query;
     
     let matchCondition = {
       role: 'Student'
@@ -1209,11 +1224,134 @@ router.get('/level-history-students', async (req, res) => {
       
       matchCondition.prospectusStage = { $lte: levelNum };
       matchCondition.createdOn = { $lte: sinceDate };
+    } else {
+      // Apply level filters when not in non-progression mode
+      if (exactLevel) {
+        const lvl = parseInt(exactLevel);
+        if (!isNaN(lvl)) {
+          matchCondition.prospectusStage = lvl;
+        }
+      } else if (minLevel) {
+        const lvl = parseInt(minLevel);
+        if (!isNaN(lvl)) {
+          matchCondition.prospectusStage = { ...(matchCondition.prospectusStage || {}), $gte: lvl };
+        }
+      }
     }
     
-    const students = await User.find(matchCondition)
-      .sort({ createdOn: -1 })
-      .lean();
+    // Gender filter
+    if (gender) {
+      matchCondition.gender = gender;
+    }
+    
+    // Text search across name/email/cnic
+    if (search && search.trim()) {
+      const term = search.trim();
+      const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const searchOr = [
+        { 'fullName.firstName': regex },
+        { 'fullName.lastName': regex },
+        { email: regex },
+        { cnic: regex },
+        { session: regex },
+        { course: regex }
+      ];
+      if (matchCondition.$or) {
+        matchCondition.$and = matchCondition.$and || [];
+        matchCondition.$and.push({ $or: matchCondition.$or });
+        delete matchCondition.$or;
+      }
+      matchCondition.$or = searchOr;
+    }
+    
+    // Sorting
+    const sortField = sortBy || 'createdOn';
+    const sortDir = (sortOrder || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+    const sortSpec = { [sortField]: sortDir };
+    
+    // Base query builder
+    let studentsQuery = User.find(matchCondition).sort(sortSpec).lean();
+    
+    // Pagination (optional, only if page/limit provided)
+    if (page !== undefined || limit !== undefined) {
+      const pageNum = Math.max(parseInt(page || '1', 10), 1);
+      const pageSize = Math.min(Math.max(parseInt(limit || '25', 10), 1), 200);
+
+      const totalDocs = await User.countDocuments(matchCondition);
+      const totalPages = Math.max(Math.ceil(totalDocs / pageSize), 1);
+      const skip = (pageNum - 1) * pageSize;
+
+      const students = await studentsQuery.skip(skip).limit(pageSize);
+
+      // Get aggregated statistics for accurate counts
+      const genderStats = await User.aggregate([
+        { $match: matchCondition },
+        {
+          $group: {
+            _id: '$gender',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const stageStats = await User.aggregate([
+        { $match: matchCondition },
+        {
+          $group: {
+            _id: '$prospectusStage',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      // Process gender statistics
+      const genderBreakdown = {
+        male: 0,
+        female: 0,
+        unspecified: 0
+      };
+
+      genderStats.forEach(stat => {
+        const gender = (stat._id || '').toLowerCase();
+        if (gender === 'male' || gender === 'm') {
+          genderBreakdown.male = stat.count;
+        } else if (gender === 'female' || gender === 'f') {
+          genderBreakdown.female = stat.count;
+        } else {
+          genderBreakdown.unspecified += stat.count;
+        }
+      });
+
+      // Process stage statistics (cumulative)
+      const stageBreakdown = {};
+      for (let stage = 1; stage <= 5; stage++) {
+        stageBreakdown[stage] = stageStats
+          .filter(stat => (stat._id || 1) >= stage)
+          .reduce((sum, stat) => sum + stat.count, 0);
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          users: students
+        },
+        pagination: {
+          page: pageNum,
+          limit: pageSize,
+          totalDocs,
+          totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
+        },
+        statistics: {
+          gender: genderBreakdown,
+          stages: stageBreakdown
+        }
+      });
+    }
+
+    // Non-paginated (legacy behavior)
+    const students = await studentsQuery;
     
     res.json({
       success: true,

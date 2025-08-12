@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '../../components/ui/button';
 import Card from '../../components/ui/card';
 import { default as api } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
-import { FileDown, FileSpreadsheet, FileText, CalendarDays, AlertTriangle } from 'lucide-react';
+import { FileDown, FileSpreadsheet, FileText, CalendarDays, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import DateFilter from '../../components/enquiry/DateFilter';
 import CustomDateRange from '../../components/enquiry/CustomDateRange';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { useDebounce } from '../../hooks/usePerformance';
 
 const STAGE_LABELS = [
   'Not Purchased',
@@ -34,8 +35,17 @@ const extractNotesFromRemark = (remark) => {
 
 const StudentReport = () => {
   const { toast } = useToast();
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(false);
+  
+  // Pagination & data states
+  const [loading, setLoading] = useState(true); // initial page load only
+  const [pagesData, setPagesData] = useState({}); // { [page]: array }
+  const [pagesLoading, setPagesLoading] = useState({}); // { [page]: boolean }
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalDocs, setTotalDocs] = useState(0);
+  const [statistics, setStatistics] = useState(null); // Server-side aggregated stats
+  
   const [error, setError] = useState('');
   const [stageFilter, setStageFilter] = useState('');
   const [nameFilter, setNameFilter] = useState('');
@@ -53,6 +63,8 @@ const StudentReport = () => {
   const [showNonProgression, setShowNonProgression] = useState(false);
   const [progressionLevel, setProgressionLevel] = useState('');
 
+  const debouncedSearchTerm = useDebounce(nameFilter, 400);
+
   const dateFilters = [
     { value: 'all', label: 'All Time' },
     { value: 'today', label: 'Today' },
@@ -62,54 +74,162 @@ const StudentReport = () => {
     { value: 'custom', label: 'Custom Range' }
   ];
 
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  // Build immutable fetch params based on current filters
+  const queryParams = useMemo(() => {
+    const p = {};
+    
+    // Date filter
+    if (selectedDate !== 'all' && selectedDate !== 'custom') {
+      p.dateFilter = selectedDate;
+    } else if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
+      p.dateFilter = 'custom';
+      p.startDate = customStartDate;
+      p.endDate = customEndDate;
+    }
+    
+    // Non-progression
+    if (showNonProgression && progressionLevel) {
+      p.nonProgression = 'true';
+      p.progressionLevel = progressionLevel;
+    } else {
+      // Stage/Level filters (cumulative in normal mode)
+      if (stageFilter) {
+        p.minLevel = stageFilter;
+      }
+      // Gender filter
+      if (genderFilter) {
+        p.gender = genderFilter;
+      }
+    }
+    
+    // Search (name, cnic)
+    if (debouncedSearchTerm?.trim() || cnicFilter?.trim()) {
+      let searchTerms = [];
+      if (debouncedSearchTerm?.trim()) searchTerms.push(debouncedSearchTerm.trim());
+      if (cnicFilter?.trim()) searchTerms.push(cnicFilter.trim());
+      p.search = searchTerms.join(' ');
+    }
+    
+    return p;
+  }, [selectedDate, customStartDate, customEndDate, customDatesApplied, showNonProgression, progressionLevel, stageFilter, genderFilter, debouncedSearchTerm, cnicFilter]);
+
+  const fetchPage = useCallback(async (pageToFetch) => {
+    // Avoid duplicate fetches
+    if (pagesLoading[pageToFetch]) return;
+    setPagesLoading(prev => ({ ...prev, [pageToFetch]: true }));
     try {
-      // Build query parameters
-      const params = new URLSearchParams();
-      
-      // Add date filter parameters (only if not custom, or if custom and dates are applied)
-      if (selectedDate !== 'all' && selectedDate !== 'custom') {
-        params.append('dateFilter', selectedDate);
-      } else if (selectedDate === 'custom' && customStartDate && customEndDate && customDatesApplied) {
-        params.append('dateFilter', 'custom');
-        params.append('startDate', customStartDate);
-        params.append('endDate', customEndDate);
-      }
-      
-      // Add non-progression filter parameters
-      if (showNonProgression && progressionLevel) {
-        params.append('nonProgression', 'true');
-        params.append('progressionLevel', progressionLevel);
-      }
-      
-      const queryString = params.toString();
       let url = '';
+      const params = {
+        ...queryParams,
+        page: pageToFetch,
+        limit: pageSize,
+        sortBy: 'createdOn',
+        sortOrder: 'desc'
+      };
       
       // Use level history API for date-based filtering, otherwise use users API
       if (selectedDate !== 'all' || (selectedDate === 'custom' && customDatesApplied)) {
-        url = `/enquiries/level-history-students?${queryString}`;
+        url = '/enquiries/level-history-students';
       } else {
         // For 'all time' or when no date filters are applied, use users API
-        params.append('role', 'Student');
-        params.append('limit', '10000');
-        url = `/users?${params.toString()}`;
+        params.role = 'Student';
+        url = '/users';
       }
       
-      const res = await api.get(url);
-      setStudents(res.data?.data?.users || res.data?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch students:', err);
+      const response = await api.get(url, { params });
+      const data = response.data?.data?.users || response.data?.data || [];
+      const pagination = response.data?.pagination;
+      
+      setPagesData(prev => ({ ...prev, [pageToFetch]: data }));
+      if (pagination) {
+        setTotalDocs(pagination.totalDocs || pagination.totalUsers || 0);
+        setTotalPages(pagination.totalPages || 1);
+      }
+      // Update statistics if available
+      if (response.data?.statistics) {
+        setStatistics(response.data.statistics);
+      }
+    } catch (error) {
+      console.error('Error fetching students page:', pageToFetch, error);
+      setPagesData(prev => ({ ...prev, [pageToFetch]: [] }));
       setError('Failed to fetch students');
     } finally {
-      setLoading(false);
+      setPagesLoading(prev => ({ ...prev, [pageToFetch]: false }));
     }
-  }, [selectedDate, customStartDate, customEndDate, customDatesApplied, showNonProgression, progressionLevel]);
+  }, [queryParams, pageSize, pagesLoading, selectedDate, customDatesApplied]);
 
+  const prefetchPages = useCallback(async (start, end) => {
+    const promises = [];
+    for (let p = start; p <= end; p++) {
+      // Skip if already have data or loading
+      if (pagesData[p] || pagesLoading[p]) continue;
+      promises.push(fetchPage(p));
+    }
+    await Promise.all(promises);
+  }, [fetchPage, pagesData, pagesLoading]);
+
+  // Initial and filter-driven load: prefetch pages 1-3, show spinner until page 1 is ready
   useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
+    let isMounted = true;
+    // Reset state on filter change
+    setPagesData({});
+    setPagesLoading({});
+    setCurrentPage(1);
+    setTotalDocs(0);
+    setTotalPages(1);
+    setLoading(true);
+    setError('');
+    (async () => {
+      await prefetchPages(1, 3);
+      if (!isMounted) return;
+      setLoading(false); // page 1 should be ready or at least requested
+    })();
+    return () => { isMounted = false; };
+  }, [queryParams, pageSize, prefetchPages]);
+
+  // Prefetch next 3 pages when user reaches page 2 or beyond
+  useEffect(() => {
+    if (currentPage >= 2) {
+      const start = currentPage + 1;
+      const end = Math.min(currentPage + 3, totalPages || currentPage + 3);
+      if (start <= end) {
+        prefetchPages(start, end);
+      }
+    }
+  }, [currentPage, totalPages, prefetchPages]);
+
+  // Current page data (already filtered on server)
+  const currentPageData = useMemo(() => {
+    return pagesData[currentPage] || [];
+  }, [pagesData, currentPage]);
+
+  const isCurrentPageLoading = pagesLoading[currentPage];
+
+  // For export functions, we need to collect all data (not just current page)
+  const allStudentsForExport = useMemo(() => {
+    // Flatten all pages data
+    return Object.values(pagesData).flat();
+  }, [pagesData]);
+
+  // Helpers for pagination controls
+  const changePage = (p) => {
+    if (p < 1 || (totalPages && p > totalPages)) return;
+    setCurrentPage(p);
+    if (!pagesData[p]) {
+      // If not prefetched, fetch on demand (show loader only for that page)
+      fetchPage(p);
+    }
+  };
+
+  // Manual refresh handler
+  const refreshStudents = useCallback(async () => {
+    // Keep current filters; reset cached pages and prefetch window around current page
+    setPagesData({});
+    setPagesLoading({});
+    const start = Math.max(1, currentPage);
+    const end = Math.min(start + 2, totalPages || start + 2);
+    await prefetchPages(start, end);
+  }, [currentPage, totalPages, prefetchPages]);
 
   // Date filter handlers
   const handleDateChange = (dateValue) => {
@@ -164,29 +284,19 @@ const StudentReport = () => {
     setProgressionLevel(level);
   };
 
-  // Filtered students - cumulative when non-progression is off, exact when on
-  const filteredStudents = students.filter((s) => {
-    // Stage filtering logic depends on non-progression mode
-    let matchesStage = true;
-    if (stageFilter) {
-      const currentStage = s.prospectusStage || 1;
-      const targetStage = parseInt(stageFilter);
-      
-      if (showNonProgression) {
-        // Non-progression mode: exact level match
-        matchesStage = currentStage === targetStage;
-      } else {
-        // Normal mode: cumulative match (aligned with principal enquiry)
-        // Level 2+ includes students at levels 2, 3, 4, 5
-        matchesStage = currentStage >= targetStage;
-      }
-    }
+  // For export - collect data from all loaded pages, apply client-side filters if needed
+  const filteredStudents = useMemo(() => {
+    if (!allStudentsForExport.length) return [];
     
-    const matchesName = !nameFilter || (`${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.toLowerCase().includes(nameFilter.toLowerCase()));
-    const matchesCnic = !cnicFilter || (s.cnic || '').includes(cnicFilter);
-    const matchesGender = !genderFilter || (s.gender || 'Not specified').toLowerCase() === genderFilter.toLowerCase();
-    return matchesStage && matchesName && matchesCnic && matchesGender;
-  });
+    // Since server handles most filtering, we may only need minimal client-side filtering
+    // In case some legacy filters are still client-side:
+    return allStudentsForExport.filter((s) => {
+      // These filters should be moved to server, but keep for safety
+      const matchesName = !nameFilter || (`${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.toLowerCase().includes(nameFilter.toLowerCase()));
+      const matchesCnic = !cnicFilter || (s.cnic || '').includes(cnicFilter);
+      return matchesName && matchesCnic;
+    });
+  }, [allStudentsForExport, nameFilter, cnicFilter]);
 
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -485,10 +595,10 @@ const StudentReport = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
               </svg>
             </div>
-            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{totalDocs}</span>
           </div>
           <h3 className="text-base lg:text-lg font-semibold truncate">Total Students</h3>
-          <p className="text-blue-100 text-xs lg:text-sm truncate">All registered students</p>
+          <p className="text-blue-100 text-xs lg:text-sm truncate">All matching students</p>
         </div>
 
         {/* Male Students */}
@@ -499,10 +609,17 @@ const StudentReport = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.filter(s => (s.gender || '').toLowerCase() === 'male').length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">
+              {statistics?.gender?.male || (genderFilter === 'Male' ? totalDocs : '~')}
+            </span>
           </div>
           <h3 className="text-base lg:text-lg font-semibold truncate">Male Students</h3>
-          <p className="text-indigo-100 text-xs lg:text-sm truncate">{((students.filter(s => (s.gender || '').toLowerCase() === 'male').length / students.length) * 100 || 0).toFixed(1)}% of total</p>
+          <p className="text-indigo-100 text-xs lg:text-sm truncate">
+            {statistics?.gender ? 
+              `${((statistics.gender.male / totalDocs) * 100 || 0).toFixed(1)}% of total` : 
+              (genderFilter === 'Male' ? '100% (filtered)' : 'Loading...')
+            }
+          </p>
         </div>
 
         {/* Female Students */}
@@ -513,52 +630,205 @@ const StudentReport = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.filter(s => (s.gender || '').toLowerCase() === 'female').length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">
+              {statistics?.gender?.female || (genderFilter === 'Female' ? totalDocs : '~')}
+            </span>
           </div>
           <h3 className="text-base lg:text-lg font-semibold truncate">Female Students</h3>
-          <p className="text-pink-100 text-xs lg:text-sm truncate">{((students.filter(s => (s.gender || '').toLowerCase() === 'female').length / students.length) * 100 || 0).toFixed(1)}% of total</p>
+          <p className="text-pink-100 text-xs lg:text-sm truncate">
+            {statistics?.gender ? 
+              `${((statistics.gender.female / totalDocs) * 100 || 0).toFixed(1)}% of total` : 
+              (genderFilter === 'Female' ? '100% (filtered)' : 'Loading...')
+            }
+          </p>
         </div>
 
-        {/* Unspecified Gender */}
-        <div className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 min-w-0">
+        {/* Stage Progress */}
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 min-w-0">
           <div className="flex items-center justify-between mb-3 lg:mb-4">
             <div className="p-2 lg:p-3 bg-white/20 rounded-xl flex-shrink-0">
               <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <span className="text-xl lg:text-2xl font-bold truncate ml-2">{students.filter(s => !s.gender || s.gender === 'Not specified').length}</span>
+            <span className="text-xl lg:text-2xl font-bold truncate ml-2">
+              {stageFilter ? 
+                (statistics?.stages?.[stageFilter] || `Stage ${stageFilter}+`) : 
+                'All'
+              }
+            </span>
           </div>
-          <h3 className="text-base lg:text-lg font-semibold truncate">Unspecified</h3>
-          <p className="text-gray-100 text-xs lg:text-sm truncate">Gender not specified</p>
+          <h3 className="text-base lg:text-lg font-semibold truncate">Current Filter</h3>
+          <p className="text-green-100 text-xs lg:text-sm truncate">
+            {showNonProgression ? 
+              `Non-progress L${progressionLevel}` : 
+              (stageFilter ? `Stage ${stageFilter}+ students` : 'All stages')
+            }
+          </p>
         </div>
       </div>
 
-      {/* Stage Analytics */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
-        <h3 className="text-lg font-bold text-primary mb-4 font-[Sora,Inter,sans-serif] flex items-center gap-2">
-          <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-          Stage Distribution
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {STAGE_LABELS.map((label, idx) => {
-            // Cumulative counting - Level 2 includes Level 3 students, etc.
-            const stageCount = students.filter(s => (s.prospectusStage || 1) >= (idx + 1)).length;
-            const percentage = ((stageCount / students.length) * 100 || 0).toFixed(1);
-            
-            return (
-              <div key={idx} className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-4 border border-primary/20 hover:shadow-lg transition-all duration-200">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary mb-1">{stageCount}</div>
-                  <div className="text-sm font-semibold text-primary/80 mb-1">Stage {idx + 1}+</div>
-                  <div className="text-xs text-muted-foreground">{label}</div>
-                  <div className="text-xs text-primary/60 mt-1">{percentage}% of total</div>
+      {/* Stage Analytics - Add back with server statistics */}
+      {statistics?.stages && (
+        <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+          <h3 className="text-lg font-bold text-primary mb-4 font-[Sora,Inter,sans-serif] flex items-center gap-2">
+            <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+            Stage Distribution
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {STAGE_LABELS.map((label, idx) => {
+              const stage = idx + 1;
+              const stageCount = statistics.stages[stage] || 0;
+              const percentage = ((stageCount / totalDocs) * 100 || 0).toFixed(1);
+              
+              return (
+                <div key={idx} className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-4 border border-primary/20 hover:shadow-lg transition-all duration-200">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary mb-1">{stageCount}</div>
+                    <div className="text-sm font-semibold text-primary/80 mb-1">Stage {stage}+</div>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="text-xs text-primary/60 mt-1">{percentage}% of total</div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Refresh Button */}
+      <div className="flex justify-end mb-4">
+        <Button
+          onClick={refreshStudents}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+        >
+          <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {loading ? 'Refreshing...' : 'Refresh Data'}
+        </Button>
+      </div>
+
+      {/* Student List Table with Pagination */}
+      <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 transition-all duration-300 hover:shadow-xl hover:bg-white/70 overflow-hidden" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
+        <div className="p-6 border-b border-border/20">
+          <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] flex items-center gap-2">
+            <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+            Student Records ({totalDocs} total)
+          </h3>
+        </div>
+        
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading student records...</p>
+          </div>
+        ) : (!isCurrentPageLoading && currentPageData.length === 0) ? (
+          <div className="p-8 text-center">
+            <p className="text-gray-600">No students found matching your criteria.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CNIC</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Correspondence</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {isCurrentPageLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                      <p className="mt-2 text-gray-600">Loading page {currentPage}...</p>
+                    </td>
+                  </tr>
+                ) : currentPageData.map((student, idx) => {
+                  const rowNumber = (currentPage - 1) * pageSize + idx + 1;
+                  const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
+                  const stage = student.prospectusStage || 1;
+                  const stageName = STAGE_LABELS[stage - 1] || 'Unknown';
+                  const remarksCount = student.receptionistRemarks?.length || 0;
+                  
+                  return (
+                    <tr key={student._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rowNumber}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{fullName || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{student.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cnic || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'Not specified'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Stage {stage}: {stageName}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {student.phoneNumbers?.primary || student.phoneNumber || student.phone || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {remarksCount > 0 ? `${remarksCount} remarks` : 'No remarks'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border/20">
+          <div className="text-sm text-gray-600">
+            Page {currentPage} of {Math.max(totalPages, 1)} • {totalDocs} total students
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1"
+              onClick={() => changePage(currentPage - 1)}
+              disabled={currentPage <= 1}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Prev
+            </button>
+            {Array.from({ length: Math.min(5, Math.max(totalPages, 1)) }).map((_, idx) => {
+              // Simple windowed pager: show first 5 or around current
+              let baseStart = Math.max(1, Math.min(currentPage - 2, (totalPages || 1) - 4));
+              if (!totalPages || totalPages < 5) baseStart = 1;
+              const pageNum = baseStart + idx;
+              if (totalPages && pageNum > totalPages) return null;
+              const isActive = pageNum === currentPage;
+              return (
+                <button
+                  key={pageNum}
+                  className={`px-3 py-1 rounded-lg text-sm ${isActive ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  onClick={() => changePage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1"
+              onClick={() => changePage(currentPage + 1)}
+              disabled={totalPages ? currentPage >= totalPages : false}
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Stage Analytics - Remove since we don't have all data loaded */}
 
       {/* Filters Card */}
       <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>

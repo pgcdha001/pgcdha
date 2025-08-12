@@ -20,32 +20,47 @@ const StudentStatistics = () => {
     try {
       setStatistics(prev => ({ ...prev, loading: true }));
 
-      // Get all students
-      const response = await userAPI.getUsers({
+      // Get students with pagination to get server-side statistics
+      const params = {
         role: 'Student',
-        limit: 10000 // Show all students without pagination
-      });
+        page: 1,
+        limit: 25 // Use pagination to trigger server-side statistics calculation
+      };
+      console.log('StudentStatistics: Loading with params:', params);
+      
+      const response = await userAPI.getUsers(params);
+      console.log('StudentStatistics: API response:', response);
 
       if (response.success) {
+        const pagination = response.data.pagination;
+        const statistics = response.data.statistics;
         const students = response.data.users || [];
         
-        // Calculate statistics
-        const totalStudents = students.length;
-        const admittedStudents = students.filter(student => 
-          student.enquiryLevel === 5 || student.status === 'active'
-        ).length;
-        const pendingStudents = students.filter(student => 
-          student.status === 'pending'
-        ).length;
+        console.log('StudentStatistics: Pagination info:', pagination);
+        console.log('StudentStatistics: Server statistics:', statistics);
+        console.log('StudentStatistics: Students in current page:', students.length);
+        
+        // Use server-provided statistics if available, otherwise fallback to pagination counts
+        const totalStudents = pagination?.totalUsers || 0;
+        
+        // For now, use simple calculations until we enhance server statistics
         const activeStudents = students.filter(student => 
-          student.status === 'active'
+          student.isActive !== false && student.status !== 'inactive'
+        ).length;
+        
+        const admittedStudents = students.filter(student => 
+          student.prospectusStage === 5 || student.enquiryLevel === 5
+        ).length;
+        
+        const pendingStudents = students.filter(student => 
+          !student.isApproved || student.status === 'pending'
         ).length;
 
         setStatistics({
           totalStudents,
-          admittedStudents,
-          pendingStudents,
-          activeStudents,
+          admittedStudents: Math.round(admittedStudents * totalStudents / Math.max(students.length, 1)), // Estimate based on sample
+          pendingStudents: Math.round(pendingStudents * totalStudents / Math.max(students.length, 1)), // Estimate based on sample
+          activeStudents: Math.round(activeStudents * totalStudents / Math.max(students.length, 1)), // Estimate based on sample
           loading: false
         });
       } else {

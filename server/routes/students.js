@@ -11,10 +11,28 @@ function requireIT(req, res, next) {
   return res.status(403).json({ success: false, message: 'Only IT users can perform this action.' });
 }
 
-// Get all students/enquiries (authenticated users)
+// Get students/enquiries with optional pagination and filters (authenticated users)
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { dateFilter, startDate, endDate, nonProgression, progressionLevel, includeAssigned, assignmentFilter, populateClass } = req.query;
+    const {
+      dateFilter,
+      startDate,
+      endDate,
+      nonProgression,
+      progressionLevel,
+      includeAssigned,
+      assignmentFilter,
+      populateClass,
+      // New optional server-side filters & pagination
+      search,
+      gender,
+      exactLevel,
+      minLevel,
+      page,
+      limit,
+      sortBy,
+      sortOrder
+    } = req.query;
     
     // Build query for students
     let query = { role: 'Student' };
@@ -105,14 +123,110 @@ router.get('/', authenticate, async (req, res) => {
       }
     }
     
-    let studentsQuery = User.find(query).select('-password');
+    // Apply level filters when not in non-progression mode
+    if (nonProgression !== 'true') {
+      if (exactLevel) {
+        const lvl = parseInt(exactLevel);
+        if (!isNaN(lvl)) {
+          query.prospectusStage = lvl;
+        }
+      } else if (minLevel) {
+        const lvl = parseInt(minLevel);
+        if (!isNaN(lvl)) {
+          // Cumulative filter: level >= minLevel
+          query.prospectusStage = { ...(query.prospectusStage || {}), $gte: lvl };
+        }
+      }
+    }
+    
+    // Gender filter
+    if (gender) {
+      query.gender = gender;
+    }
+    
+    // Text search across name/email/session/cnic
+    if (search && search.trim()) {
+      const term = search.trim();
+      const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      // Combine with any existing $or by creating a new $and array
+      const nameEmailOr = [
+        { 'fullName.firstName': regex },
+        { 'fullName.lastName': regex },
+        { email: regex },
+        { session: regex },
+        { course: regex },
+        { cnic: regex }
+      ];
+      if (query.$or) {
+        query.$and = query.$and || [];
+        query.$and.push({ $or: query.$or });
+        delete query.$or;
+      }
+      query.$or = nameEmailOr;
+    }
+    
+    // Sorting
+    const sortField = sortBy || 'createdOn';
+    const sortDir = (sortOrder || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+    const sortSpec = { [sortField]: sortDir };
+
+    // Base query builder
+    let studentsQuery = User.find(query).select('-password').sort(sortSpec);
     
     // Populate class information if requested
     if (populateClass === 'true') {
       studentsQuery = studentsQuery.populate('classId', 'name grade program campus');
     }
-    
-    const students = await studentsQuery;
+
+    // Pagination (optional, only if page/limit provided)
+    let students;
+    if (page !== undefined || limit !== undefined) {
+      const pageNum = Math.max(parseInt(page || '1', 10), 1);
+      const pageSize = Math.min(Math.max(parseInt(limit || '25', 10), 1), 200);
+
+      const totalDocs = await User.countDocuments(query);
+      const totalPages = Math.max(Math.ceil(totalDocs / pageSize), 1);
+      const skip = (pageNum - 1) * pageSize;
+
+      students = await studentsQuery.skip(skip).limit(pageSize);
+
+      // Log potential duplicates for debugging (same as below)
+      const nameGroups = {};
+      students.forEach(student => {
+        const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
+        if (!nameGroups[fullName]) {
+          nameGroups[fullName] = [];
+        }
+        nameGroups[fullName].push({
+          id: student._id,
+          level: student.prospectusStage || 1,
+          email: student.email
+        });
+      });
+      const duplicates = Object.entries(nameGroups).filter(([name, records]) => records.length > 1);
+      if (duplicates.length > 0) {
+        console.log('Potential duplicate students found (paged):');
+        duplicates.forEach(([name, records]) => {
+          console.log(`  ${name}:`, records);
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: students,
+        pagination: {
+          page: pageNum,
+          limit: pageSize,
+          totalDocs,
+          totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
+        }
+      });
+    }
+
+    // Non-paginated (legacy behavior)
+    students = await studentsQuery;
     
     // Log potential duplicates for debugging
     const nameGroups = {};
@@ -137,7 +251,7 @@ router.get('/', authenticate, async (req, res) => {
       });
     }
     
-    res.json({ success: true, data: students });
+  res.json({ success: true, data: students });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

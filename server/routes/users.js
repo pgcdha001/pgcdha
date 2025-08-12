@@ -23,6 +23,7 @@ router.get('/',
       limit = 10,
       search = '',
       role = '',
+      excludeRole = '', // Add excludeRole parameter
       status = '',
       enquiryLevel = '',
       grade = '',
@@ -127,6 +128,13 @@ router.get('/',
       filter.role = normalizedRole;
     }
 
+    // Exclude role filter - for user management that wants to exclude students
+    if (excludeRole) {
+      const normalizedExcludeRole = normalizeRole(excludeRole);
+      console.log(`Exclude role filter: "${excludeRole}" normalized to "${normalizedExcludeRole}"`);
+      filter.role = { $ne: normalizedExcludeRole };
+    }
+
     // Status filter
     if (status) {
       if (status === 'active') {
@@ -180,6 +188,61 @@ router.get('/',
     const total = await User.countDocuments(filter);
     const totalPages = Math.ceil(total / parseInt(limit));
 
+    // Get aggregated statistics for accurate counts when pagination is requested
+    let statistics = null;
+    if (parseInt(page) && parseInt(limit) <= 200) { // Only for reasonable page sizes
+      const genderStats = await User.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: '$gender',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const stageStats = await User.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: '$prospectusStage',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      // Process gender statistics
+      const genderBreakdown = {
+        male: 0,
+        female: 0,
+        unspecified: 0
+      };
+
+      genderStats.forEach(stat => {
+        const gender = (stat._id || '').toLowerCase();
+        if (gender === 'male' || gender === 'm') {
+          genderBreakdown.male = stat.count;
+        } else if (gender === 'female' || gender === 'f') {
+          genderBreakdown.female = stat.count;
+        } else {
+          genderBreakdown.unspecified += stat.count;
+        }
+      });
+
+      // Process stage statistics (cumulative)
+      const stageBreakdown = {};
+      for (let stage = 1; stage <= 5; stage++) {
+        stageBreakdown[stage] = stageStats
+          .filter(stat => (stat._id || 1) >= stage)
+          .reduce((sum, stat) => sum + stat.count, 0);
+      }
+
+      statistics = {
+        gender: genderBreakdown,
+        stages: stageBreakdown
+      };
+    }
+
     sendSuccessResponse(res, {
       users,
       pagination: {
@@ -189,7 +252,8 @@ router.get('/',
         limit: parseInt(limit),
         hasNext: parseInt(page) < totalPages,
         hasPrev: parseInt(page) > 1
-      }
+      },
+      statistics
     }, 'Users retrieved successfully');
   })
 );
