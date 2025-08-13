@@ -332,20 +332,11 @@ export const DASHBOARD_CARDS = {
     {
       id: 'my-timetable',
       title: 'My Schedule',
-      href: '/teacher/schedule',
+      href: '/timetable/view',
       icon: 'Calendar',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: null
-    },
-    {
-      id: 'timetable-view',
-      title: 'View Timetables',
-      href: '/timetable/view',
-      icon: 'CalendarDays',
-      bgGradient: 'from-amber-500 to-amber-600',
-      type: 'normal',
-      permission: PERMISSIONS.TIMETABLE.VIEW_TIMETABLE
     },
     {
       id: 'my-tests',

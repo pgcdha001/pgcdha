@@ -31,11 +31,17 @@ router.get('/', authenticate, async (req, res) => {
       page,
       limit,
       sortBy,
-      sortOrder
+      sortOrder,
+      classId
     } = req.query;
     
     // Build query for students
     let query = { role: 'Student' };
+    
+    // Handle specific class filtering
+    if (classId) {
+      query.classId = classId;
+    }
     
     // Handle class assignment filtering
     if (assignmentFilter === 'assigned') {

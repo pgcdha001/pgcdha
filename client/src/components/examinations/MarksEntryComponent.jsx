@@ -19,7 +19,6 @@ import { useAuth } from '../../hooks/useAuth';
 const MarksEntryComponent = () => {
   const [assignedTests, setAssignedTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
-  const [students, setStudents] = useState([]);
   const [marksData, setMarksData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -114,7 +113,6 @@ const MarksEntryComponent = () => {
         };
       });
       
-      setStudents(classStudents);
       setMarksData(marksArray);
       setShowMarksForm(true);
     } catch (error) {
@@ -164,7 +162,7 @@ const MarksEntryComponent = () => {
         grade: calculateGrade(entry.isAbsent ? 0 : parseFloat(entry.obtainedMarks), selectedTest.totalMarks)
       }));
       
-      const response = await api.post('/examinations/test-results/bulk', {
+      const response = await api.post(`/examinations/tests/${selectedTest._id}/results`, {
         results: resultsToSubmit
       });
       
