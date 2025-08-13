@@ -233,19 +233,29 @@ ClassSchema.methods.removeTeacher = function(teacherId) {
 // Method to check if user can mark attendance for this class
 ClassSchema.methods.canMarkAttendance = function(userId) {
   // Class incharge can always mark attendance
-  if (this.classIncharge && this.classIncharge.toString() === userId.toString()) {
-    return { canMark: true, role: 'Class Incharge' };
+  if (this.classIncharge) {
+    // Handle both populated (object) and non-populated (ObjectId) classIncharge
+    const classInchargeId = this.classIncharge._id || this.classIncharge;
+    if (classInchargeId.toString() === userId.toString()) {
+      return { canMark: true, role: 'Class Incharge' };
+    }
   }
   
   // Floor incharge can mark attendance for any class on their floor
-  if (this.floorIncharge && this.floorIncharge.toString() === userId.toString()) {
-    return { canMark: true, role: 'Floor Incharge' };
+  if (this.floorIncharge) {
+    // Handle both populated (object) and non-populated (ObjectId) floorIncharge
+    const floorInchargeId = this.floorIncharge._id || this.floorIncharge;
+    if (floorInchargeId.toString() === userId.toString()) {
+      return { canMark: true, role: 'Floor Incharge' };
+    }
   }
   
   // Any teacher assigned to this class can mark attendance
-  const teacherAssignment = this.teachers.find(t => 
-    t.teacherId.toString() === userId.toString() && t.isActive
-  );
+  const teacherAssignment = this.teachers.find(t => {
+    // Handle both populated (object) and non-populated (ObjectId) teacherId
+    const teacherId = t.teacherId._id || t.teacherId;
+    return teacherId.toString() === userId.toString() && t.isActive;
+  });
   if (teacherAssignment) {
     return { canMark: true, role: 'Subject Teacher', subject: teacherAssignment.subject };
   }

@@ -105,7 +105,7 @@ const StudentAttendanceManagement = () => {
       setClasses(classesArray);
       
       if (classesArray.length === 0) {
-        console.log('No classes found for coordinator:', user.id);
+        console.log('No classes found for coordinator:', user._id);
       }
     } catch (error) {
       console.error('Error loading classes:', error);

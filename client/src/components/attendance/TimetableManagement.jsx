@@ -71,7 +71,7 @@ const TimetableManagement = ({ user }) => {
         if (teachersRes.success) setTeachers(teachersRes.data || []);
       } else if (user?.role === 'Teacher') {
         // Check if teacher is floor incharge
-        const floorResponse = await callApi(`/api/classes/floor-incharge/${user.id}`, 'GET');
+        const floorResponse = await callApi(`/api/classes/floor-incharge/${user._id}`, 'GET');
         if (floorResponse.success && floorResponse.data.floors?.length > 0) {
           // Get classes and teachers for their floors only
           const floors = floorResponse.data.floors.join(',');
@@ -105,7 +105,7 @@ const TimetableManagement = ({ user }) => {
         endpoint = `/api/timetable/week/${selectedWeek}`;
       } else if (user?.role === 'Teacher') {
         // Check if teacher is floor incharge
-        const floorResponse = await callApi(`/api/classes/floor-incharge/${user.id}`, 'GET');
+        const floorResponse = await callApi(`/api/classes/floor-incharge/${user._id}`, 'GET');
         if (floorResponse.success && floorResponse.data.floors?.length > 0) {
           // Get timetable for their floors only
           const floors = floorResponse.data.floors.join(',');
@@ -281,7 +281,10 @@ const TimetableManagement = ({ user }) => {
                 <option value="">Select Teacher</option>
                 {teachers.map(teacher => (
                   <option key={teacher._id} value={teacher._id}>
-                    {teacher.name}
+                    {teacher.fullName?.firstName && teacher.fullName?.lastName 
+                      ? `${teacher.fullName.firstName} ${teacher.fullName.lastName}`
+                      : teacher.name || teacher.userName || 'Unknown Teacher'
+                    }
                   </option>
                 ))}
               </select>
@@ -458,7 +461,10 @@ const TimetableManagement = ({ user }) => {
                                   {entry.subject}
                                 </p>
                                 <p className="text-blue-700 text-xs truncate">
-                                  {entry.teacher?.name}
+                                  {entry.teacher?.fullName?.firstName && entry.teacher?.fullName?.lastName 
+                                    ? `${entry.teacher.fullName.firstName} ${entry.teacher.fullName.lastName}`
+                                    : entry.teacher?.name || entry.teacher?.userName || 'Unknown Teacher'
+                                  }
                                 </p>
                                 <p className="text-blue-600 text-xs truncate">
                                   {entry.class?.className}

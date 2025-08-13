@@ -47,14 +47,14 @@ const TeacherAttendanceView = ({ user }) => {
         endpoint = `/api/timetable/date/${selectedDate}`;
       } else if (user?.role === 'Teacher') {
         // Check if teacher is floor incharge for any floor
-        const floorResponse = await callApi(`/api/classes/floor-incharge/${user.id}`, 'GET');
+        const floorResponse = await callApi(`/api/classes/floor-incharge/${user._id}`, 'GET');
         if (floorResponse.success && floorResponse.data.floors?.length > 0) {
           // Teacher is floor incharge - get lectures for their floors
           const floors = floorResponse.data.floors.join(',');
           endpoint = `/api/timetable/floors/${floors}/date/${selectedDate}`;
         } else {
           // Regular teacher - only their own lectures (for viewing)
-          endpoint = `/api/timetable/teacher/${user.id}/date/${selectedDate}`;
+          endpoint = `/api/timetable/teacher/${user._id}/date/${selectedDate}`;
         }
       } else {
         // No access for other roles
@@ -71,7 +71,7 @@ const TeacherAttendanceView = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  }, [callApi, selectedDate, user?.role, user?.id]);
+  }, [callApi, selectedDate, user?.role, user?._id]);
 
   const loadTeacherAttendance = useCallback(async () => {
     try {
@@ -97,7 +97,7 @@ const TeacherAttendanceView = ({ user }) => {
         date: selectedDate,
         status,
         lateMinutes: status === 'late' ? lateMinutes : 0,
-        markedBy: user.id
+        markedBy: user._id
       });
 
       if (response.success) {
@@ -315,7 +315,10 @@ const TeacherAttendanceView = ({ user }) => {
                         
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">
-                            {lecture.teacher?.name || 'Unknown Teacher'}
+                            {lecture.teacher?.fullName?.firstName && lecture.teacher?.fullName?.lastName 
+                              ? `${lecture.teacher.fullName.firstName} ${lecture.teacher.fullName.lastName}`
+                              : lecture.teacher?.name || 'Unknown Teacher'
+                            }
                           </p>
                           <p className="text-sm text-gray-600">
                             {lecture.subject} • {lecture.class?.className}
