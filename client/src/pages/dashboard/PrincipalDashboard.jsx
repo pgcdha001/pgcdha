@@ -2,6 +2,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useDashboard } from '../../contexts/DashboardContext';
 import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
+import LateMarksheetNotifications from '../../components/notifications/LateMarksheetNotifications';
 
 const PrincipalDashboard = () => {
   const { userRole } = usePermissions();
@@ -48,6 +49,16 @@ const PrincipalDashboard = () => {
       type: 'normal',
       permission: null,
       description: 'View teacher attendance reports and analytics'
+    },
+    {
+      id: 'teacher-profiles',
+      title: 'Teacher Profiles', 
+      href: '/principal/teachers', 
+      icon: 'UserCheck', 
+      bgGradient: 'from-emerald-500 to-emerald-600',
+      type: 'normal',
+      permission: null,
+      description: 'Monitor teacher performance, attendance, and test analytics'
     },
     {
       id: 'student-examination-report',
@@ -98,6 +109,11 @@ const PrincipalDashboard = () => {
       />
       
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {/* Late Marksheet Notifications */}
+        <div className="mb-6">
+          <LateMarksheetNotifications />
+        </div>
+        
         <DashboardGrid
           cards={visibleCards}
           loading={loading}

@@ -32,6 +32,7 @@ import StudentAssignment from './components/class-management/StudentAssignment';
 import PrincipalEnquiryManagement from './components/principal/PrincipalEnquiryManagement';
 import PrincipalAttendanceReports from './components/principal/PrincipalAttendanceReports';
 import PrincipalTimetablePage from './pages/timetable/PrincipalTimetablePage';
+import TeachersDashboard from './components/principal/TeachersDashboard';
 
 // Attendance Management
 import AttendanceManagement from './components/attendance/AttendanceManagement';
@@ -122,6 +123,19 @@ const App = () => {
                       allowedRoles={['Principal']}
                     >
                       <PrincipalTimetablePage />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Principal Teachers Dashboard */}
+              <Route path="/principal/teachers" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      allowedRoles={['Principal']}
+                    >
+                      <TeachersDashboard />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>
