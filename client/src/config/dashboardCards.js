@@ -330,33 +330,6 @@ export const DASHBOARD_CARDS = {
       permission: null // Teachers access based on class/floor assignments
     },
     {
-      id: 'class-management',
-      title: 'Class Management',
-      href: '/classes',
-      icon: 'School',
-      bgGradient: 'from-teal-500 to-teal-600',
-      type: 'normal',
-      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
-    },
-    {
-      id: 'student-assignment',
-      title: 'Student Assignment',
-      href: '/classes/assign-students',
-      icon: 'UserPlus',
-      bgGradient: 'from-orange-500 to-orange-600',
-      type: 'normal',
-      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
-    },
-    {
-      id: 'my-classes',
-      title: 'My Classes',
-      href: '/teacher/classes',
-      icon: 'BookOpen',
-      bgGradient: 'from-blue-500 to-blue-600',
-      type: 'normal',
-      permission: null
-    },
-    {
       id: 'my-timetable',
       title: 'My Schedule',
       href: '/teacher/schedule',
@@ -394,6 +367,16 @@ export const DASHBOARD_CARDS = {
       type: 'normal',
       recentActivity: null,
       todayCount: null
+    },
+    {
+      id: 'student-examination-report',
+      title: 'Student Examination Report',
+      href: '/teacher/student-examination-report',
+      icon: 'FileText',
+      bgGradient: 'from-rose-500 to-rose-600',
+      type: 'normal',
+      permission: null, // Teachers can view only for subjects they teach
+      description: 'View examination performance of students for subjects you teach'
     }
   ],
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useApiWithToast } from '../../hooks/useApiWithToast';
+import api from '../../services/api';
 import { 
   Clock, 
   Calendar, 
@@ -20,7 +20,6 @@ import AttendanceReports from './AttendanceReports';
 
 const AttendanceManagement = () => {
   const { user } = useAuth();
-  const { callApi } = useApiWithToast();
   const [activeTab, setActiveTab] = useState('student-attendance');
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,8 +35,10 @@ const AttendanceManagement = () => {
 
   // Check user permissions on mount
   useEffect(() => {
-    checkUserPermissions();
-  }, [user]);
+    if (user) {
+      checkUserPermissions();
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkUserPermissions = async () => {
     if (!user) return;
@@ -61,24 +62,29 @@ const AttendanceManagement = () => {
       } else if (user.role === 'Teacher') {
         // Check specific responsibilities for teachers
         const [classResponse, floorResponse] = await Promise.all([
-          callApi(`/api/classes/teacher-access/${user.id}`, 'GET'),
-          callApi(`/api/classes/floor-incharge/${user.id}`, 'GET')
+          api.get(`/classes/attendance-access/${user._id}`),
+          api.get(`/classes/floor-incharge/${user._id}`)
         ]);
 
-        // Check if user is class incharge
-        if (classResponse.success && classResponse.data?.length > 0) {
-          const classInchargeClasses = classResponse.data.filter(cls => 
-            cls.classIncharge?._id === user.id || cls.classIncharge === user.id
+        // Check if user is class incharge or has attendance access
+        if (classResponse.data.success && classResponse.data?.classes?.length > 0) {
+          const classesWithAccess = classResponse.data.classes;
+          const classInchargeClasses = classesWithAccess.filter(cls => 
+            cls.userRole === 'Class Incharge'
           );
-          if (classInchargeClasses.length > 0) {
+          const subjectTeacherClasses = classesWithAccess.filter(cls => 
+            cls.userRole === 'Subject Teacher'
+          );
+          
+          if (classInchargeClasses.length > 0 || subjectTeacherClasses.length > 0) {
             permissions.canManageStudentAttendance = true;
-            permissions.isClassIncharge = true;
-            permissions.classes = classInchargeClasses;
+            permissions.isClassIncharge = classInchargeClasses.length > 0;
+            permissions.classes = classesWithAccess;
           }
         }
 
         // Check if user is floor incharge
-        if (floorResponse.success && floorResponse.data?.floors?.length > 0) {
+        if (floorResponse.data.success && floorResponse.data?.floors?.length > 0) {
           permissions.canManageTeacherAttendance = true;
           permissions.canManageTimetable = true;
           permissions.isFloorIncharge = true;
@@ -104,7 +110,7 @@ const AttendanceManagement = () => {
         icon: Users,
         description: userPermissions.isClassIncharge 
           ? 'Mark attendance for your assigned classes'
-          : 'Mark and view student attendance across all classes'
+          : 'Mark and view student attendance for classes you teach'
       });
     }
 
@@ -149,8 +155,10 @@ const AttendanceManagement = () => {
 
   // Load dashboard statistics
   useEffect(() => {
-    loadDashboardStats();
-  }, [callApi, user]);
+    if (user) {
+      loadDashboardStats();
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDashboardStats = async () => {
     try {
@@ -162,8 +170,8 @@ const AttendanceManagement = () => {
       if (user?.role === 'InstituteAdmin' || user?.role === 'IT') {
         // Load overall statistics
         const [studentStats, teacherStats] = await Promise.all([
-          callApi(`/api/attendance/stats/daily/${today}`, 'GET'),
-          callApi(`/teacher-attendance/report/daily/${today}`, 'GET')
+          api.get(`/attendance/stats/daily/${today}`),
+          api.get(`/teacher-attendance/report/daily/${today}`)
         ]);
         
         setDashboardStats({
@@ -172,7 +180,7 @@ const AttendanceManagement = () => {
         });
       } else if (user?.role === 'Teacher') {
         // Load teacher-specific stats
-        const classes = await callApi(`/api/classes/attendance-access/${user.id}`, 'GET');
+        const classes = await api.get(`/classes/attendance-access/${user._id}`);
         setDashboardStats({
           teacherClasses: classes.data
         });
