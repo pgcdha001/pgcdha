@@ -605,7 +605,7 @@ const useEnquiryData = () => {
         }
       } else if (selectedDate === 'week') {
         // Use daily breakdown API to get last 7 days
-        const response = await api.get(`/enquiries/daily-breakdown/${currentYear}/${currentMonth}`);
+        const response = await api.get(`/enquiries/daily-breakdown/${currentYear}`);
         if (response.data.success && response.data.data.days) {
           const weekData = response.data.data.days.filter(day => 
             day.day <= currentDate && day.day > currentDate - 7

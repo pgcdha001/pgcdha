@@ -114,9 +114,19 @@ const StudentReport = () => {
   }, [selectedDate, customStartDate, customEndDate, customDatesApplied, showNonProgression, progressionLevel, stageFilter, genderFilter, debouncedSearchTerm, cnicFilter]);
 
   const fetchPage = useCallback(async (pageToFetch) => {
-    // Avoid duplicate fetches
-    if (pagesLoading[pageToFetch]) return;
-    setPagesLoading(prev => ({ ...prev, [pageToFetch]: true }));
+    // Rate limiting: prevent too many concurrent requests
+    const now = Date.now();
+    if (window.lastApiCall && (now - window.lastApiCall) < 100) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    window.lastApiCall = now;
+    
+    // Avoid duplicate fetches by checking current state
+    setPagesLoading(prev => {
+      if (prev[pageToFetch]) return prev; // Already loading, don't change state
+      return { ...prev, [pageToFetch]: true };
+    });
+    
     try {
       let url = '';
       const params = {
@@ -156,17 +166,19 @@ const StudentReport = () => {
     } finally {
       setPagesLoading(prev => ({ ...prev, [pageToFetch]: false }));
     }
-  }, [queryParams, pageSize, pagesLoading, selectedDate, customDatesApplied]);
+  }, [queryParams, pageSize, selectedDate, customDatesApplied]); // Removed pagesLoading dependency
 
   const prefetchPages = useCallback(async (start, end) => {
     const promises = [];
     for (let p = start; p <= end; p++) {
-      // Skip if already have data or loading
+      // Skip if already have data or loading (check current state values)
       if (pagesData[p] || pagesLoading[p]) continue;
       promises.push(fetchPage(p));
     }
-    await Promise.all(promises);
-  }, [fetchPage, pagesData, pagesLoading]);
+    if (promises.length > 0) {
+      await Promise.all(promises);
+    }
+  }, [fetchPage]);  // Removed pagesData and pagesLoading dependencies
 
   // Initial and filter-driven load: prefetch pages 1-3, show spinner until page 1 is ready
   useEffect(() => {
@@ -185,7 +197,7 @@ const StudentReport = () => {
       setLoading(false); // page 1 should be ready or at least requested
     })();
     return () => { isMounted = false; };
-  }, [queryParams, pageSize, prefetchPages]);
+  }, [queryParams, pageSize]); // Removed prefetchPages dependency
 
   // Prefetch next 3 pages when user reaches page 2 or beyond
   useEffect(() => {
@@ -196,7 +208,7 @@ const StudentReport = () => {
         prefetchPages(start, end);
       }
     }
-  }, [currentPage, totalPages, prefetchPages]);
+  }, [currentPage, totalPages]); // Removed prefetchPages dependency
 
   // Current page data (already filtered on server)
   const currentPageData = useMemo(() => {
