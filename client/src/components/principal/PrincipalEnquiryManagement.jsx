@@ -8,6 +8,7 @@ import Header from './Header';
 import DateFilter from './DateFilter';
 import CustomDateRange from './CustomDateRange';
 import LevelTabs from './LevelTabs';
+import TotalEnquiriesCard from './TotalEnquiriesCard';
 import TodaysStats from './TodaysStats';
 import StatsCards from './StatsCards';
 import ProgramBreakdownCards from './ProgramBreakdownCards';
@@ -59,13 +60,13 @@ const PrincipalEnquiryManagement = () => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const pillRef = useRef(null);
 
-  // Level tabs configuration (removed "All Levels" as requested)
+  // Level tabs configuration (updated with accurate terminology)
   const levelTabs = [
-    { value: '1', label: 'Level 1+', color: 'bg-green-500', count: 0 },
-    { value: '2', label: 'Level 2+', color: 'bg-yellow-500', count: 0 },
-    { value: '3', label: 'Level 3+', color: 'bg-orange-500', count: 0 },
-    { value: '4', label: 'Level 4+', color: 'bg-red-500', count: 0 },
-    { value: '5', label: 'Level 5+', color: 'bg-purple-500', count: 0 }
+    { value: '1', label: 'Level 1', color: 'bg-green-500', count: 0 },
+    { value: '2', label: 'Level 2', color: 'bg-yellow-500', count: 0 },
+    { value: '3', label: 'Level 3', color: 'bg-orange-500', count: 0 },
+    { value: '4', label: 'Level 4', color: 'bg-red-500', count: 0 },
+    { value: '5', label: 'Level 5', color: 'bg-purple-500', count: 0 }
   ];
 
   // Date filter options
@@ -410,6 +411,11 @@ const PrincipalEnquiryManagement = () => {
           selectedLevel={selectedLevel}
           onLevelChange={setSelectedLevel}
           levelStats={levelStats}
+          loading={isInitialLoading}
+        />
+
+        {/* Total Enquiries Card for consistency with Enquiry Management */}
+        <TotalEnquiriesCard 
           loading={isInitialLoading}
         />
 
