@@ -357,6 +357,7 @@ router.post('/',
       status = 'active',
       matricMarks,      // Updated from matriculationObtainedMarks
       matricTotal,      // Updated from matriculationTotalMarks
+      academicBackground, // New field for comprehensive academic data
       coordinatorGrade, // For coordinator role
       coordinatorCampus, // For coordinator role
       classId           // For student class assignment
@@ -498,6 +499,48 @@ router.post('/',
       matricMarks: matricMarks !== undefined && matricMarks !== '' && !isNaN(matricMarks) ? Number(matricMarks) : undefined,
       matricTotal: matricTotal !== undefined && matricTotal !== '' && !isNaN(matricTotal) ? Number(matricTotal) : undefined
     };
+
+    // Handle academic background if provided (maps to academicRecords in the model)
+    if (academicBackground && typeof academicBackground === 'object') {
+      userData.academicRecords = {
+        lastUpdatedOn: new Date()
+      };
+
+      // Process matriculation data
+      if (academicBackground.matriculation) {
+        const matric = academicBackground.matriculation;
+        userData.academicRecords.matriculation = {
+          percentage: matric.percentage ? Number(matric.percentage) : undefined,
+          passingYear: matric.passingYear ? Number(matric.passingYear) : undefined,
+          board: matric.board || undefined,
+          subjects: Array.isArray(matric.subjects) ? matric.subjects.map(subject => ({
+            name: subject.name,
+            totalMarks: Number(subject.totalMarks) || 0,
+            obtainedMarks: Number(subject.obtainedMarks) || 0,
+            percentage: subject.totalMarks > 0 ? 
+              ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0
+          })).filter(subject => subject.name && subject.totalMarks > 0) : []
+        };
+      }
+
+      // Process intermediate data (map to previousGrade in the model)
+      if (academicBackground.intermediate) {
+        const inter = academicBackground.intermediate;
+        userData.academicRecords.previousGrade = {
+          grade: '11th', // Default since intermediate is 11th/12th
+          percentage: inter.percentage ? Number(inter.percentage) : undefined,
+          academicYear: inter.passingYear ? `${inter.passingYear-1}-${inter.passingYear}` : undefined,
+          subjects: Array.isArray(inter.subjects) ? inter.subjects.map(subject => ({
+            name: subject.name,
+            totalMarks: Number(subject.totalMarks) || 0,
+            obtainedMarks: Number(subject.obtainedMarks) || 0,
+            percentage: subject.totalMarks > 0 ? 
+              ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0,
+            term: 'Annual' // Default term
+          })).filter(subject => subject.name && subject.totalMarks > 0) : []
+        };
+      }
+    }
 
     // Handle emergency contact if provided
     if (emergencyContact) {
@@ -656,6 +699,7 @@ router.put('/:id',
       status,
       matricMarks,
       matricTotal,
+      academicBackground, // Add academic background support
       enquiryLevel,
       admissionInfo
     } = req.body;
@@ -705,6 +749,48 @@ router.put('/:id',
     if (reference) updateData.reference = reference;
     if (matricMarks !== undefined && matricMarks !== '' && !isNaN(matricMarks)) updateData.matricMarks = Number(matricMarks);
     if (matricTotal !== undefined && matricTotal !== '' && !isNaN(matricTotal)) updateData.matricTotal = Number(matricTotal);
+
+    // Handle academic background update (maps to academicRecords in the model)
+    if (academicBackground && typeof academicBackground === 'object') {
+      updateData.academicRecords = {
+        lastUpdatedOn: new Date()
+      };
+
+      // Process matriculation data
+      if (academicBackground.matriculation) {
+        const matric = academicBackground.matriculation;
+        updateData.academicRecords.matriculation = {
+          percentage: matric.percentage ? Number(matric.percentage) : undefined,
+          passingYear: matric.passingYear ? Number(matric.passingYear) : undefined,
+          board: matric.board || undefined,
+          subjects: Array.isArray(matric.subjects) ? matric.subjects.map(subject => ({
+            name: subject.name,
+            totalMarks: Number(subject.totalMarks) || 0,
+            obtainedMarks: Number(subject.obtainedMarks) || 0,
+            percentage: subject.totalMarks > 0 ? 
+              ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0
+          })).filter(subject => subject.name && subject.totalMarks > 0) : []
+        };
+      }
+
+      // Process intermediate data (map to previousGrade in the model)
+      if (academicBackground.intermediate) {
+        const inter = academicBackground.intermediate;
+        updateData.academicRecords.previousGrade = {
+          grade: '11th', // Default since intermediate is 11th/12th
+          percentage: inter.percentage ? Number(inter.percentage) : undefined,
+          academicYear: inter.passingYear ? `${inter.passingYear-1}-${inter.passingYear}` : undefined,
+          subjects: Array.isArray(inter.subjects) ? inter.subjects.map(subject => ({
+            name: subject.name,
+            totalMarks: Number(subject.totalMarks) || 0,
+            obtainedMarks: Number(subject.obtainedMarks) || 0,
+            percentage: subject.totalMarks > 0 ? 
+              ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0,
+            term: 'Annual' // Default term
+          })).filter(subject => subject.name && subject.totalMarks > 0) : []
+        };
+      }
+    }
 
     // Handle enquiry level and admission info
     if (enquiryLevel !== undefined) {

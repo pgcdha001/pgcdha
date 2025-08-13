@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, UserCheck, Clock, RefreshCw } from 'lucide-react';
+import { Users, GraduationCap, UserCheck, RefreshCw } from 'lucide-react';
 import { userAPI } from '../../services/api';
 import { Button } from '../ui/button';
 
@@ -11,7 +11,6 @@ const StudentStatistics = () => {
   const [statistics, setStatistics] = useState({
     totalStudents: 0,
     admittedStudents: 0,
-    pendingStudents: 0,
     activeStudents: 0,
     loading: true
   });
@@ -43,24 +42,22 @@ const StudentStatistics = () => {
         // Use server-provided statistics if available, otherwise fallback to pagination counts
         const totalStudents = pagination?.totalUsers || 0;
         
-        // For now, use simple calculations until we enhance server statistics
-        const activeStudents = students.filter(student => 
-          student.isActive !== false && student.status !== 'inactive'
-        ).length;
+        // Calculate estimates based on the current page sample
+        const sampleSize = Math.max(students.length, 1);
         
-        const admittedStudents = students.filter(student => 
+        // Admitted students are those at Level 5 (final stage)
+        const admittedInSample = students.filter(student => 
           student.prospectusStage === 5 || student.enquiryLevel === 5
         ).length;
+        const estimatedAdmitted = Math.round(admittedInSample * totalStudents / sampleSize);
         
-        const pendingStudents = students.filter(student => 
-          !student.isApproved || student.status === 'pending'
-        ).length;
+        // Active students = Total - Admitted (students who are registered but not yet admitted)
+        const activeStudents = Math.max(0, totalStudents - estimatedAdmitted);
 
         setStatistics({
           totalStudents,
-          admittedStudents: Math.round(admittedStudents * totalStudents / Math.max(students.length, 1)), // Estimate based on sample
-          pendingStudents: Math.round(pendingStudents * totalStudents / Math.max(students.length, 1)), // Estimate based on sample
-          activeStudents: Math.round(activeStudents * totalStudents / Math.max(students.length, 1)), // Estimate based on sample
+          admittedStudents: estimatedAdmitted,
+          activeStudents, // This is now Total - Admitted
           loading: false
         });
       } else {
@@ -101,21 +98,13 @@ const StudentStatistics = () => {
       color: 'bg-purple-500',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-600'
-    },
-    {
-      title: 'Pending Approval',
-      value: statistics.pendingStudents,
-      icon: Clock,
-      color: 'bg-orange-500',
-      bgColor: 'bg-orange-50',
-      textColor: 'text-orange-600'
     }
   ];
 
   if (statistics.loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {[1, 2, 3].map((i) => (
           <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 animate-pulse">
             <div className="flex items-center justify-between">
               <div>
@@ -147,7 +136,7 @@ const StudentStatistics = () => {
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {statCards.map((stat) => {
           const IconComponent = stat.icon;
           return (

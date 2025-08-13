@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, EyeOff, CreditCard, GraduationCap, BookOpen } from 'lucide-react';
+import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, EyeOff, CreditCard, GraduationCap, BookOpen, Plus, Trash2, Award } from 'lucide-react';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import api from '../../services/api';
@@ -8,7 +8,6 @@ import { usePermissions } from '../../hooks/usePermissions';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 import { ENQUIRY_LEVELS } from '../../constants/enquiryLevels';
-import AcademicRecordsManagement from '../examinations/AcademicRecordsManagement';
 
 /**
  * User Form Component
@@ -28,9 +27,56 @@ const UserForm = ({
   
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState([]);
-  const [createdStudent, setCreatedStudent] = useState(null); // Store created student info
-  const [showSuccessActions, setShowSuccessActions] = useState(false); // Show success actions
-  const [showAcademicRecords, setShowAcademicRecords] = useState(false); // Show academic records modal
+  
+  // Academic background data
+  const [academicBackground, setAcademicBackground] = useState({
+    matriculation: {
+      percentage: '',
+      passingYear: new Date().getFullYear(),
+      board: '',
+      subjects: []
+    },
+    intermediate: {
+      percentage: '',
+      passingYear: new Date().getFullYear(),
+      board: '',
+      subjects: []
+    }
+  });
+
+  // Common subjects for matriculation
+  const MATRICULATION_SUBJECTS = [
+    'Mathematics',
+    'Physics', 
+    'Chemistry',
+    'Biology',
+    'English',
+    'Urdu',
+    'Islamiat',
+    'Pakistan Studies',
+    'Computer Science',
+    'Economics',
+    'Accounting',
+    'Business Studies'
+  ];
+
+  // Common subjects for intermediate (11th/12th)
+  const INTERMEDIATE_SUBJECTS = [
+    'Mathematics',
+    'Physics',
+    'Chemistry', 
+    'Biology',
+    'English',
+    'Urdu',
+    'Islamiat',
+    'Pakistan Studies',
+    'Computer Science',
+    'Economics',
+    'Statistics',
+    'Psychology',
+    'Sociology',
+    'Philosophy'
+  ];
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -111,10 +157,47 @@ const UserForm = ({
         coordinatorGrade: user.coordinatorAssignment?.grade || '',
         coordinatorCampus: user.coordinatorAssignment?.campus || ''
       });
+
+      // Load academic background data if available
+      if (user.academicBackground) {
+        setAcademicBackground(user.academicBackground);
+      } else {
+        // Reset academic background for editing mode if no data
+        setAcademicBackground({
+          matriculation: {
+            percentage: '',
+            passingYear: new Date().getFullYear(),
+            board: '',
+            subjects: []
+          },
+          intermediate: {
+            percentage: '',
+            passingYear: new Date().getFullYear(),
+            board: '',
+            subjects: []
+          }
+        });
+      }
     } else {
       // For create mode, set default role based on userType or permissions
       const defaultRole = userType === 'student' ? 'Student' : (userRole === 'Receptionist') ? 'Student' : '';
       setFormData(prev => ({ ...prev, role: defaultRole }));
+      
+      // Reset academic background for create mode
+      setAcademicBackground({
+        matriculation: {
+          percentage: '',
+          passingYear: new Date().getFullYear(),
+          board: '',
+          subjects: []
+        },
+        intermediate: {
+          percentage: '',
+          passingYear: new Date().getFullYear(),
+          board: '',
+          subjects: []
+        }
+      });
     }
   }, [user, mode, userRole, userType]);
 
@@ -250,6 +333,173 @@ const UserForm = ({
     }
 
     return true;
+  };
+
+  // Academic background helper functions
+  const addSubject = (level) => {
+    const newSubject = {
+      name: '',
+      obtainedMarks: '',
+      totalMarks: ''
+    };
+    
+    setAcademicBackground(prev => {
+      const updated = {
+        ...prev,
+        [level]: {
+          ...prev[level],
+          subjects: [...prev[level].subjects, newSubject]
+        }
+      };
+      return updated;
+    });
+  };
+
+  const removeSubject = (level, index) => {
+    setAcademicBackground(prev => {
+      const updated = {
+        ...prev,
+        [level]: {
+          ...prev[level],
+          subjects: prev[level].subjects.filter((_, i) => i !== index)
+        }
+      };
+      // Auto-calculate percentage after removing subject
+      updated[level].percentage = calculatePercentage(level, updated);
+      return updated;
+    });
+  };
+
+  const updateSubject = (level, index, field, value) => {
+    setAcademicBackground(prev => {
+      const updated = {
+        ...prev,
+        [level]: {
+          ...prev[level],
+          subjects: prev[level].subjects.map((subject, i) => 
+            i === index ? { ...subject, [field]: value } : subject
+          )
+        }
+      };
+      // Auto-calculate percentage when marks change
+      if (field === 'obtainedMarks' || field === 'totalMarks') {
+        updated[level].percentage = calculatePercentage(level, updated);
+      }
+      return updated;
+    });
+  };
+
+  const handleAcademicBackgroundChange = (field, value) => {
+    const fieldParts = field.split('.');
+    if (fieldParts.length === 2) {
+      const [section, subField] = fieldParts;
+      setAcademicBackground(prev => ({
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [subField]: value
+        }
+      }));
+    }
+  };
+
+  // Updated calculatePercentage to work with the data structure
+  const calculatePercentage = (level, data = academicBackground) => {
+    const subjects = data[level].subjects;
+    if (subjects.length === 0) return '';
+    
+    const totalObtained = subjects.reduce((sum, subject) => {
+      return sum + (parseFloat(subject.obtainedMarks) || 0);
+    }, 0);
+    
+    const totalMaxMarks = subjects.reduce((sum, subject) => {
+      return sum + (parseFloat(subject.totalMarks) || 0);
+    }, 0);
+    
+    if (totalMaxMarks === 0) return '';
+    
+    const percentage = ((totalObtained / totalMaxMarks) * 100).toFixed(2);
+    return percentage;
+  };
+
+  // Check if academic data exists and has content
+  const hasAcademicData = () => {
+    const matricHasData = academicBackground.matriculation.percentage || 
+                         academicBackground.matriculation.subjects.length > 0 ||
+                         academicBackground.matriculation.board;
+    const interHasData = academicBackground.intermediate.percentage || 
+                        academicBackground.intermediate.subjects.length > 0 ||
+                        academicBackground.intermediate.board;
+    return matricHasData || interHasData;
+  };
+
+  // Save academic background using the dedicated academic records endpoint
+  const saveAcademicBackground = async (studentId) => {
+    // Prepare academic records data in the format expected by the server
+    const academicRecords = {};
+
+    // Process matriculation data
+    if (academicBackground.matriculation.percentage || 
+        academicBackground.matriculation.subjects.length > 0 ||
+        academicBackground.matriculation.board) {
+      
+      const validMatricSubjects = academicBackground.matriculation.subjects.filter(subject => 
+        subject.name && subject.obtainedMarks && subject.totalMarks
+      ).map(subject => ({
+        name: subject.name,
+        totalMarks: Number(subject.totalMarks),
+        obtainedMarks: Number(subject.obtainedMarks),
+        percentage: subject.totalMarks > 0 ? 
+          ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0
+      }));
+
+      academicRecords.matriculation = {
+        percentage: academicBackground.matriculation.subjects.length > 0 ? 
+          calculatePercentage('matriculation') : academicBackground.matriculation.percentage,
+        passingYear: academicBackground.matriculation.passingYear,
+        board: academicBackground.matriculation.board,
+        subjects: validMatricSubjects
+      };
+    }
+
+    // Process intermediate data (map to previousGrade)
+    if (academicBackground.intermediate.percentage || 
+        academicBackground.intermediate.subjects.length > 0 ||
+        academicBackground.intermediate.board) {
+      
+      const validInterSubjects = academicBackground.intermediate.subjects.filter(subject => 
+        subject.name && subject.obtainedMarks && subject.totalMarks
+      ).map(subject => ({
+        name: subject.name,
+        totalMarks: Number(subject.totalMarks),
+        obtainedMarks: Number(subject.obtainedMarks),
+        percentage: subject.totalMarks > 0 ? 
+          ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0,
+        term: 'Annual' // Default term for intermediate
+      }));
+
+      academicRecords.previousGrade = {
+        grade: '11th',
+        percentage: academicBackground.intermediate.subjects.length > 0 ? 
+          calculatePercentage('intermediate') : academicBackground.intermediate.percentage,
+        academicYear: academicBackground.intermediate.passingYear ? 
+          `${academicBackground.intermediate.passingYear-1}-${academicBackground.intermediate.passingYear}` : '',
+        subjects: validInterSubjects
+      };
+    }
+
+    // Only save if there's actual data
+    if (Object.keys(academicRecords).length > 0) {
+      const response = await api.patch(`/students/${studentId}/academic-records`, {
+        academicRecords
+      });
+      
+      if (response.data.success) {
+        console.log('Academic background saved successfully');
+      } else {
+        throw new Error(response.data.message || 'Failed to save academic background');
+      }
+    }
   };
 
   // Handle form submission
@@ -446,6 +696,13 @@ const UserForm = ({
         // Keep general fields that might be useful for all roles
       }
 
+      // Add academic background data for students
+      if (isStudentRole() && academicBackground) {
+        // Don't include academic data in main user creation/update
+        // We'll handle it separately via the academic records endpoint
+        console.log('Academic background data will be saved separately');
+      }
+
       console.log('Submitting data:', submitData);
 
       if (mode === 'create') {
@@ -493,34 +750,44 @@ const UserForm = ({
               if (assignResponse.data.success) {
                 console.log('Student successfully assigned to class');
                 toast.success(`Student assigned to ${selectedClass.name} successfully`);
-                
-                // Update the created student data with class assignment
-                setCreatedStudent({
-                  ...createdStudent,
-                  classId: selectedClass._id,
-                  admissionInfo: {
-                    ...createdStudent.admissionInfo,
-                    className: selectedClass.name
-                  }
-                });
               } else {
                 console.error('Failed to assign student to class:', assignResponse.data.message);
                 toast.error('Student created but class assignment failed. Please assign manually.');
-                setCreatedStudent(createdStudent);
               }
             } else {
               console.error('Selected class not found in available classes');
               toast.error('Student created but class assignment failed. Please assign manually.');
-              setCreatedStudent(createdStudent);
             }
           } catch (assignError) {
             console.error('Error assigning student to class:', assignError);
             toast.error('Student created but class assignment failed. Please assign manually.');
-            setCreatedStudent(createdStudent);
           }
           
-          setShowSuccessActions(true);
+          // Save academic background data separately if user is a student
+          if (isStudentRole() && response.data.user && hasAcademicData()) {
+            try {
+              await saveAcademicBackground(response.data.user._id);
+            } catch (academicError) {
+              console.error('Error saving academic background:', academicError);
+              toast.warning('Student created but academic background could not be saved. Please add it later.');
+            }
+          }
+          
+          onSave(); // Close the form and refresh the list
         } else {
+          // For existing users or students without class assignment
+          // Save academic background data separately if user is a student  
+          if (isStudentRole() && response.data && hasAcademicData()) {
+            try {
+              const userId = response.data.user?._id || response.data._id || user?._id;
+              if (userId) {
+                await saveAcademicBackground(userId);
+              }
+            } catch (academicError) {
+              console.error('Error saving academic background:', academicError);
+              toast.warning('User saved but academic background could not be saved. Please add it later.');
+            }
+          }
           onSave();
         }
       } else {
@@ -1008,40 +1275,302 @@ const UserForm = ({
                   </div>
                 )}
 
-                {/* Matriculation Marks - Only for students */}
+                {/* Academic Background - Only for students - Full width */}
                 {isStudentRole() && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Matriculation Obtained Marks
-                      </label>
-                      <input
-                        type="number"
-                        name="matricMarks"
-                        value={formData.matricMarks}
-                        onChange={handleInputChange}
-                        placeholder="Enter obtained marks"
-                        disabled={isReadOnly}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.matricMarks ? 'border-red-300' : 'border-gray-300'
-                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                      />
-                      {errors.matricMarks && <p className="text-red-500 text-xs mt-1">{errors.matricMarks}</p>}
+                  <div className="col-span-2 space-y-6 p-4 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center gap-2 mb-4">
+                      <GraduationCap className="h-5 w-5 text-primary" />
+                      <h4 className="font-medium text-gray-900">Academic Background</h4>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Matriculation Total Marks
-                      </label>
-                      <input
-                        type="number"
-                        name="matricTotal"
-                        value={formData.matricTotal}
-                        onChange={handleInputChange}
-                        placeholder="Enter total marks"
-                        disabled={isReadOnly}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${errors.matricTotal ? 'border-red-300' : 'border-gray-300'
-                          } ${isReadOnly ? 'bg-gray-50' : ''}`}
-                      />
-                      {errors.matricTotal && <p className="text-red-500 text-xs mt-1">{errors.matricTotal}</p>}
+                    
+                    {/* Matriculation Section */}
+                    <div className="space-y-4 p-4 bg-white rounded-lg border">
+                      <h5 className="font-medium text-gray-800 flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Matriculation (10th Grade)
+                      </h5>
+                      
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Percentage
+                            {academicBackground.matriculation.subjects.length > 0 && (
+                              <span className="text-xs text-green-600 ml-1">(Auto-calculated)</span>
+                            )}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={
+                              academicBackground.matriculation.subjects.length > 0 
+                                ? calculatePercentage('matriculation') 
+                                : academicBackground.matriculation.percentage
+                            }
+                            onChange={(e) => {
+                              if (academicBackground.matriculation.subjects.length === 0) {
+                                handleAcademicBackgroundChange('matriculation.percentage', e.target.value);
+                              }
+                            }}
+                            placeholder="Enter percentage"
+                            disabled={isReadOnly || academicBackground.matriculation.subjects.length > 0}
+                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border-gray-300 ${
+                              academicBackground.matriculation.subjects.length > 0 ? 'bg-green-50' : ''
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Passing Year
+                          </label>
+                          <input
+                            type="number"
+                            value={academicBackground.matriculation.passingYear}
+                            onChange={(e) => handleAcademicBackgroundChange('matriculation.passingYear', parseInt(e.target.value))}
+                            placeholder="Enter year"
+                            disabled={isReadOnly}
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border-gray-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Board/University
+                          </label>
+                          <input
+                            type="text"
+                            value={academicBackground.matriculation.board}
+                            onChange={(e) => handleAcademicBackgroundChange('matriculation.board', e.target.value)}
+                            placeholder="Enter board name"
+                            disabled={isReadOnly}
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border-gray-300"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Matriculation Subject-wise marks */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h6 className="text-sm font-medium text-gray-700">
+                            Subject-wise Marks
+                            {academicBackground.matriculation.subjects.length > 0 && (
+                              <span className="text-xs text-gray-500 ml-2">- Percentage auto-calculated</span>
+                            )}
+                          </h6>
+                          {!isReadOnly && (
+                            <Button
+                              type="button"
+                              onClick={() => addSubject('matriculation')}
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-primary hover:bg-primary/90"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Add Subject
+                            </Button>
+                          )}
+                        </div>
+
+                        {academicBackground.matriculation.subjects.map((subject, index) => (
+                          <div key={index} className="grid grid-cols-4 gap-3 items-end p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Subject</label>
+                              <select
+                                value={subject.name}
+                                onChange={(e) => updateSubject('matriculation', index, 'name', e.target.value)}
+                                disabled={isReadOnly}
+                                className="w-full px-2 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-primary border-gray-300"
+                              >
+                                <option value="">Select Subject</option>
+                                {MATRICULATION_SUBJECTS.map(subjectName => (
+                                  <option key={subjectName} value={subjectName}>{subjectName}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Obtained</label>
+                              <input
+                                type="number"
+                                value={subject.obtainedMarks}
+                                onChange={(e) => updateSubject('matriculation', index, 'obtainedMarks', e.target.value)}
+                                placeholder="Marks"
+                                disabled={isReadOnly}
+                                className="w-full px-2 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-primary border-gray-300"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
+                              <input
+                                type="number"
+                                value={subject.totalMarks}
+                                onChange={(e) => updateSubject('matriculation', index, 'totalMarks', e.target.value)}
+                                placeholder="Total"
+                                disabled={isReadOnly}
+                                className="w-full px-2 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-primary border-gray-300"
+                              />
+                            </div>
+                            <div>
+                              {!isReadOnly && (
+                                <Button
+                                  type="button"
+                                  onClick={() => removeSubject('matriculation', index)}
+                                  variant="outline"
+                                  className="px-2 py-1.5 text-sm text-red-600 border-red-300 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {academicBackground.matriculation.subjects.length === 0 && (
+                          <p className="text-sm text-gray-500 text-center py-2">
+                            No matriculation subjects added.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Intermediate Section */}
+                    <div className="space-y-4 p-4 bg-white rounded-lg border">
+                      <h5 className="font-medium text-gray-800 flex items-center gap-2">
+                        <Award className="h-4 w-4" />
+                        Intermediate (11th/12th Grade)
+                      </h5>
+                      
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Percentage
+                            {academicBackground.intermediate.subjects.length > 0 && (
+                              <span className="text-xs text-green-600 ml-1">(Auto-calculated)</span>
+                            )}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={
+                              academicBackground.intermediate.subjects.length > 0 
+                                ? calculatePercentage('intermediate') 
+                                : academicBackground.intermediate.percentage
+                            }
+                            onChange={(e) => {
+                              if (academicBackground.intermediate.subjects.length === 0) {
+                                handleAcademicBackgroundChange('intermediate.percentage', e.target.value);
+                              }
+                            }}
+                            placeholder="Enter percentage"
+                            disabled={isReadOnly || academicBackground.intermediate.subjects.length > 0}
+                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border-gray-300 ${
+                              academicBackground.intermediate.subjects.length > 0 ? 'bg-green-50' : ''
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Passing Year
+                          </label>
+                          <input
+                            type="number"
+                            value={academicBackground.intermediate.passingYear}
+                            onChange={(e) => handleAcademicBackgroundChange('intermediate.passingYear', parseInt(e.target.value))}
+                            placeholder="Enter year"
+                            disabled={isReadOnly}
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border-gray-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Board/University
+                          </label>
+                          <input
+                            type="text"
+                            value={academicBackground.intermediate.board}
+                            onChange={(e) => handleAcademicBackgroundChange('intermediate.board', e.target.value)}
+                            placeholder="Enter board name"
+                            disabled={isReadOnly}
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border-gray-300"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Intermediate Subject-wise marks */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h6 className="text-sm font-medium text-gray-700">
+                            Subject-wise Marks
+                            {academicBackground.intermediate.subjects.length > 0 && (
+                              <span className="text-xs text-gray-500 ml-2">- Percentage auto-calculated</span>
+                            )}
+                          </h6>
+                          {!isReadOnly && (
+                            <Button
+                              type="button"
+                              onClick={() => addSubject('intermediate')}
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-primary hover:bg-primary/90"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Add Subject
+                            </Button>
+                          )}
+                        </div>
+
+                        {academicBackground.intermediate.subjects.map((subject, index) => (
+                          <div key={index} className="grid grid-cols-4 gap-3 items-end p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Subject</label>
+                              <select
+                                value={subject.name}
+                                onChange={(e) => updateSubject('intermediate', index, 'name', e.target.value)}
+                                disabled={isReadOnly}
+                                className="w-full px-2 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-primary border-gray-300"
+                              >
+                                <option value="">Select Subject</option>
+                                {INTERMEDIATE_SUBJECTS.map(subjectName => (
+                                  <option key={subjectName} value={subjectName}>{subjectName}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Obtained</label>
+                              <input
+                                type="number"
+                                value={subject.obtainedMarks}
+                                onChange={(e) => updateSubject('intermediate', index, 'obtainedMarks', e.target.value)}
+                                placeholder="Marks"
+                                disabled={isReadOnly}
+                                className="w-full px-2 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-primary border-gray-300"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
+                              <input
+                                type="number"
+                                value={subject.totalMarks}
+                                onChange={(e) => updateSubject('intermediate', index, 'totalMarks', e.target.value)}
+                                placeholder="Total"
+                                disabled={isReadOnly}
+                                className="w-full px-2 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-primary border-gray-300"
+                              />
+                            </div>
+                            <div>
+                              {!isReadOnly && (
+                                <Button
+                                  type="button"
+                                  onClick={() => removeSubject('intermediate', index)}
+                                  variant="outline"
+                                  className="px-2 py-1.5 text-sm text-red-600 border-red-300 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {academicBackground.intermediate.subjects.length === 0 && (
+                          <p className="text-sm text-gray-500 text-center py-2">
+                            No intermediate subjects added.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1248,94 +1777,6 @@ const UserForm = ({
         </form>
       </div>
 
-      {/* Success Actions Modal for Students with Class Assignment */}
-      {showSuccessActions && createdStudent && (
-        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-60 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-gray-200">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <GraduationCap className="h-8 w-8 text-green-600" />
-              </div>
-              
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Student Created Successfully!
-              </h3>
-              
-              <p className="text-gray-600 mb-4">
-                <strong>{createdStudent.fullName?.firstName} {createdStudent.fullName?.lastName}</strong> has been 
-                assigned to <strong>{createdStudent.admissionInfo?.className}</strong> in 
-                <strong> {createdStudent.admissionInfo?.grade} Grade</strong>.
-              </p>
-              
-              <div className="text-sm text-gray-500 mb-6">
-                <p>Roll Number: {createdStudent.rollNumber || 'Will be assigned automatically'}</p>
-                <p>Student ID: {createdStudent._id}</p>
-              </div>
-              
-              <div className="flex flex-col gap-3">
-                <Button
-                  onClick={() => setShowAcademicRecords(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-                >
-                  <BookOpen className="h-4 w-4" />
-                  Add Academic Background
-                </Button>
-                
-                <Button
-                  onClick={() => {
-                    setShowSuccessActions(false);
-                    setCreatedStudent(null);
-                    onSave();
-                  }}
-                  variant="outline"
-                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                >
-                  Close & Continue
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Academic Records Modal */}
-      {showAcademicRecords && createdStudent && (
-        <div className="fixed inset-0 backdrop-blur-md flex items-start justify-center z-[9999] p-4 overflow-y-auto" style={{top: 0, left: 0, right: 0, bottom: 0, position: 'fixed'}}>
-          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 border border-gray-200 max-h-[90vh] overflow-y-auto mt-4">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                Academic Background - {createdStudent.fullName?.firstName} {createdStudent.fullName?.lastName}
-              </h3>
-              <Button
-                onClick={() => {
-                  setShowAcademicRecords(false);
-                  setShowSuccessActions(false);
-                  setCreatedStudent(null);
-                  onSave();
-                }}
-                variant="outline"
-                size="sm"
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="p-4">
-              <AcademicRecordsManagement 
-                preSelectedStudent={createdStudent}
-                onClose={() => {
-                  setShowAcademicRecords(false);
-                  setShowSuccessActions(false);
-                  setCreatedStudent(null);
-                  onSave();
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -188,21 +188,31 @@ const AcademicRecordsManagement = ({ preSelectedStudent = null, onClose = null }
   const handleStudentSelect = (student) => {
     setSelectedStudent(student);
     
-    // Initialize academic record with existing data or defaults
-    const existingRecord = student.academicRecords || {};
+    // Initialize academic record with existing data
+    // Check both academicBackground (from UserForm) and academicRecords (from this component)
+    const existingBackground = student.academicBackground || {};
+    const existingRecords = student.academicRecords || {};
     
     setAcademicRecord({
       matriculation: {
-        percentage: existingRecord.matriculation?.percentage || '',
-        passingYear: existingRecord.matriculation?.passingYear || new Date().getFullYear() - 1,
-        board: existingRecord.matriculation?.board || '',
-        subjects: existingRecord.matriculation?.subjects || []
+        // Try academicRecords first, then academicBackground
+        percentage: existingRecords.matriculation?.percentage || existingBackground.matriculation?.percentage || '',
+        passingYear: existingRecords.matriculation?.passingYear || existingBackground.matriculation?.passingYear || new Date().getFullYear() - 1,
+        board: existingRecords.matriculation?.board || existingBackground.matriculation?.board || '',
+        subjects: existingRecords.matriculation?.subjects || existingBackground.matriculation?.subjects || []
       },
       previousGrade: {
-        percentage: existingRecord.previousGrade?.percentage || '',
-        grade: existingRecord.previousGrade?.grade || '11th', // Default to 11th grade for previous grade records
-        academicYear: existingRecord.previousGrade?.academicYear || '',
-        subjects: existingRecord.previousGrade?.subjects || []
+        // Map intermediate data to previousGrade for consistency
+        percentage: existingRecords.previousGrade?.percentage || existingBackground.intermediate?.percentage || '',
+        grade: existingRecords.previousGrade?.grade || '11th',
+        academicYear: existingRecords.previousGrade?.academicYear || 
+                     (existingBackground.intermediate?.passingYear ? 
+                      `${existingBackground.intermediate.passingYear-1}-${existingBackground.intermediate.passingYear}` : ''),
+        subjects: existingRecords.previousGrade?.subjects || 
+                 (existingBackground.intermediate?.subjects || []).map(subject => ({
+                   ...subject,
+                   term: subject.term || 'Annual' // Add default term for intermediate subjects
+                 }))
       }
     });
     
