@@ -455,7 +455,7 @@ const ClassManagement = () => {
                   value={classForm.maxStudents}
                   onChange={(e) => setClassForm(prev => ({ ...prev, maxStudents: parseInt(e.target.value) }))}
                   min="1"
-                  max="100"
+                  max="120"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -541,7 +541,7 @@ const ClassManagement = () => {
                   value={classForm.maxStudents}
                   onChange={(e) => setClassForm(prev => ({ ...prev, maxStudents: parseInt(e.target.value) }))}
                   min="1"
-                  max="100"
+                  max="120"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>

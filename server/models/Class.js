@@ -62,7 +62,7 @@ const ClassSchema = new mongoose.Schema({
     type: Number,
     default: 50,
     min: 1,
-    max: 50
+    max: 120
   },
   
   // Current Student Count (calculated field)
