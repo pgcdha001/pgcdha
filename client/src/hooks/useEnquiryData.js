@@ -117,14 +117,56 @@ const useEnquiryData = () => {
         
         console.log('Final level totals after summing all months:', levelTotals);
 
-        // Convert to the format expected by components
+        // Fetch real gender data for all-time to get actual ratios
+        let realGenderData;
+        try {
+          console.log('Fetching real gender data for all-time statistics...');
+          const genderResponse = await api.get('/enquiries/principal-stats', {
+            params: {
+              dateFilter: 'all',
+              minLevel: 'all'
+            },
+            signal: abortControllerRef.current.signal
+          });
+          
+          if (genderResponse.data.success) {
+            realGenderData = genderResponse.data;
+            console.log('Real all-time gender data fetched:', realGenderData);
+          }
+        } catch (genderError) {
+          console.warn('Failed to fetch real gender data, using estimations:', genderError.message);
+        }
+
+        // Calculate actual gender ratios from the real data
+        let boysRatio = 0.6; // Default fallback
+        let girlsRatio = 0.4; // Default fallback
+        
+        if (realGenderData && (realGenderData.boys + realGenderData.girls) > 0) {
+          const totalGenderCount = realGenderData.boys + realGenderData.girls;
+          boysRatio = realGenderData.boys / totalGenderCount;
+          girlsRatio = realGenderData.girls / totalGenderCount;
+          console.log('Calculated real gender ratios:', { boysRatio, girlsRatio });
+        }
+
+        // Convert to the format expected by components using real gender ratios
         const levelData = {};
         for (let level = 1; level <= 5; level++) {
           const total = levelTotals[`level${level}`] || 0;
+          
+          // Use real gender data for specific levels if available, otherwise use calculated ratios
+          let boysCount, girlsCount;
+          if (realGenderData && realGenderData.genderLevelProgression) {
+            boysCount = realGenderData.genderLevelProgression.boys[level]?.current || Math.floor(total * boysRatio);
+            girlsCount = realGenderData.genderLevelProgression.girls[level]?.current || Math.floor(total * girlsRatio);
+          } else {
+            boysCount = Math.floor(total * boysRatio);
+            girlsCount = Math.floor(total * girlsRatio);
+          }
+          
           levelData[level] = {
             total: total,
-            boys: Math.floor(total * 0.6), // Approximate distribution - you can refine this
-            girls: Math.floor(total * 0.4),
+            boys: boysCount,
+            girls: girlsCount,
             programs: { boys: {}, girls: {} }
           };
           
@@ -136,7 +178,7 @@ const useEnquiryData = () => {
           };
         }
 
-        // Set up gender progression data structure
+        // Set up gender progression data structure using real data
         for (let level = 1; level <= 5; level++) {
           genderLevelProgression.boys[level] = {
             current: levelData[level].boys,
@@ -286,6 +328,28 @@ const useEnquiryData = () => {
           level5: customLevel5
         });
         
+        // For custom date ranges, fetch actual gender data from the API
+        console.log('Fetching actual gender data for custom date range...');
+        
+        let realGenderData;
+        try {
+          const genderResponse = await api.get('/enquiries/principal-stats', {
+            params: {
+              dateFilter: 'custom',
+              startDate: startDate,
+              endDate: endDate,
+              minLevel: 'all'
+            }
+          });
+          
+          if (genderResponse.data.success) {
+            realGenderData = genderResponse.data;
+            console.log('Real gender data fetched:', realGenderData);
+          }
+        } catch (genderError) {
+          console.warn('Failed to fetch real gender data, falling back to estimations:', genderError.message);
+        }
+        
         // Apply level filtering if specified
         const levelInt = parseInt(selectedLevel);
         let filteredData;
@@ -294,10 +358,31 @@ const useEnquiryData = () => {
           const levelTotalsArray = [customLevel1, customLevel2, customLevel3, customLevel4, customLevel5];
           const levelTotal = levelTotalsArray[levelInt - 1];
           
+          // Use real gender data if available, otherwise estimate
+          let boysCount, girlsCount;
+          if (realGenderData && realGenderData.genderLevelProgression) {
+            // Use actual boys/girls data from API for the specific level
+            boysCount = realGenderData.genderLevelProgression.boys[levelInt]?.current || Math.floor(levelTotal * 0.6);
+            girlsCount = realGenderData.genderLevelProgression.girls[levelInt]?.current || Math.floor(levelTotal * 0.4);
+          } else {
+            // Calculate proportional distribution based on overall gender breakdown if available
+            if (realGenderData && (realGenderData.boys + realGenderData.girls) > 0) {
+              const totalGenderCount = realGenderData.boys + realGenderData.girls;
+              const boysRatio = realGenderData.boys / totalGenderCount;
+              const girlsRatio = realGenderData.girls / totalGenderCount;
+              boysCount = Math.floor(levelTotal * boysRatio);
+              girlsCount = Math.floor(levelTotal * girlsRatio);
+            } else {
+              // Fallback to default distribution
+              boysCount = Math.floor(levelTotal * 0.6);
+              girlsCount = Math.floor(levelTotal * 0.4);
+            }
+          }
+          
           filteredData = {
             total: levelTotal,
-            boys: Math.floor(levelTotal * 0.6), // Approximate distribution
-            girls: Math.floor(levelTotal * 0.4),
+            boys: boysCount,
+            girls: girlsCount,
             programs: { boys: {}, girls: {} },
             levelProgression: {
               1: { current: customLevel1, previous: customLevel1, change: 0 },
@@ -308,28 +393,39 @@ const useEnquiryData = () => {
             },
             genderLevelProgression: {
               boys: {
-                1: { current: Math.floor(customLevel1 * 0.6), previous: Math.floor(customLevel1 * 0.6), change: 0 },
-                2: { current: Math.floor(customLevel2 * 0.6), previous: Math.floor(customLevel2 * 0.6), change: 0 },
-                3: { current: Math.floor(customLevel3 * 0.6), previous: Math.floor(customLevel3 * 0.6), change: 0 },
-                4: { current: Math.floor(customLevel4 * 0.6), previous: Math.floor(customLevel4 * 0.6), change: 0 },
-                5: { current: Math.floor(customLevel5 * 0.6), previous: Math.floor(customLevel5 * 0.6), change: 0 }
+                1: { current: Math.floor(customLevel1 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel1 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                2: { current: Math.floor(customLevel2 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel2 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                3: { current: Math.floor(customLevel3 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel3 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                4: { current: Math.floor(customLevel4 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel4 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                5: { current: Math.floor(customLevel5 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel5 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 }
               },
               girls: {
-                1: { current: Math.floor(customLevel1 * 0.4), previous: Math.floor(customLevel1 * 0.4), change: 0 },
-                2: { current: Math.floor(customLevel2 * 0.4), previous: Math.floor(customLevel2 * 0.4), change: 0 },
-                3: { current: Math.floor(customLevel3 * 0.4), previous: Math.floor(customLevel3 * 0.4), change: 0 },
-                4: { current: Math.floor(customLevel4 * 0.4), previous: Math.floor(customLevel4 * 0.4), change: 0 },
-                5: { current: Math.floor(customLevel5 * 0.4), previous: Math.floor(customLevel5 * 0.4), change: 0 }
+                1: { current: Math.floor(customLevel1 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel1 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                2: { current: Math.floor(customLevel2 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel2 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                3: { current: Math.floor(customLevel3 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel3 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                4: { current: Math.floor(customLevel4 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel4 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                5: { current: Math.floor(customLevel5 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel5 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 }
               }
             }
           };
         } else {
           // Return aggregated data for all levels
           const grandTotal = customLevel1 + customLevel2 + customLevel3 + customLevel4 + customLevel5;
+          
+          // Use real gender data if available
+          let boysTotal, girlsTotal;
+          if (realGenderData) {
+            boysTotal = realGenderData.boys || Math.floor(grandTotal * 0.6);
+            girlsTotal = realGenderData.girls || Math.floor(grandTotal * 0.4);
+          } else {
+            boysTotal = Math.floor(grandTotal * 0.6);
+            girlsTotal = Math.floor(grandTotal * 0.4);
+          }
+          
           filteredData = {
             total: grandTotal,
-            boys: Math.floor(grandTotal * 0.6),
-            girls: Math.floor(grandTotal * 0.4),
+            boys: boysTotal,
+            girls: girlsTotal,
             programs: { boys: {}, girls: {} },
             levelProgression: {
               1: { current: customLevel1, previous: customLevel1, change: 0 },
@@ -340,18 +436,18 @@ const useEnquiryData = () => {
             },
             genderLevelProgression: {
               boys: {
-                1: { current: Math.floor(customLevel1 * 0.6), previous: Math.floor(customLevel1 * 0.6), change: 0 },
-                2: { current: Math.floor(customLevel2 * 0.6), previous: Math.floor(customLevel2 * 0.6), change: 0 },
-                3: { current: Math.floor(customLevel3 * 0.6), previous: Math.floor(customLevel3 * 0.6), change: 0 },
-                4: { current: Math.floor(customLevel4 * 0.6), previous: Math.floor(customLevel4 * 0.6), change: 0 },
-                5: { current: Math.floor(customLevel5 * 0.6), previous: Math.floor(customLevel5 * 0.6), change: 0 }
+                1: { current: Math.floor(customLevel1 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel1 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                2: { current: Math.floor(customLevel2 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel2 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                3: { current: Math.floor(customLevel3 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel3 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                4: { current: Math.floor(customLevel4 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel4 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 },
+                5: { current: Math.floor(customLevel5 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), previous: Math.floor(customLevel5 * (realGenderData?.boys / (realGenderData?.boys + realGenderData?.girls) || 0.6)), change: 0 }
               },
               girls: {
-                1: { current: Math.floor(customLevel1 * 0.4), previous: Math.floor(customLevel1 * 0.4), change: 0 },
-                2: { current: Math.floor(customLevel2 * 0.4), previous: Math.floor(customLevel2 * 0.4), change: 0 },
-                3: { current: Math.floor(customLevel3 * 0.4), previous: Math.floor(customLevel3 * 0.4), change: 0 },
-                4: { current: Math.floor(customLevel4 * 0.4), previous: Math.floor(customLevel4 * 0.4), change: 0 },
-                5: { current: Math.floor(customLevel5 * 0.4), previous: Math.floor(customLevel5 * 0.4), change: 0 }
+                1: { current: Math.floor(customLevel1 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel1 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                2: { current: Math.floor(customLevel2 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel2 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                3: { current: Math.floor(customLevel3 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel3 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                4: { current: Math.floor(customLevel4 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel4 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 },
+                5: { current: Math.floor(customLevel5 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), previous: Math.floor(customLevel5 * (realGenderData?.girls / (realGenderData?.boys + realGenderData?.girls) || 0.4)), change: 0 }
               }
             }
           };
@@ -429,6 +525,30 @@ const useEnquiryData = () => {
     console.log('getFilteredData - Current date info:', { currentYear, currentMonth, currentDate });
     console.log('getFilteredData - Date filter:', selectedDate, 'Level:', level);
 
+    // Fetch real gender data for the selected date filter
+    let realGenderRatios = { boysRatio: 0.6, girlsRatio: 0.4 }; // Default fallback
+    
+    try {
+      console.log('Fetching real gender data for date filter:', selectedDate);
+      const genderResponse = await api.get('/enquiries/principal-stats', {
+        params: {
+          dateFilter: selectedDate,
+          minLevel: 'all'
+        }
+      });
+      
+      if (genderResponse.data.success && (genderResponse.data.boys + genderResponse.data.girls) > 0) {
+        const totalGenderCount = genderResponse.data.boys + genderResponse.data.girls;
+        realGenderRatios = {
+          boysRatio: genderResponse.data.boys / totalGenderCount,
+          girlsRatio: genderResponse.data.girls / totalGenderCount
+        };
+        console.log('Real gender ratios calculated:', realGenderRatios);
+      }
+    } catch (genderError) {
+      console.warn('Failed to fetch real gender data for filter, using defaults:', genderError.message);
+    }
+
     try {
       let levelData = { total: 0, boys: 0, girls: 0, programs: { boys: {}, girls: {} } };
 
@@ -446,8 +566,8 @@ const useEnquiryData = () => {
             const levelCount = todayData[`level${level}`] || 0;
             levelData = {
               total: levelCount,
-              boys: Math.floor(levelCount * 0.6), // Approximate ratio
-              girls: Math.floor(levelCount * 0.4),
+              boys: Math.floor(levelCount * realGenderRatios.boysRatio),
+              girls: Math.floor(levelCount * realGenderRatios.girlsRatio),
               programs: { boys: {}, girls: {} }
             };
             console.log('getFilteredData - Today level data calculated:', levelData);
@@ -466,8 +586,8 @@ const useEnquiryData = () => {
           
           levelData = {
             total: last7Days,
-            boys: Math.floor(last7Days * 0.6),
-            girls: Math.floor(last7Days * 0.4),
+            boys: Math.floor(last7Days * realGenderRatios.boysRatio),
+            girls: Math.floor(last7Days * realGenderRatios.girlsRatio),
             programs: { boys: {}, girls: {} }
           };
           console.log('getFilteredData - Week level data calculated:', levelData);
@@ -487,8 +607,8 @@ const useEnquiryData = () => {
             const levelCount = currentMonthData[`level${level}`] || 0;
             levelData = {
               total: levelCount,
-              boys: Math.floor(levelCount * 0.6),
-              girls: Math.floor(levelCount * 0.4),
+              boys: Math.floor(levelCount * realGenderRatios.boysRatio),
+              girls: Math.floor(levelCount * realGenderRatios.girlsRatio),
               programs: { boys: {}, girls: {} }
             };
             console.log('getFilteredData - Month level data calculated:', levelData);
@@ -506,8 +626,8 @@ const useEnquiryData = () => {
           
           levelData = {
             total: yearTotal,
-            boys: Math.floor(yearTotal * 0.6),
-            girls: Math.floor(yearTotal * 0.4),
+            boys: Math.floor(yearTotal * realGenderRatios.boysRatio),
+            girls: Math.floor(yearTotal * realGenderRatios.girlsRatio),
             programs: { boys: {}, girls: {} }
           };
           console.log('getFilteredData - Year level data calculated:', levelData);

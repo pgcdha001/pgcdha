@@ -8,7 +8,6 @@ import Header from './Header';
 import DateFilter from './DateFilter';
 import CustomDateRange from './CustomDateRange';
 import LevelTabs from './LevelTabs';
-import TotalEnquiriesCard from './TotalEnquiriesCard';
 import TodaysStats from './TodaysStats';
 import StatsCards from './StatsCards';
 import ProgramBreakdownCards from './ProgramBreakdownCards';
@@ -411,11 +410,6 @@ const PrincipalEnquiryManagement = () => {
           selectedLevel={selectedLevel}
           onLevelChange={setSelectedLevel}
           levelStats={levelStats}
-          loading={isInitialLoading}
-        />
-
-        {/* Total Enquiries Card for consistency with Enquiry Management */}
-        <TotalEnquiriesCard 
           loading={isInitialLoading}
         />
 
