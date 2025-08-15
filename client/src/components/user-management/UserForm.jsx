@@ -479,7 +479,7 @@ const UserForm = ({
       }));
 
       academicRecords.previousGrade = {
-        grade: '11th',
+        grade: '11th', // This represents the previous grade (11th) for students who are currently in 12th
         percentage: academicBackground.intermediate.subjects.length > 0 ? 
           calculatePercentage('intermediate') : academicBackground.intermediate.percentage,
         academicYear: academicBackground.intermediate.passingYear ? 

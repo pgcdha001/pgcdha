@@ -360,7 +360,9 @@ router.post('/',
       academicBackground, // New field for comprehensive academic data
       coordinatorGrade, // For coordinator role
       coordinatorCampus, // For coordinator role
-      classId           // For student class assignment
+      classId,          // For student class assignment
+      admissionInfo,    // For Level 5 students (grade, className)
+      enquiryLevel      // New field for enquiry levels
     } = req.body;
 
     // For students, if lastName is not provided, use fatherName as lastName
@@ -527,7 +529,7 @@ router.post('/',
       if (academicBackground.intermediate) {
         const inter = academicBackground.intermediate;
         userData.academicRecords.previousGrade = {
-          grade: '11th', // Default since intermediate is 11th/12th
+          grade: '11th', // This represents previous grade (11th) for 12th graders - academic record, not current grade
           percentage: inter.percentage ? Number(inter.percentage) : undefined,
           academicYear: inter.passingYear ? `${inter.passingYear-1}-${inter.passingYear}` : undefined,
           subjects: Array.isArray(inter.subjects) ? inter.subjects.map(subject => ({
@@ -563,6 +565,29 @@ router.post('/',
     // Auto-assign campus based on gender for students
     if (role === 'Student' && gender) {
       userData.campus = gender === 'Male' ? 'Boys' : 'Girls';
+    }
+
+    // Handle enquiry level for students
+    if (role === 'Student') {
+      userData.enquiryLevel = enquiryLevel || 1; // Default to level 1
+      userData.prospectusStage = enquiryLevel || 1; // Sync both fields
+    }
+
+    // Handle admission info for Level 5 students
+    if (role === 'Student' && admissionInfo && typeof admissionInfo === 'object') {
+      userData.admissionInfo = {
+        grade: admissionInfo.grade || undefined,
+        className: admissionInfo.className || undefined,
+        program: admissionInfo.program || program // Use program from admissionInfo or fallback to main program
+      };
+      
+      // If student is at Level 5 and has admission info, mark as approved
+      if (enquiryLevel === 5 || (enquiryLevel >= 5)) {
+        userData.isApproved = true;
+        userData.isProcessed = true;
+        userData.enquiryLevel = 5;
+        userData.prospectusStage = 5;
+      }
     }
 
     // Handle class assignment for students
@@ -626,6 +651,10 @@ router.post('/',
 
     const user = await User.create(userData);
 
+    // Remove sensitive data from response
+    const userResponse = user.toJSON();
+    delete userResponse.password;
+
     // If a class was assigned, add the student to the class roster and generate roll number
     if (role === 'Student' && classId && user._id) {
       try {
@@ -658,10 +687,6 @@ router.post('/',
         // The user still has the classId reference
       }
     }
-
-    // Remove sensitive data from response
-    const userResponse = user.toJSON();
-    delete userResponse.password;
 
     sendSuccessResponse(res, { 
       user: userResponse,

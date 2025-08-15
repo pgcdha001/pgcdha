@@ -838,7 +838,7 @@ router.post('/:studentId/assign-class', authenticate, async (req, res) => {
     const classGrade = classDoc.grade;
     
     // If student doesn't have a grade set but is Level 5, update it to match the class
-    if (!studentGrade && student.level === 5) {
+    if (!studentGrade && studentLevel === 5) {
       console.log('Student is Level 5 but missing grade, updating to match class grade:', classGrade);
       await User.findByIdAndUpdate(studentId, {
         'admissionInfo.grade': classGrade
@@ -860,12 +860,11 @@ router.post('/:studentId/assign-class', authenticate, async (req, res) => {
     const classProgram = classDoc.program;
     
     // If student doesn't have a program set but is Level 5, update it to match the class
-    if (!studentProgram && student.level === 5) {
+    if (!studentProgram && studentLevel === 5) {
       console.log('Student is Level 5 but missing program, updating to match class program:', classProgram);
-      if (!student.admissionInfo) {
-        student.admissionInfo = {};
-      }
-      student.admissionInfo.program = classProgram;
+      await User.findByIdAndUpdate(studentId, {
+        'admissionInfo.program': classProgram
+      });
     } else if (studentProgram && studentProgram !== classProgram) {
       console.log('Program mismatch:', {
         studentProgram: studentProgram,

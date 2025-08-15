@@ -78,6 +78,9 @@ const StudentReport = () => {
   const queryParams = useMemo(() => {
     const p = {};
     
+    // Always include role parameter for consistent API calls
+    p.role = 'Student';
+    
     // Date filter
     if (selectedDate !== 'all' && selectedDate !== 'custom') {
       p.dateFilter = selectedDate;
@@ -137,14 +140,9 @@ const StudentReport = () => {
         sortOrder: 'desc'
       };
       
-      // Use level history API for date-based filtering, otherwise use users API
-      if (selectedDate !== 'all' || (selectedDate === 'custom' && customDatesApplied)) {
-        url = '/enquiries/level-history-students';
-      } else {
-        // For 'all time' or when no date filters are applied, use users API
-        params.role = 'Student';
-        url = '/users';
-      }
+      // Always use users API with Student role for consistency
+      params.role = 'Student';
+      url = '/users';
       
       const response = await api.get(url, { params });
       const data = response.data?.data?.users || response.data?.data || [];
@@ -166,7 +164,7 @@ const StudentReport = () => {
     } finally {
       setPagesLoading(prev => ({ ...prev, [pageToFetch]: false }));
     }
-  }, [queryParams, pageSize, selectedDate, customDatesApplied]); // Removed pagesLoading dependency
+  }, [queryParams, pageSize]); // Fixed dependencies
 
   const prefetchPages = useCallback(async (start, end) => {
     const promises = [];
@@ -178,7 +176,7 @@ const StudentReport = () => {
     if (promises.length > 0) {
       await Promise.all(promises);
     }
-  }, [fetchPage]);  // Removed pagesData and pagesLoading dependencies
+  }, [fetchPage, pagesData, pagesLoading]);  // Fixed dependencies
 
   // Initial and filter-driven load: prefetch pages 1-3, show spinner until page 1 is ready
   useEffect(() => {
@@ -197,7 +195,7 @@ const StudentReport = () => {
       setLoading(false); // page 1 should be ready or at least requested
     })();
     return () => { isMounted = false; };
-  }, [queryParams, pageSize]); // Removed prefetchPages dependency
+  }, [queryParams, pageSize, prefetchPages]); // Fixed dependencies
 
   // Prefetch next 3 pages when user reaches page 2 or beyond
   useEffect(() => {
@@ -208,7 +206,7 @@ const StudentReport = () => {
         prefetchPages(start, end);
       }
     }
-  }, [currentPage, totalPages]); // Removed prefetchPages dependency
+  }, [currentPage, totalPages, prefetchPages]); // Fixed dependencies
 
   // Current page data (already filtered on server)
   const currentPageData = useMemo(() => {
@@ -708,145 +706,11 @@ const StudentReport = () => {
         </div>
       )}
 
-      {/* Refresh Button */}
-      <div className="flex justify-end mb-4">
-        <Button
-          onClick={refreshStudents}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
-        >
-          <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {loading ? 'Refreshing...' : 'Refresh Data'}
-        </Button>
-      </div>
-
-      {/* Student List Table with Pagination */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 transition-all duration-300 hover:shadow-xl hover:bg-white/70 overflow-hidden" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
-        <div className="p-6 border-b border-border/20">
-          <h3 className="text-lg font-bold text-primary font-[Sora,Inter,sans-serif] flex items-center gap-2">
-            <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-            Student Records ({totalDocs} total)
-          </h3>
-        </div>
-        
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading student records...</p>
-          </div>
-        ) : (!isCurrentPageLoading && currentPageData.length === 0) ? (
-          <div className="p-8 text-center">
-            <p className="text-gray-600">No students found matching your criteria.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CNIC</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Correspondence</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isCurrentPageLoading ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                      <p className="mt-2 text-gray-600">Loading page {currentPage}...</p>
-                    </td>
-                  </tr>
-                ) : currentPageData.map((student, idx) => {
-                  const rowNumber = (currentPage - 1) * pageSize + idx + 1;
-                  const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
-                  const stage = student.prospectusStage || 1;
-                  const stageName = STAGE_LABELS[stage - 1] || 'Unknown';
-                  const remarksCount = student.receptionistRemarks?.length || 0;
-                  
-                  return (
-                    <tr key={student._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rowNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{fullName || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">{student.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cnic || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'Not specified'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Stage {stage}: {stageName}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {student.phoneNumbers?.primary || student.phoneNumber || student.phone || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {remarksCount > 0 ? `${remarksCount} remarks` : 'No remarks'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border/20">
-          <div className="text-sm text-gray-600">
-            Page {currentPage} of {Math.max(totalPages, 1)} • {totalDocs} total students
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1"
-              onClick={() => changePage(currentPage - 1)}
-              disabled={currentPage <= 1}
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Prev
-            </button>
-            {Array.from({ length: Math.min(5, Math.max(totalPages, 1)) }).map((_, idx) => {
-              // Simple windowed pager: show first 5 or around current
-              let baseStart = Math.max(1, Math.min(currentPage - 2, (totalPages || 1) - 4));
-              if (!totalPages || totalPages < 5) baseStart = 1;
-              const pageNum = baseStart + idx;
-              if (totalPages && pageNum > totalPages) return null;
-              const isActive = pageNum === currentPage;
-              return (
-                <button
-                  key={pageNum}
-                  className={`px-3 py-1 rounded-lg text-sm ${isActive ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                  onClick={() => changePage(pageNum)}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            <button
-              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1"
-              onClick={() => changePage(currentPage + 1)}
-              disabled={totalPages ? currentPage >= totalPages : false}
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stage Analytics - Remove since we don't have all data loaded */}
-
-      {/* Filters Card */}
+      {/* Filters Card - Moved to top */}
       <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
         <h3 className="text-lg font-bold text-primary mb-4 font-[Sora,Inter,sans-serif] flex items-center gap-2">
           <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-          Filters
+          Filters & Search
         </h3>
         
         {/* Custom Date Range */}
@@ -974,13 +838,29 @@ const StudentReport = () => {
             </div>
           )}
         </div>
+
+        {/* Refresh Button */}
+        <div className="flex justify-end mt-4 pt-4 border-t border-border/20">
+          <Button
+            onClick={refreshStudents}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+          >
+            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {loading ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
+        </div>
       </div>
 
-      {/* Data Table Card */}
+
+
+      {/* Data Table Card - Updated to use paginated data */}
       <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/70" style={{boxShadow: '0 8px 32px 0 rgba(26,35,126,0.10)'}}>
         <h3 className="text-lg font-bold text-primary mb-4 font-[Sora,Inter,sans-serif] flex items-center gap-2">
           <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-          Student Data ({filteredStudents.length} students)
+          Student Data ({totalDocs} students total - Page {currentPage} of {Math.max(totalPages, 1)})
         </h3>
         
         {loading ? (
@@ -998,44 +878,126 @@ const StudentReport = () => {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="bg-gradient-to-r from-primary to-accent text-white">
-                  <th className="px-6 py-4 text-left text-sm font-bold rounded-tl-xl">#</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold">Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold">CNIC</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold">Phone</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold">Gender</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold rounded-tr-xl">Stage</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white/50 backdrop-blur-sm">
-                {filteredStudents.map((s, idx) => (
-                  <tr key={s._id} className="border-b border-border/30 hover:bg-white/70 transition-all duration-200">
-                    <td className="px-6 py-4 text-sm font-medium text-primary">{idx + 1}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-primary">{`${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim()}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground font-medium">{s.cnic}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground font-medium">{s.phoneNumbers?.primary || s.phoneNumber || s.phone || 'N/A'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                        (s.gender || '').toLowerCase() === 'male' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                        (s.gender || '').toLowerCase() === 'female' ? 'bg-pink-100 text-pink-700 border border-pink-200' :
-                        'bg-gray-100 text-gray-700 border border-gray-200'
-                      }`}>
-                        {s.gender || 'Not specified'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 to-accent/10 text-primary border border-primary/20">
-                        Stage {s.prospectusStage || 1}: {STAGE_LABELS[(s.prospectusStage || 1) - 1] || 'Unknown'}
-                      </span>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-primary to-accent text-white">
+                    <th className="px-6 py-4 text-left text-sm font-bold rounded-tl-xl">#</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">CNIC</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">Phone</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">Gender</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">Stage</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold rounded-tr-xl">Correspondence</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white/50 backdrop-blur-sm">
+                  {isCurrentPageLoading ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                        <p className="mt-2 text-gray-600">Loading page {currentPage}...</p>
+                      </td>
+                    </tr>
+                  ) : (!currentPageData || currentPageData.length === 0) ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-gray-600">
+                        No students found matching your criteria.
+                      </td>
+                    </tr>
+                  ) : currentPageData.map((s, idx) => {
+                    const rowNumber = (currentPage - 1) * pageSize + idx + 1;
+                    const fullName = `${s.fullName?.firstName || ''} ${s.fullName?.lastName || ''}`.trim();
+                    const stage = s.prospectusStage || 1;
+                    const stageName = STAGE_LABELS[stage - 1] || 'Unknown';
+                    const remarksCount = s.receptionistRemarks?.length || 0;
+                    
+                    return (
+                      <tr key={s._id || idx} className="border-b border-border/30 hover:bg-white/70 transition-all duration-200">
+                        <td className="px-6 py-4 text-sm font-medium text-primary">{rowNumber}</td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-semibold text-primary">{fullName || 'N/A'}</div>
+                          <div className="text-xs text-muted-foreground">{s.email || 'No email'}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground font-medium">{s.cnic || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground font-medium">
+                          {s.phoneNumbers?.primary || s.phoneNumber || s.phone || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                            (s.gender || '').toLowerCase() === 'male' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                            (s.gender || '').toLowerCase() === 'female' ? 'bg-pink-100 text-pink-700 border border-pink-200' :
+                            'bg-gray-100 text-gray-700 border border-gray-200'
+                          }`}>
+                            {s.gender || 'Not specified'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 to-accent/10 text-primary border border-primary/20">
+                            Stage {stage}: {stageName}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground font-medium">
+                          {remarksCount > 0 ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {remarksCount} remarks
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">No remarks</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-border/20 mt-4">
+                <div className="text-sm text-gray-600">
+                  Showing {Math.min((currentPage - 1) * pageSize + 1, totalDocs)} to {Math.min(currentPage * pageSize, totalDocs)} of {totalDocs} students
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => changePage(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Prev
+                  </button>
+                  {Array.from({ length: Math.min(5, Math.max(totalPages, 1)) }).map((_, idx) => {
+                    // Simple windowed pager: show first 5 or around current
+                    let baseStart = Math.max(1, Math.min(currentPage - 2, (totalPages || 1) - 4));
+                    if (!totalPages || totalPages < 5) baseStart = 1;
+                    const pageNum = baseStart + idx;
+                    if (totalPages && pageNum > totalPages) return null;
+                    const isActive = pageNum === currentPage;
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`px-3 py-1 rounded-lg text-sm ${isActive ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                        onClick={() => changePage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => changePage(currentPage + 1)}
+                    disabled={totalPages ? currentPage >= totalPages : false}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
