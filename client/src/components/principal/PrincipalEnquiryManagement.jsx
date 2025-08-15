@@ -59,6 +59,10 @@ const PrincipalEnquiryManagement = () => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const pillRef = useRef(null);
 
+  // Auto-refresh state for Today's stats only
+  const [todaysAutoRefreshEnabled, setTodaysAutoRefreshEnabled] = useState(true);
+  const todaysRefreshIntervalRef = useRef(null);
+
   // Level tabs configuration (updated with accurate terminology)
   const levelTabs = [
     { value: '1', label: 'Level 1', color: 'bg-green-500', count: 0 },
@@ -90,6 +94,9 @@ const PrincipalEnquiryManagement = () => {
     try {
       const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
       
+      console.log('fetchLevelStats - TRIGGERED with dateFilter:', dateFilter);
+      console.log('fetchLevelStats - selectedDate:', selectedDate, 'customDatesApplied:', customDatesApplied);
+      
       let stats;
       if (dateFilter === 'custom' && customData) {
         stats = await getLevelStatistics(dateFilter, customData);
@@ -116,6 +123,9 @@ const PrincipalEnquiryManagement = () => {
     try {
       const dateFilter = selectedDate === 'custom' && customDatesApplied ? 'custom' : selectedDate;
       const level = parseInt(selectedLevel);
+      
+      console.log('fetchCurrentData - TRIGGERED with dateFilter:', dateFilter, 'level:', level);
+      console.log('fetchCurrentData - selectedDate:', selectedDate, 'customDatesApplied:', customDatesApplied);
       
       let data;
       if (dateFilter === 'custom' && customData) {
@@ -171,29 +181,36 @@ const PrincipalEnquiryManagement = () => {
     };
   }, []);
 
-  // State for today's stats data
+  // State for today's stats data - will be derived from comprehensive data
   const [allLevelsData, setAllLevelsData] = useState({});
 
-  // Fetch today's data for all levels (used by TodaysStats)
-  const fetchTodaysData = useCallback(async () => {
-    try {
-      const levelsData = {};
-      for (let level = 1; level <= 5; level++) {
-        const levelData = await getFilteredData(level, 'today');
-        levelsData[`level${level}`] = levelData?.total || 0; // TodaysStats expects just the count
-      }
-      console.log('fetchTodaysData - All levels today data:', levelsData);
-      setAllLevelsData(levelsData);
-    } catch (error) {
-      console.error('Error fetching today\'s data:', error);
-      setAllLevelsData({});
+  // Extract today's data from comprehensive data (no separate API calls needed)
+  const extractTodaysData = useCallback((comprehensiveData) => {
+    console.log('extractTodaysData - Received comprehensive data:', comprehensiveData);
+    
+    if (!comprehensiveData?.dateRanges?.today?.levelData) {
+      console.log('extractTodaysData - No today data found in comprehensive data structure');
+      return {};
     }
-  }, [getFilteredData]);
+    
+    const todayLevelData = comprehensiveData.dateRanges.today.levelData;
+    console.log('extractTodaysData - Today level data from API:', todayLevelData);
+    
+    const levelsData = {};
+    
+    for (let level = 1; level <= 5; level++) {
+      levelsData[`level${level}`] = todayLevelData[level]?.total || 0;
+    }
+    
+    console.log('extractTodaysData - Extracted for TodaysStats component:', levelsData);
+    console.log('extractTodaysData - Expected: {level1: 10, level2: 11, level3: 14, level4: 13, level5: 26}');
+    setAllLevelsData(levelsData);
+    return levelsData;
+  }, []);
 
-  // Effect to fetch today's data when component mounts
-  useEffect(() => {
-    fetchTodaysData();
-  }, [fetchTodaysData]);
+  // REMOVED: fetchTodaysData function - no longer needed since we get this data from comprehensive endpoint
+
+  // REMOVED: Effect to fetch today's data - now extracted from comprehensive data
 
   // No longer need time period data for AdvancedStatsTable (Glimpse)
 
@@ -229,7 +246,40 @@ const PrincipalEnquiryManagement = () => {
     }
   };
 
-  const handleRefreshData = async () => {
+  // Auto-refresh function for Today's stats only (every 30 seconds)
+  const refreshTodaysStatsOnly = useCallback(async () => {
+    if (!todaysAutoRefreshEnabled) return;
+    
+    try {
+      console.log('Auto-refreshing Today\'s stats silently...');
+      
+      // Fetch fresh comprehensive data silently (no loading states, no error disruption)
+      const freshData = await fetchComprehensiveData(true, true); // forceRefresh=true, silent=true
+      
+      if (freshData) {
+        // Extract and update today's data silently
+        extractTodaysData(freshData);
+        console.log('Today\'s stats updated silently via auto-refresh');
+      }
+      
+    } catch (error) {
+      // Silent failure - don't disturb user experience
+      console.warn('Silent auto-refresh failed (this is ok):', error.message);
+    }
+  }, [todaysAutoRefreshEnabled, fetchComprehensiveData, extractTodaysData]);
+
+  // Manual refresh for Today's stats (triggered by button)
+  const handleTodaysRefresh = useCallback(async () => {
+    try {
+      console.log('Manual refresh of Today\'s stats...');
+      await refreshTodaysStatsOnly();
+    } catch (error) {
+      console.error('Manual refresh failed:', error);
+    }
+  }, [refreshTodaysStatsOnly]);
+
+  // Full data refresh (only for main refresh button - rare use)
+  const handleFullRefreshData = async () => {
     try {
       await refreshData();
       // Reset custom data if we have any
@@ -272,7 +322,13 @@ const PrincipalEnquiryManagement = () => {
     const loadMainData = async () => {
       try {
         console.log('Loading main data...');
-        await fetchComprehensiveData();
+        const comprehensiveData = await fetchComprehensiveData();
+        
+        // Extract today's data from comprehensive data immediately
+        if (comprehensiveData) {
+          extractTodaysData(comprehensiveData);
+        }
+        
         setHasMainDataLoaded(true);
         
         // Start background glimpse data preparation
@@ -284,7 +340,10 @@ const PrincipalEnquiryManagement = () => {
         setTimeout(async () => {
           try {
             // Force a fresh fetch to ensure glimpse has latest data
-            await fetchComprehensiveData(true);
+            const freshData = await fetchComprehensiveData(true);
+            if (freshData) {
+              extractTodaysData(freshData);
+            }
             console.log('Glimpse data prepared successfully');
           } catch (error) {
             console.warn('Failed to prepare glimpse data:', error);
@@ -302,10 +361,30 @@ const PrincipalEnquiryManagement = () => {
     
     loadMainData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array - only run on mount
+  }, [fetchComprehensiveData, extractTodaysData]); // Include dependencies
+
+  // Auto-refresh setup for Today's stats only (every 30 seconds)
+  useEffect(() => {
+    if (todaysAutoRefreshEnabled && hasMainDataLoaded) {
+      console.log('Setting up auto-refresh for Today\'s stats every 30 seconds...');
+      
+      todaysRefreshIntervalRef.current = setInterval(() => {
+        refreshTodaysStatsOnly();
+      }, 30000); // 30 seconds
+      
+      return () => {
+        if (todaysRefreshIntervalRef.current) {
+          clearInterval(todaysRefreshIntervalRef.current);
+          console.log('Auto-refresh interval cleared');
+        }
+      };
+    }
+  }, [todaysAutoRefreshEnabled, hasMainDataLoaded, refreshTodaysStatsOnly]);
 
   useEffect(() => {
+    console.log('useEffect - selectedDate changed to:', selectedDate);
     if (selectedDate !== 'custom') {
+      console.log('useEffect - Resetting custom data because selectedDate is not custom');
       setCustomDatesApplied(false);
       setCustomData(null);
     }
@@ -321,6 +400,16 @@ const PrincipalEnquiryManagement = () => {
       };
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  // Cleanup auto-refresh interval on unmount
+  useEffect(() => {
+    return () => {
+      if (todaysRefreshIntervalRef.current) {
+        clearInterval(todaysRefreshIntervalRef.current);
+        console.log('Auto-refresh interval cleaned up on unmount');
+      }
+    };
+  }, []);
 
   // Compute current state
   // Data for the current filters
@@ -360,7 +449,7 @@ const PrincipalEnquiryManagement = () => {
           error={error}
           isRefreshing={isRefreshing}
           isInitialLoading={isInitialLoading}
-          onRefresh={handleRefreshData}
+          onRefresh={handleFullRefreshData}
           lastUpdated={lastUpdated}
         />
 
@@ -416,10 +505,10 @@ const PrincipalEnquiryManagement = () => {
         {/* Today's Statistics */}
         <TodaysStats 
           allTimeData={allLevelsData}
-          isLoading={isInitialLoading}
+          isLoading={false}
           error={error}
           lastUpdated={lastUpdated}
-          onRefresh={refreshData}
+          onRefresh={handleTodaysRefresh}
         />
 
         {/* Stats Cards OR Program Breakdown Cards */}
@@ -443,11 +532,11 @@ const PrincipalEnquiryManagement = () => {
           />
         )}
 
-        {/* Floating Stats Pill - Only show when main data is loaded */}
+        {/* Floating Stats Pill - Always enabled, never disabled by auto-refresh */}
         {hasMainDataLoaded && (
           <FloatingStatsPill 
             position={pillPosition}
-            loading={isGlimpseDataLoading} // Show loading state for glimpse data preparation
+            loading={false}
             isDragging={isDragging}
             onShowStats={() => setShowStatsModal(true)}
             onMouseDown={handleMouseDown}
