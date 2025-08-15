@@ -288,13 +288,16 @@ const App = () => {
                 <AuthenticatedRoute>
                   <Layout>
                     <ProtectedRoute
-                      allowedRoles={['InstituteAdmin', 'IT', 'Teacher']}
+                      allowedRoles={['InstituteAdmin', 'IT', 'Teacher', 'Coordinator']}
                       customCheck={(user) => {
                         // Allow Institute Admin and IT full access
                         if (['InstituteAdmin', 'IT'].includes(user?.role)) return true;
                         // For Teachers, they need to be either class incharge or floor incharge
                         // This will be validated in the component level
-                        return user?.role === 'Teacher';
+                        if (user?.role === 'Teacher') return true;
+                        // For Coordinators, allow access to mark student attendance
+                        if (user?.role === 'Coordinator') return true;
+                        return false;
                       }}
                     >
                       <AttendanceManagement />

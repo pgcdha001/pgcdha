@@ -155,6 +155,151 @@ router.post('/mark', authenticate, async (req, res) => {
   }
 });
 
+// Mark multiple teacher attendance records (bulk)
+router.post('/mark-bulk', authenticate, async (req, res) => {
+  try {
+    const { attendanceRecords, date, markedBy } = req.body;
+
+    if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Attendance records array is required and cannot be empty' 
+      });
+    }
+
+    const attendanceDate = new Date(date || new Date());
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    const results = {
+      success: [],
+      errors: []
+    };
+
+    // Process each attendance record
+    for (const record of attendanceRecords) {
+      try {
+        const {
+          teacherId,
+          timetableId,
+          status,
+          lateMinutes,
+          lateType,
+          coordinatorRemarks
+        } = record;
+
+        console.log('Processing record:', {
+          teacherId: typeof teacherId,
+          timetableId: typeof timetableId,
+          timetableIdValue: timetableId,
+          status
+        });
+
+        // Validate required fields
+        if (!teacherId || !timetableId || !status) {
+          results.errors.push({
+            record,
+            error: 'Teacher ID, timetable ID, and status are required'
+          });
+          continue;
+        }
+
+        // Validate timetable entry exists
+        const timetableEntry = await Timetable.findById(timetableId);
+        if (!timetableEntry) {
+          results.errors.push({
+            record,
+            error: 'Timetable entry not found'
+          });
+          continue;
+        }
+
+        // Get class to determine floor
+        const classDoc = await Class.findById(timetableEntry.classId);
+        if (!classDoc) {
+          results.errors.push({
+            record,
+            error: 'Class not found'
+          });
+          continue;
+        }
+
+        // Prepare attendance data
+        const attendanceRecord = {
+          teacherId,
+          timetableId,
+          classId: timetableEntry.classId,
+          date: attendanceDate,
+          status,
+          subject: timetableEntry.subject,
+          lectureType: timetableEntry.lectureType,
+          markedBy: markedBy || req.user._id,
+          floor: classDoc.floor,
+          coordinatorRemarks: coordinatorRemarks || ''
+        };
+
+        // Handle late status with minutes
+        if (status === 'Late') {
+          if (lateMinutes && lateMinutes > 0) {
+            attendanceRecord.lateMinutes = lateMinutes;
+            attendanceRecord.lateType = lateType || (lateMinutes <= 10 ? `${lateMinutes} min` : 'Custom');
+          } else {
+            results.errors.push({
+              record,
+              error: 'Late minutes are required when status is Late'
+            });
+            continue;
+          }
+        }
+
+        // Update existing or create new record
+        const attendance = await TeacherAttendance.findOneAndUpdate(
+          { teacherId, timetableId, date: attendanceDate },
+          attendanceRecord,
+          { 
+            upsert: true, 
+            new: true,
+            runValidators: true
+          }
+        );
+
+        results.success.push({
+          id: attendance._id,
+          teacherId: attendance.teacherId,
+          status: attendance.status,
+          lateMinutes: attendance.lateMinutes,
+          subject: attendance.subject
+        });
+
+      } catch (error) {
+        console.error(`Error processing attendance record:`, error);
+        results.errors.push({
+          record,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Bulk attendance processed: ${results.success.length} successful, ${results.errors.length} errors`,
+      data: {
+        successful: results.success.length,
+        errors: results.errors.length,
+        successfulRecords: results.success,
+        errorRecords: results.errors
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing bulk teacher attendance:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error processing bulk teacher attendance', 
+      error: error.message 
+    });
+  }
+});
+
 // Get teacher attendance for a specific date and floor
 router.get('/floor/:floor/:date', authenticate, async (req, res) => {
   try {

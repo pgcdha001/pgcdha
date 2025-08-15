@@ -105,6 +105,26 @@ const TeacherAttendanceSchema = new mongoose.Schema({
     max: 4
   },
   
+  // Track if notification action has been taken
+  notificationActionTaken: {
+    type: Boolean,
+    default: false
+  },
+  
+  // Details of the notification action taken
+  notificationAction: {
+    action: {
+      type: String,
+      enum: ['contact_coordinator', 'escalate', 'mark_resolved']
+    },
+    takenBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    takenAt: Date,
+    notes: String
+  },
+  
   // Timestamps
   createdOn: {
     type: Date,

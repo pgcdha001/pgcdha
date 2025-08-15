@@ -625,6 +625,37 @@ export const QUICK_MANAGEMENT_ACCESS = {
     }
   ],
 
+  'Teacher': [
+    {
+      title: 'Student Attendance',
+      href: '/attendance',
+      icon: 'UserCheck',
+      description: 'Mark and manage student attendance for your classes',
+      permission: PERMISSIONS.ATTENDANCE.MARK_STUDENT_ATTENDANCE
+    },
+    {
+      title: 'My Schedule',
+      href: '/timetable/view',
+      icon: 'Calendar',
+      description: 'View your teaching schedule and timetable',
+      permission: null
+    },
+    {
+      title: 'My Tests & Marks',
+      href: '/examinations?view=teacher',
+      icon: 'ClipboardCheck',
+      description: 'Manage test marks and examination records',
+      permission: PERMISSIONS.EXAMINATION.ENTER_MARKS
+    },
+    {
+      title: 'Correspondence',
+      href: '/correspondence',
+      icon: 'Mail',
+      description: 'Manage student correspondence and communications',
+      permission: null
+    }
+  ],
+
   'Receptionist': [
     {
       title: 'Student Management',
@@ -659,10 +690,10 @@ export const QUICK_MANAGEMENT_ACCESS = {
     },
     {
       title: 'Student Attendance',
-      href: '/reports?section=student-attendance',
+      href: '/attendance',
       icon: 'UserCheck',
-      description: 'Monitor student attendance and punctuality',
-      permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
+      description: 'Mark and manage student attendance',
+      permission: PERMISSIONS.ATTENDANCE.MARK_STUDENT_ATTENDANCE
     },
     {
       title: 'Enquiry Support',
