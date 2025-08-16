@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, EyeOff, CreditCard, GraduationCap, BookOpen, Plus, Trash2, Award } from 'lucide-react';
+import { X, User, Mail, Phone, Calendar, Shield, Save, Eye, EyeOff, CreditCard, GraduationCap, BookOpen, Plus, Trash2, Award, Info } from 'lucide-react';
 import { Button } from '../ui/button';
 import { userAPI } from '../../services/api';
 import api from '../../services/api';
@@ -427,78 +427,101 @@ const UserForm = ({
     const matricHasData = academicBackground.matriculation.percentage || 
                          academicBackground.matriculation.subjects.length > 0 ||
                          academicBackground.matriculation.board;
-    const interHasData = academicBackground.intermediate.percentage || 
-                        academicBackground.intermediate.subjects.length > 0 ||
-                        academicBackground.intermediate.board;
+    
+    // Only check intermediate data for 12th grade students
+    const interHasData = formData.admissionInfo?.grade === '12th' ? (
+      academicBackground.intermediate.percentage || 
+      academicBackground.intermediate.subjects.length > 0 ||
+      academicBackground.intermediate.board
+    ) : false;
+    
     return matricHasData || interHasData;
   };
 
   // Save academic background using the dedicated academic records endpoint
   const saveAcademicBackground = async (studentId) => {
-    // Prepare academic records data in the format expected by the server
-    const academicRecords = {};
+    try {
+      // Prepare academic records data in the format expected by the server
+      const academicRecords = {};
 
-    // Process matriculation data
-    if (academicBackground.matriculation.percentage || 
-        academicBackground.matriculation.subjects.length > 0 ||
-        academicBackground.matriculation.board) {
-      
-      const validMatricSubjects = academicBackground.matriculation.subjects.filter(subject => 
-        subject.name && subject.obtainedMarks && subject.totalMarks
-      ).map(subject => ({
-        name: subject.name,
-        totalMarks: Number(subject.totalMarks),
-        obtainedMarks: Number(subject.obtainedMarks),
-        percentage: subject.totalMarks > 0 ? 
-          ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0
-      }));
+      // Process matriculation data
+      if (academicBackground.matriculation.percentage || 
+          academicBackground.matriculation.subjects.length > 0 ||
+          academicBackground.matriculation.board) {
+        
+        const validMatricSubjects = academicBackground.matriculation.subjects.filter(subject => 
+          subject.name && subject.obtainedMarks && subject.totalMarks
+        ).map(subject => ({
+          name: subject.name.trim(),
+          totalMarks: Number(subject.totalMarks),
+          obtainedMarks: Number(subject.obtainedMarks),
+          percentage: subject.totalMarks > 0 ? 
+            ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0
+        }));
 
-      academicRecords.matriculation = {
-        percentage: academicBackground.matriculation.subjects.length > 0 ? 
-          calculatePercentage('matriculation') : academicBackground.matriculation.percentage,
-        passingYear: academicBackground.matriculation.passingYear,
-        board: academicBackground.matriculation.board,
-        subjects: validMatricSubjects
-      };
-    }
-
-    // Process intermediate data (map to previousGrade)
-    if (academicBackground.intermediate.percentage || 
-        academicBackground.intermediate.subjects.length > 0 ||
-        academicBackground.intermediate.board) {
-      
-      const validInterSubjects = academicBackground.intermediate.subjects.filter(subject => 
-        subject.name && subject.obtainedMarks && subject.totalMarks
-      ).map(subject => ({
-        name: subject.name,
-        totalMarks: Number(subject.totalMarks),
-        obtainedMarks: Number(subject.obtainedMarks),
-        percentage: subject.totalMarks > 0 ? 
-          ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0,
-        term: 'Annual' // Default term for intermediate
-      }));
-
-      academicRecords.previousGrade = {
-        grade: '11th', // This represents the previous grade (11th) for students who are currently in 12th
-        percentage: academicBackground.intermediate.subjects.length > 0 ? 
-          calculatePercentage('intermediate') : academicBackground.intermediate.percentage,
-        academicYear: academicBackground.intermediate.passingYear ? 
-          `${academicBackground.intermediate.passingYear-1}-${academicBackground.intermediate.passingYear}` : '',
-        subjects: validInterSubjects
-      };
-    }
-
-    // Only save if there's actual data
-    if (Object.keys(academicRecords).length > 0) {
-      const response = await api.patch(`/students/${studentId}/academic-records`, {
-        academicRecords
-      });
-      
-      if (response.data.success) {
-        console.log('Academic background saved successfully');
-      } else {
-        throw new Error(response.data.message || 'Failed to save academic background');
+        academicRecords.matriculation = {
+          percentage: academicBackground.matriculation.subjects.length > 0 ? 
+            calculatePercentage('matriculation') : academicBackground.matriculation.percentage,
+          passingYear: academicBackground.matriculation.passingYear || undefined,
+          board: academicBackground.matriculation.board || undefined,
+          subjects: validMatricSubjects
+        };
       }
+
+      // Process intermediate data (map to previousGrade) - only for 12th grade students
+      if (formData.admissionInfo?.grade === '12th' && (
+          academicBackground.intermediate.percentage || 
+          academicBackground.intermediate.subjects.length > 0 ||
+          academicBackground.intermediate.board)) {
+        
+        const validInterSubjects = academicBackground.intermediate.subjects.filter(subject => 
+          subject.name && subject.obtainedMarks && subject.totalMarks
+        ).map(subject => ({
+          name: subject.name.trim(),
+          totalMarks: Number(subject.totalMarks),
+          obtainedMarks: Number(subject.obtainedMarks),
+          percentage: subject.totalMarks > 0 ? 
+            ((Number(subject.obtainedMarks) / Number(subject.totalMarks)) * 100).toFixed(2) : 0,
+          term: 'Annual' // Default term for intermediate
+        }));
+
+        // Only create previousGrade if we have actual data
+        if (academicBackground.intermediate.percentage || validInterSubjects.length > 0) {
+          academicRecords.previousGrade = {
+            grade: '10th', // If the student is in 11th/12th, their previous grade is 10th (matriculation level)
+            percentage: academicBackground.intermediate.subjects.length > 0 ? 
+              calculatePercentage('intermediate') : academicBackground.intermediate.percentage,
+            academicYear: academicBackground.intermediate.passingYear ? 
+              `${academicBackground.intermediate.passingYear-1}-${academicBackground.intermediate.passingYear}` : undefined,
+            subjects: validInterSubjects
+          };
+          
+          // Clean up undefined fields
+          if (!academicRecords.previousGrade.academicYear) {
+            delete academicRecords.previousGrade.academicYear;
+          }
+        }
+      }
+
+      // Only save if there's actual data
+      if (Object.keys(academicRecords).length > 0) {
+        console.log('Saving academic records:', academicRecords);
+        
+        const response = await api.patch(`/students/${studentId}/academic-records`, {
+          academicRecords
+        });
+        
+        if (response.data.success) {
+          console.log('Academic background saved successfully');
+        } else {
+          throw new Error(response.data.message || 'Failed to save academic background');
+        }
+      } else {
+        console.log('No academic data to save');
+      }
+    } catch (error) {
+      console.error('Error in saveAcademicBackground:', error);
+      throw error;
     }
   };
 
@@ -712,16 +735,29 @@ const UserForm = ({
       }
 
       if (response.success) {
-        // For students, the enquiry level sync should already be handled by the main user update
-        // But let's also sync to the students endpoint for enquiry management consistency
+        // For students, sync enquiry level to students endpoint only if it has changed
         if (isStudentRole() && submitData.enquiryLevel && (user?._id || response.data?.user?._id)) {
           try {
             const studentId = user?._id || response.data.user._id;
-            await api.put(`/students/${studentId}/level`, {
-              level: submitData.enquiryLevel,
-              notes: `Level updated from user ${mode === 'create' ? 'creation' : 'edit'} form`
-            });
-            console.log('Successfully synced enquiry level to students endpoint');
+            const currentLevel = user?.enquiryLevel || user?.prospectusStage;
+            
+            // Only sync if the level has actually changed
+            if (currentLevel !== submitData.enquiryLevel) {
+              const levelResponse = await api.put(`/students/${studentId}/level`, {
+                level: submitData.enquiryLevel,
+                notes: `Level updated from user ${mode === 'create' ? 'creation' : 'edit'} form`
+              });
+              
+              if (levelResponse.data.success) {
+                if (levelResponse.data.data?.unchanged) {
+                  console.log('Level sync confirmed - student was already at the correct level');
+                } else {
+                  console.log('Successfully synced enquiry level to students endpoint');
+                }
+              }
+            } else {
+              console.log('Level unchanged, skipping sync to students endpoint');
+            }
           } catch (levelUpdateError) {
             console.warn('Failed to sync enquiry level to students endpoint:', levelUpdateError);
             // Don't fail the whole operation for this
@@ -767,8 +803,10 @@ const UserForm = ({
           if (isStudentRole() && response.data.user && hasAcademicData()) {
             try {
               await saveAcademicBackground(response.data.user._id);
+              toast.success('Academic background saved successfully');
             } catch (academicError) {
               console.error('Error saving academic background:', academicError);
+              // Show more specific error message
               toast.warning('Student created but academic background could not be saved. Please add it later.');
             }
           }
@@ -782,10 +820,12 @@ const UserForm = ({
               const userId = response.data.user?._id || response.data._id || user?._id;
               if (userId) {
                 await saveAcademicBackground(userId);
+                toast.success('Academic background saved successfully');
               }
             } catch (academicError) {
               console.error('Error saving academic background:', academicError);
-              toast.warning('User saved but academic background could not be saved. Please add it later.');
+              // Show more specific error message
+              toast.warning('User updated but academic background could not be saved. Please add it later.');
             }
           }
           onSave();
@@ -1428,12 +1468,30 @@ const UserForm = ({
                       </div>
                     </div>
 
-                    {/* Intermediate Section */}
-                    <div className="space-y-4 p-4 bg-white rounded-lg border">
-                      <h5 className="font-medium text-gray-800 flex items-center gap-2">
-                        <Award className="h-4 w-4" />
-                        Intermediate (11th/12th Grade)
-                      </h5>
+                    {/* Information message for 11th grade students */}
+                    {formData.admissionInfo?.grade === '11th' && (
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 text-blue-800">
+                          <Info className="h-4 w-4" />
+                          <span className="text-sm font-medium">
+                            For 11th Grade Students
+                          </span>
+                        </div>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Intermediate (11th grade) academic records will be available once you complete your 11th grade. 
+                          Currently, only matriculation (10th grade) records are required.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Intermediate Section - Only show for 12th grade students */}
+                    {formData.admissionInfo?.grade === '12th' && (
+                      <div className="space-y-4 p-4 bg-white rounded-lg border">
+                        <h5 className="font-medium text-gray-800 flex items-center gap-2">
+                          <Award className="h-4 w-4" />
+                          Intermediate (11th Grade - Previous Year)
+                          <span className="text-xs text-gray-500 ml-2">(Only for 12th grade students)</span>
+                        </h5>
                       
                       <div className="grid grid-cols-3 gap-4">
                         <div>
@@ -1572,6 +1630,7 @@ const UserForm = ({
                         )}
                       </div>
                     </div>
+                    )}
                   </div>
                 )}
 

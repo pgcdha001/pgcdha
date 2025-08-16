@@ -398,11 +398,15 @@ router.put('/:id/level', authenticate, async (req, res) => {
       console.log(`Initialized both level fields to 1 for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
     }
     
-    // If trying to set the same level, return early
+    // If trying to set the same level, return success instead of error
     if (level === currentLevel) {
-      return res.status(400).json({
-        success: false,
-        message: `Student is already at level ${level}`
+      return res.json({
+        success: true,
+        message: `Student is already at level ${level}`,
+        data: {
+          level: currentLevel,
+          unchanged: true
+        }
       });
     }
     
@@ -597,6 +601,9 @@ router.patch('/:id/academic-records', authenticate, async (req, res) => {
   try {
     const { academicRecords } = req.body;
     
+    console.log('Updating academic records for student ID:', req.params.id);
+    console.log('Academic records data received:', JSON.stringify(academicRecords, null, 2));
+    
     // Find the student
     const student = await User.findById(req.params.id);
     if (!student) {
@@ -606,19 +613,21 @@ router.patch('/:id/academic-records', authenticate, async (req, res) => {
       });
     }
 
-    // Check if student is at level 5 (admitted)
-    if (student.enquiryLevel !== 5 && student.prospectusStage !== 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Student must be at admission level (Level 5) to manage academic records'
-      });
-    }
+    console.log(`Student found: ${student.fullName?.firstName} ${student.fullName?.lastName}, Level: ${student.enquiryLevel || student.prospectusStage}`);
 
-    // Validate academic records structure
+    // Clean and validate academic records structure
     if (academicRecords) {
-      // Validate matriculation records
+      // Clean and validate matriculation records
       if (academicRecords.matriculation) {
         const { totalMarks, obtainedMarks, percentage, passingYear, board, subjects } = academicRecords.matriculation;
+        
+        // Clean up empty/undefined fields
+        if (passingYear === '' || passingYear === null || passingYear === undefined) {
+          delete academicRecords.matriculation.passingYear;
+        }
+        if (board === '' || board === null || board === undefined) {
+          delete academicRecords.matriculation.board;
+        }
         
         if (totalMarks && obtainedMarks) {
           const calculatedPercentage = (parseFloat(obtainedMarks) / parseFloat(totalMarks)) * 100;
@@ -645,29 +654,73 @@ router.patch('/:id/academic-records', authenticate, async (req, res) => {
         }
       }
       
-      // Validate previous grade records
+      // Clean and validate previous grade records
       if (academicRecords.previousGrade) {
-        const { totalMarks, obtainedMarks, grade } = academicRecords.previousGrade;
+        const { totalMarks, obtainedMarks, grade, academicYear } = academicRecords.previousGrade;
         
-        // Remove empty grade field to avoid enum validation error
+        // Remove empty fields to avoid validation errors
         if (grade === '' || grade === null || grade === undefined) {
           delete academicRecords.previousGrade.grade;
+        }
+        if (academicYear === '' || academicYear === null || academicYear === undefined) {
+          delete academicRecords.previousGrade.academicYear;
         }
         
         if (totalMarks && obtainedMarks) {
           const calculatedPercentage = (parseFloat(obtainedMarks) / parseFloat(totalMarks)) * 100;
           academicRecords.previousGrade.percentage = calculatedPercentage.toFixed(2);
         }
+        
+        // Validate subjects array
+        if (academicRecords.previousGrade.subjects && Array.isArray(academicRecords.previousGrade.subjects)) {
+          // Filter out invalid subjects
+          academicRecords.previousGrade.subjects = academicRecords.previousGrade.subjects.filter(subject => 
+            subject.name && subject.totalMarks && subject.obtainedMarks && subject.term
+          );
+          
+          // If no valid subjects, remove the subjects array
+          if (academicRecords.previousGrade.subjects.length === 0) {
+            delete academicRecords.previousGrade.subjects;
+          }
+        }
+      }
+      
+      // Remove previousGrade if it's empty or has no meaningful data
+      if (academicRecords.previousGrade && Object.keys(academicRecords.previousGrade).length === 0) {
+        delete academicRecords.previousGrade;
       }
     }
 
-    // Update academic records
-    student.academicRecords = {
-      ...student.academicRecords,
-      ...academicRecords
-    };
-
+    // Update academic records using direct property assignment to avoid spread issues
+    if (!student.academicRecords) {
+      student.academicRecords = {};
+    }
+    
+    // Update matriculation if provided
+    if (academicRecords.matriculation && typeof academicRecords.matriculation === 'object') {
+      if (!student.academicRecords.matriculation) {
+        student.academicRecords.matriculation = {};
+      }
+      Object.assign(student.academicRecords.matriculation, academicRecords.matriculation);
+    }
+    
+    // Update previousGrade only if provided
+    if (academicRecords.previousGrade && typeof academicRecords.previousGrade === 'object') {
+      if (!student.academicRecords.previousGrade) {
+        student.academicRecords.previousGrade = {};
+      }
+      Object.assign(student.academicRecords.previousGrade, academicRecords.previousGrade);
+    }
+    
+    // Set the updated timestamp
+    student.academicRecords.lastUpdatedOn = new Date();
+    
+    // Mark the field as modified for Mongoose
+    student.markModified('academicRecords');
     student.updatedOn = new Date();
+    
+    console.log('Final academic records to save:', JSON.stringify(student.academicRecords, null, 2));
+    
     await student.save();
 
     console.log(`Updated academic records for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
@@ -682,9 +735,19 @@ router.patch('/:id/academic-records', authenticate, async (req, res) => {
 
   } catch (error) {
     console.error('Error updating academic records:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Server error while updating academic records';
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      errorMessage = `Validation error: ${validationErrors.join(', ')}`;
+    } else if (error.name === 'CastError') {
+      errorMessage = `Invalid data format: ${error.message}`;
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Server error while updating academic records',
+      message: errorMessage,
       error: error.message
     });
   }

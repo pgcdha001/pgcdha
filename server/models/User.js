@@ -227,7 +227,7 @@ const UserSchema = new mongoose.Schema({
     
     // Previous Grade Records (for 12th grade students - their 11th grade performance)
     previousGrade: {
-      grade: { type: String, enum: ['11th'], required: false },
+      grade: { type: String, enum: ['10th', '11th'], required: false },
       totalMarks: { type: Number, min: 0 },
       obtainedMarks: { type: Number, min: 0 },
       percentage: { type: Number, min: 0, max: 100 },
