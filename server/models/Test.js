@@ -192,6 +192,20 @@ const TestSchema = new mongoose.Schema({
   marksEntryDeadline: {
     type: Date,
     required: false
+  },
+
+  // Notification action tracking for late marksheet submissions
+  notificationActionTaken: {
+    type: Boolean,
+    default: false
+  },
+
+  lastNotificationActionDate: {
+    type: Date
+  },
+
+  originalMarksEntryDeadline: {
+    type: Date
   }
 });
 

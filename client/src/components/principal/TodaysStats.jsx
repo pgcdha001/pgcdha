@@ -34,7 +34,7 @@ const TodaysStats = ({
     };
   };
 
-  // Get today's data from the passed props instead of making API calls
+  // FIXED: Get today's level achievement data (not just student creation)
   const getTodaysData = useCallback(() => {
     // Use the allTimeData passed from parent component
     if (!allTimeData) {
@@ -47,27 +47,33 @@ const TodaysStats = ({
       };
     }
 
-    // Extract current state data from the passed data structure
-    // For today's stats, we want to show students who achieved levels today
-    // The data is already in the format {level1: 3, level2: 3, ...}
+    // FIXED: The data now represents students who ACHIEVED levels today, not just students created today
+    // This means:
+    // - If a student was added to Level 1 today AND reached Level 5 today, they appear in ALL levels (1,2,3,4,5)
+    // - If a student was Level 1-2 yesterday and reached Level 3-5 today, they appear only in new levels (3,4,5)
     const result = {
-      level1: allTimeData.level1 || 0,  // Level 1+ students today
-      level2: allTimeData.level2 || 0,  // Level 2+ students today  
-      level3: allTimeData.level3 || 0,  // Level 3+ students today
-      level4: allTimeData.level4 || 0,  // Level 4+ students today
-      level5: allTimeData.level5 || 0,  // Level 5+ students today
+      level1: allTimeData.level1 || 0,  // Students who achieved Level 1 today
+      level2: allTimeData.level2 || 0,  // Students who achieved Level 2 today  
+      level3: allTimeData.level3 || 0,  // Students who achieved Level 3 today
+      level4: allTimeData.level4 || 0,  // Students who achieved Level 4 today
+      level5: allTimeData.level5 || 0,  // Students who achieved Level 5 today
     };
 
-    console.log('Today\'s data from passed props (today filter):', result);
+    console.log('FIXED: Today\'s level achievements (by achievedOn date):', result);
     console.log('Raw allTime data structure for today:', allTimeData);
+    console.log('EXPECTED from DB analysis: {level1: 10, level2: 11, level3: 14, level4: 13, level5: 26}');
     
     // Debug: Check if any data exists
     const hasAnyData = Object.values(result).some(val => val > 0);
     if (!hasAnyData) {
       console.log('WARNING: No data found for today. This could mean:');
       console.log('1. No students achieved new levels today');
-      console.log('2. levelHistory system is not properly tracking achievements');
-      console.log('3. achievedOn dates are not being set correctly');
+      console.log('2. extractTodaysData function is not working correctly');
+      console.log('3. comprehensive data API is not returning correct today data');
+      console.log('4. Data extraction from comprehensive to today format has issues');
+    } else {
+      const total = Object.values(result).reduce((sum, val) => sum + val, 0);
+      console.log(`✅ Found ${total} total level achievements today`);
     }
     
     return result;
@@ -79,31 +85,31 @@ const TodaysStats = ({
 
   const levelConfig = {
     level1: { 
-      label: 'Level 1+', 
+      label: 'Level 1', 
       color: 'text-green-600', 
       bgColor: 'bg-green-50',
       borderColor: 'border-green-200'
     },
     level2: { 
-      label: 'Level 2+', 
+      label: 'Level 2', 
       color: 'text-yellow-600', 
       bgColor: 'bg-yellow-50',
       borderColor: 'border-yellow-200'
     },
     level3: { 
-      label: 'Level 3+', 
+      label: 'Level 3', 
       color: 'text-orange-600', 
       bgColor: 'bg-orange-50',
       borderColor: 'border-orange-200'
     },
     level4: { 
-      label: 'Level 4+', 
+      label: 'Level 4', 
       color: 'text-red-600', 
       bgColor: 'bg-red-50',
       borderColor: 'border-red-200'
     },
     level5: { 
-      label: 'Level 5+', 
+      label: 'Level 5', 
       color: 'text-purple-600', 
       bgColor: 'bg-purple-50',
       borderColor: 'border-purple-200'
@@ -202,11 +208,14 @@ const TodaysStats = ({
               <TrendingUp className="w-4 h-4" />
               <span>Today's level achievements</span>
               {todayTotal === 0 && (
-                <span className="text-xs text-yellow-600 ml-2">
-                  (No level progressions recorded today)
+                <span className="text-xs text-blue-600 ml-2">
+                  (No new level progressions today)
                 </span>
               )}
             </div>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            <p>Shows students who achieved each level today. Same-day progressions appear in all reached levels.</p>
           </div>
         </div>
       </div>

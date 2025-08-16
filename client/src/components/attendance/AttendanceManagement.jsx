@@ -59,6 +59,22 @@ const AttendanceManagement = () => {
         permissions.canManageStudentAttendance = true;
         permissions.canManageTeacherAttendance = true;
         permissions.canManageTimetable = true;
+      } else if (user.role === 'Coordinator') {
+        // Coordinators have full attendance management access
+        permissions.canManageStudentAttendance = true;
+        permissions.canManageTeacherAttendance = true;
+        permissions.canManageTimetable = true;
+        permissions.isFloorIncharge = true; // Coordinators can act as floor incharge
+        
+        // Get all classes for coordinators
+        try {
+          const classResponse = await api.get('/classes');
+          if (classResponse.data.success && classResponse.data?.classes?.length > 0) {
+            permissions.classes = classResponse.data.classes;
+          }
+        } catch (error) {
+          console.error('Error fetching classes for coordinator:', error);
+        }
       } else if (user.role === 'Teacher') {
         // Check specific responsibilities for teachers
         const [classResponse, floorResponse] = await Promise.all([
@@ -138,8 +154,8 @@ const AttendanceManagement = () => {
       });
     }
 
-    // Reports - available to institute admin and floor incharge
-    if (user?.role === 'InstituteAdmin' || user?.role === 'IT' || userPermissions.isFloorIncharge) {
+    // Reports - available to institute admin, coordinators, and floor incharge
+    if (user?.role === 'InstituteAdmin' || user?.role === 'IT' || user?.role === 'Coordinator' || userPermissions.isFloorIncharge) {
       baseTabs.push({
         id: 'reports',
         name: 'Reports & Analytics',
@@ -173,10 +189,15 @@ const AttendanceManagement = () => {
           api.get(`/attendance/stats/daily/${today}`),
           api.get(`/teacher-attendance/report/daily/${today}`)
         ]);
-        
         setDashboardStats({
           studentAttendance: studentStats.data,
           teacherAttendance: teacherStats.data
+        });
+      } else if (user?.role === 'Coordinator') {
+        // Load coordinator-specific stats (all classes they supervise)
+        const classes = await api.get(`/classes/coordinator-access/${user._id}`);
+        setDashboardStats({
+          coordinatorClasses: classes.data
         });
       } else if (user?.role === 'Teacher') {
         // Load teacher-specific stats
@@ -363,11 +384,15 @@ const AttendanceManagement = () => {
               <UserCheck className="h-8 w-8 text-blue-600" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {user?.role === 'Teacher' ? 'No Attendance Responsibilities Assigned' : 'Access Not Available'}
+              {user?.role === 'Teacher' ? 'No Attendance Responsibilities Assigned' : 
+               user?.role === 'Coordinator' ? 'Attendance System Loading...' : 
+               'Access Not Available'}
             </h3>
             <p className="text-gray-600 mb-4">
               {user?.role === 'Teacher' 
                 ? 'You are not currently assigned as a Class Incharge or Floor Incharge. Contact your administrator to get assigned to classes or floors to access attendance management features.'
+                : user?.role === 'Coordinator'
+                ? 'Setting up your attendance management access. If this message persists, please contact IT support.'
                 : 'You don\'t have permission to access the attendance management system. Please contact your administrator for access.'
               }
             </p>

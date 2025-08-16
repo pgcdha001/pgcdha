@@ -526,14 +526,15 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const yearStart = new Date(now.getFullYear(), 0, 1);
     
-    console.log('Date boundaries for level history filtering:');
+    console.log('Date boundaries for level achievement filtering:');
     console.log('Today start:', todayStart);
     console.log('Today end:', todayEnd);
     console.log('Week start:', weekStart);
     console.log('Month start:', monthStart);
     console.log('Year start:', yearStart);
+    console.log('FIXED LOGIC: Now filtering by levelHistory.achievedOn dates for proper daily level tracking');
     
-    // NEW PIPELINE: Use levelHistory and achievedOn dates instead of createdOn
+    // FIXED PIPELINE: Use levelHistory.achievedOn dates for proper daily level tracking
     const pipeline = [
       {
         $match: {
@@ -543,26 +544,48 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
           levelHistory: { $exists: true, $ne: [] }
         }
       },
-      // Add time period categorization based on USER CREATION dates (NOT levelHistory.achievedOn)
+      // Unwind levelHistory first to work with individual level achievements
+      { $unwind: '$levelHistory' },
+      // Add time period categorization based on LEVEL ACHIEVEMENT dates (levelHistory.achievedOn)
       {
         $addFields: {
           timePeriod: {
             $switch: {
               branches: [
                 {
-                  case: { $gte: ['$createdOn', todayStart] },
+                  case: { 
+                    $and: [
+                      { $gte: ['$levelHistory.achievedOn', todayStart] },
+                      { $lte: ['$levelHistory.achievedOn', todayEnd] }
+                    ]
+                  },
                   then: 'today'
                 },
                 {
-                  case: { $gte: ['$createdOn', weekStart] },
+                  case: { 
+                    $and: [
+                      { $gte: ['$levelHistory.achievedOn', weekStart] },
+                      { $lt: ['$levelHistory.achievedOn', todayStart] }
+                    ]
+                  },
                   then: 'week'
                 },
                 {
-                  case: { $gte: ['$createdOn', monthStart] },
+                  case: { 
+                    $and: [
+                      { $gte: ['$levelHistory.achievedOn', monthStart] },
+                      { $lt: ['$levelHistory.achievedOn', weekStart] }
+                    ]
+                  },
                   then: 'month'
                 },
                 {
-                  case: { $gte: ['$createdOn', yearStart] },
+                  case: { 
+                    $and: [
+                      { $gte: ['$levelHistory.achievedOn', yearStart] },
+                      { $lt: ['$levelHistory.achievedOn', monthStart] }
+                    ]
+                  },
                   then: 'year'
                 }
               ],
@@ -571,9 +594,7 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
           }
         }
       },
-      // Unwind levelHistory to check what levels each user has achieved
-      { $unwind: '$levelHistory' },
-      // Group by user, time period, and level to get unique user-level combinations
+      // Group by user, time period, and level to get unique user-level combinations for each time period
       {
         $group: {
           _id: {
@@ -582,10 +603,11 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
             level: '$levelHistory.level'
           },
           gender: { $first: '$gender' },
-          program: { $first: '$program' }
+          program: { $first: '$program' },
+          achievedOn: { $first: '$levelHistory.achievedOn' }
         }
       },
-      // Group by level and time period to count students who have achieved each level
+      // Group by level and time period to count students who achieved each level in each time period
       {
         $group: {
           _id: {
@@ -603,7 +625,7 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
       }
     ];
 
-    console.log('Executing level history based aggregation pipeline...');
+    console.log('Executing FIXED level history based aggregation pipeline...');
     
     // First, let's check if we have any students with levelHistory data
     const studentsWithLevelHistory = await User.countDocuments({
@@ -614,20 +636,28 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     });
     console.log(`Found ${studentsWithLevelHistory} students with levelHistory data`);
     
-    // Check for students created today (using createdOn, not achievedOn)
-    const recentAchievements = await User.aggregate([
+    // FIXED: Check for level achievements today (using achievedOn, not createdOn)
+    const todayAchievements = await User.aggregate([
       {
         $match: {
           role: 'Student',
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
-          levelHistory: { $exists: true, $ne: [] },
-          createdOn: { $gte: todayStart }
+          levelHistory: { $exists: true, $ne: [] }
         }
       },
-      { $count: 'todayCount' }
+      { $unwind: '$levelHistory' },
+      {
+        $match: {
+          $and: [
+            { 'levelHistory.achievedOn': { $gte: todayStart } },
+            { 'levelHistory.achievedOn': { $lte: todayEnd } }
+          ]
+        }
+      },
+      { $count: 'todayAchievements' }
     ]);
-    console.log('Students created today:', recentAchievements);
+    console.log('FIXED: Level achievements today (by achievedOn date):', todayAchievements);
     
     const results = await User.aggregate(pipeline);
     console.log(`Level history aggregation returned ${results.length} result groups`);
@@ -673,19 +703,39 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
               $switch: {
                 branches: [
                   {
-                    case: { $gte: ['$createdOn', todayStart] },
+                    case: { 
+                      $and: [
+                        { $gte: ['$createdOn', todayStart] },
+                        { $lte: ['$createdOn', todayEnd] }
+                      ]
+                    },
                     then: 'today'
                   },
                   {
-                    case: { $gte: ['$createdOn', weekStart] },
+                    case: { 
+                      $and: [
+                        { $gte: ['$createdOn', weekStart] },
+                        { $lt: ['$createdOn', todayStart] }
+                      ]
+                    },
                     then: 'week'
                   },
                   {
-                    case: { $gte: ['$createdOn', monthStart] },
+                    case: { 
+                      $and: [
+                        { $gte: ['$createdOn', monthStart] },
+                        { $lt: ['$createdOn', weekStart] }
+                      ]
+                    },
                     then: 'month'
                   },
                   {
-                    case: { $gte: ['$createdOn', yearStart] },
+                    case: { 
+                      $and: [
+                        { $gte: ['$createdOn', yearStart] },
+                        { $lt: ['$createdOn', monthStart] }
+                      ]
+                    },
                     then: 'year'
                   }
                 ],
@@ -915,35 +965,41 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     });
 
     console.log('Data processing completed successfully');
-    console.log('=== COMPREHENSIVE DATA SUMMARY ===');
+    console.log('=== FIXED COMPREHENSIVE DATA SUMMARY ===');
+    console.log('IMPORTANT: Now showing level achievements by achievedOn dates, not user creation dates');
     console.log('All-time level 1 total:', data.allTime.levelData[1].total);
     console.log('All-time level 2 total:', data.allTime.levelData[2].total);
     console.log('All-time level 3 total:', data.allTime.levelData[3].total);
     console.log('All-time level 4 total:', data.allTime.levelData[4].total);
     console.log('All-time level 5 total:', data.allTime.levelData[5].total);
-    console.log('Today level 1 total:', data.dateRanges.today.levelData[1].total);
-    console.log('Today level 2 total:', data.dateRanges.today.levelData[2].total);
-    console.log('Today level 3 total:', data.dateRanges.today.levelData[3].total);
-    console.log('Today level 4 total:', data.dateRanges.today.levelData[4].total);
-    console.log('Today level 5 total:', data.dateRanges.today.levelData[5].total);
-    console.log('Week level 1 total:', data.dateRanges.week.levelData[1].total);
-    console.log('Month level 1 total:', data.dateRanges.month.levelData[1].total);
-    console.log('Year level 1 total:', data.dateRanges.year.levelData[1].total);
+    console.log('Today level 1 achieved:', data.dateRanges.today.levelData[1].total);
+    console.log('Today level 2 achieved:', data.dateRanges.today.levelData[2].total);
+    console.log('Today level 3 achieved:', data.dateRanges.today.levelData[3].total);
+    console.log('Today level 4 achieved:', data.dateRanges.today.levelData[4].total);
+    console.log('Today level 5 achieved:', data.dateRanges.today.levelData[5].total);
+    console.log('Week level achievements:', data.dateRanges.week.levelData);
+    console.log('Month level achievements:', data.dateRanges.month.levelData);
+    console.log('Year level achievements:', data.dateRanges.year.levelData);
     console.log('Progression data added for all levels');
     
     // DEBUG: Check if we have zero data across all time periods
     const allTimeTotal = Object.values(data.allTime.levelData).reduce((sum, level) => sum + level.total, 0);
     const todayTotal = Object.values(data.dateRanges.today.levelData).reduce((sum, level) => sum + level.total, 0);
-    console.log('=== DATA VALIDATION ===');
-    console.log('Total students all-time:', allTimeTotal);
-    console.log('Total students today:', todayTotal);
+    console.log('=== FIXED DATA VALIDATION ===');
+    console.log('Total level achievements all-time:', allTimeTotal);
+    console.log('Total level achievements today:', todayTotal);
     
     if (allTimeTotal === 0) {
-      console.log('WARNING: No student data found. This suggests either:');
+      console.log('WARNING: No level achievement data found. This suggests either:');
       console.log('1. No students in database with role="Student"');
       console.log('2. All students have classId (are enrolled)');
       console.log('3. No students have proper prospectusStage (1-5)');
       console.log('4. levelHistory system is not working properly');
+    }
+    
+    if (todayTotal === 0) {
+      console.log('INFO: No level achievements recorded for today');
+      console.log('This is normal if no students progressed to new levels today');
     }
 
     res.json({

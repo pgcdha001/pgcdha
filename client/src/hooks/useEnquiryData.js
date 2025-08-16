@@ -53,7 +53,7 @@ const useEnquiryData = () => {
   /**
    * Fetch comprehensive data using the same APIs as AdvancedStatsTable for consistency
    */
-  const fetchComprehensiveData = useCallback(async (forceRefresh = false) => {
+  const fetchComprehensiveData = useCallback(async (forceRefresh = false, silent = false) => {
     // Cancel any ongoing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -71,145 +71,59 @@ const useEnquiryData = () => {
     }, REQUEST_TIMEOUT);
 
     try {
-      // Set loading state
-      if (forceRefresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsInitialLoading(true);
+      // Set loading state only if not silent
+      if (!silent) {
+        if (forceRefresh) {
+          setIsRefreshing(true);
+        } else {
+          setIsInitialLoading(true);
+        }
+        setError(null);
       }
-      setError(null);
 
-      const currentYear = new Date().getFullYear();
-      console.log('Fetching monthly breakdown data for year:', currentYear);
+      console.log('Fetching comprehensive enquiry data...', silent ? '(silent)' : '');
       
-      // Use the same monthly-breakdown API as AdvancedStatsTable
-      const response = await api.get(`/enquiries/monthly-breakdown/${currentYear}`, {
+      // Use the comprehensive-data endpoint that includes today's level achievements
+      const response = await api.get('/enquiries/comprehensive-data', {
         signal: abortControllerRef.current.signal
       });
 
       clearTimeout(timeoutId);
       
       if (response.data.success) {
-        const monthlyData = response.data.data.months || [];
-        console.log('Monthly data fetched successfully:', monthlyData);
-
-        // Calculate totals for each level (same as AdvancedStatsTable)
-        const levelTotals = { level1: 0, level2: 0, level3: 0, level4: 0, level5: 0 };
-        const levelProgression = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
-        const genderLevelProgression = { boys: {}, girls: {} };
+        const comprehensiveData = response.data.data;
+        console.log('Comprehensive data fetched successfully:', comprehensiveData);
         
-        // Sum up monthly data to get yearly totals
-        monthlyData.forEach((monthData, index) => {
-          console.log(`Month ${index + 1} (${monthData.name || 'Unknown'}):`, {
-            level1: monthData.level1,
-            level2: monthData.level2,
-            level3: monthData.level3,
-            level4: monthData.level4,
-            level5: monthData.level5
-          });
-          
-          levelTotals.level1 += monthData.level1 || 0;
-          levelTotals.level2 += monthData.level2 || 0;
-          levelTotals.level3 += monthData.level3 || 0;
-          levelTotals.level4 += monthData.level4 || 0;
-          levelTotals.level5 += monthData.level5 || 0;
-        });
+        // Extract monthly data for backward compatibility
+        const monthlyData = comprehensiveData.monthlyBreakdown || [];
+        console.log('Monthly data from comprehensive response:', monthlyData);
+
+        // Use all-time data from comprehensive response
+        const allTimeData = comprehensiveData.allTime || {};
+        const levelTotals = {
+          level1: allTimeData.level1 || 0,
+          level2: allTimeData.level2 || 0,
+          level3: allTimeData.level3 || 0,
+          level4: allTimeData.level4 || 0,
+          level5: allTimeData.level5 || 0
+        };
         
-        console.log('Final level totals after summing all months:', levelTotals);
+        console.log('Level totals from comprehensive data:', levelTotals);
 
-        // Fetch real gender data for all-time to get actual ratios
-        let realGenderData;
-        try {
-          console.log('Fetching real gender data for all-time statistics...');
-          const genderResponse = await api.get('/enquiries/principal-stats', {
-            params: {
-              dateFilter: 'all',
-              minLevel: 'all'
-            },
-            signal: abortControllerRef.current.signal
-          });
-          
-          if (genderResponse.data.success) {
-            realGenderData = genderResponse.data;
-            console.log('Real all-time gender data fetched:', realGenderData);
-          }
-        } catch (genderError) {
-          console.warn('Failed to fetch real gender data, using estimations:', genderError.message);
-        }
-
-        // Calculate actual gender ratios from the real data
-        let boysRatio = 0.6; // Default fallback
-        let girlsRatio = 0.4; // Default fallback
+        // Extract date ranges (includes today's data!)
+        const dateRanges = comprehensiveData.dateRanges || {};
+        console.log('Date ranges from comprehensive data:', dateRanges);
         
-        if (realGenderData && (realGenderData.boys + realGenderData.girls) > 0) {
-          const totalGenderCount = realGenderData.boys + realGenderData.girls;
-          boysRatio = realGenderData.boys / totalGenderCount;
-          girlsRatio = realGenderData.girls / totalGenderCount;
-          console.log('Calculated real gender ratios:', { boysRatio, girlsRatio });
+        // Today's data is now available!
+        if (dateRanges.today) {
+          console.log('Today\'s level achievements found:', dateRanges.today);
         }
-
-        // Convert to the format expected by components using real gender ratios
-        const levelData = {};
-        for (let level = 1; level <= 5; level++) {
-          const total = levelTotals[`level${level}`] || 0;
-          
-          // Use real gender data for specific levels if available, otherwise use calculated ratios
-          let boysCount, girlsCount;
-          if (realGenderData && realGenderData.genderLevelProgression) {
-            boysCount = realGenderData.genderLevelProgression.boys[level]?.current || Math.floor(total * boysRatio);
-            girlsCount = realGenderData.genderLevelProgression.girls[level]?.current || Math.floor(total * girlsRatio);
-          } else {
-            boysCount = Math.floor(total * boysRatio);
-            girlsCount = Math.floor(total * girlsRatio);
-          }
-          
-          levelData[level] = {
-            total: total,
-            boys: boysCount,
-            girls: girlsCount,
-            programs: { boys: {}, girls: {} }
-          };
-          
-          // Set up progression data structure
-          levelProgression[level] = {
-            current: total,
-            previous: total,
-            change: 0
-          };
-        }
-
-        // Set up gender progression data structure using real data
-        for (let level = 1; level <= 5; level++) {
-          genderLevelProgression.boys[level] = {
-            current: levelData[level].boys,
-            previous: levelData[level].boys,
-            change: 0
-          };
-          genderLevelProgression.girls[level] = {
-            current: levelData[level].girls,
-            previous: levelData[level].girls,
-            change: 0
-          };
-        }
-
-        // Create the data structure in the expected format
+        
+        // Return the comprehensive data structure directly
         const processedData = {
-          allTime: {
-            levelData: levelData,
-            levelProgression: levelProgression,
-            genderLevelProgression: genderLevelProgression
-          },
-          dateRanges: {
-            today: { levelData: {}, levelProgression: {}, genderLevelProgression: { boys: {}, girls: {} } },
-            week: { levelData: {}, levelProgression: {}, genderLevelProgression: { boys: {}, girls: {} } },
-            month: { levelData: {}, levelProgression: {}, genderLevelProgression: { boys: {}, girls: {} } },
-            year: { 
-              levelData: levelData,
-              levelProgression: levelProgression,
-              genderLevelProgression: genderLevelProgression
-            }
-          },
-          monthlyBreakdown: monthlyData // Store original monthly data for reference
+          allTime: comprehensiveData.allTime || {},
+          dateRanges: comprehensiveData.dateRanges || {},
+          monthlyBreakdown: comprehensiveData.monthlyBreakdown || monthlyData
         };
 
         console.log('Processed data structure:', processedData);
@@ -239,10 +153,10 @@ const useEnquiryData = () => {
       if (error.name === 'AbortError') {
         const errorMsg = 'Request timed out after 10 seconds';
         console.log(errorMsg);
-        setError(errorMsg);
+        if (!silent) setError(errorMsg);
       } else {
         console.error('Error fetching data:', error);
-        setError(error.response?.data?.message || error.message || 'Failed to load data');
+        if (!silent) setError(error.response?.data?.message || error.message || 'Failed to load data');
       }
       
       // Return cached data if available, even if stale
@@ -253,8 +167,10 @@ const useEnquiryData = () => {
       
       throw error;
     } finally {
-      setIsInitialLoading(false);
-      setIsRefreshing(false);
+      if (!silent) {
+        setIsInitialLoading(false);
+        setIsRefreshing(false);
+      }
       abortControllerRef.current = null;
     }
   }, [cache.data, isCacheValid]);
@@ -501,7 +417,7 @@ const useEnquiryData = () => {
   }, [fetchComprehensiveData]);
 
   /**
-   * Get filtered data from API using same endpoints as AdvancedStatsTable
+   * Get filtered data using comprehensive data that we already have
    */
   const getFilteredData = useCallback(async (selectedLevel, selectedDate, customData = null) => {
     // If custom data is provided, use it instead of API calls
@@ -517,163 +433,20 @@ const useEnquiryData = () => {
     }
 
     const level = parseInt(selectedLevel);
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1; // Convert to 1-based month for API
-    const currentDate = new Date().getDate();
-
-    console.log('getFilteredData - Using same APIs as AdvancedStatsTable');
-    console.log('getFilteredData - Current date info:', { currentYear, currentMonth, currentDate });
+    console.log('getFilteredData - Using comprehensive data approach');
     console.log('getFilteredData - Date filter:', selectedDate, 'Level:', level);
 
-    // Fetch real gender data for the selected date filter
-    let realGenderRatios = { boysRatio: 0.6, girlsRatio: 0.4 }; // Default fallback
-    
-    try {
-      console.log('Fetching real gender data for date filter:', selectedDate);
-      const genderResponse = await api.get('/enquiries/principal-stats', {
-        params: {
-          dateFilter: selectedDate,
-          minLevel: 'all'
-        }
-      });
-      
-      if (genderResponse.data.success && (genderResponse.data.boys + genderResponse.data.girls) > 0) {
-        const totalGenderCount = genderResponse.data.boys + genderResponse.data.girls;
-        realGenderRatios = {
-          boysRatio: genderResponse.data.boys / totalGenderCount,
-          girlsRatio: genderResponse.data.girls / totalGenderCount
-        };
-        console.log('Real gender ratios calculated:', realGenderRatios);
-      }
-    } catch (genderError) {
-      console.warn('Failed to fetch real gender data for filter, using defaults:', genderError.message);
+    // Check if we have cached comprehensive data
+    if (!cache.data || !cache.data.dateRanges) {
+      console.log('getFilteredData - No cached comprehensive data, fetching...');
+      await fetchComprehensiveData();
     }
 
-    try {
-      let levelData = { total: 0, boys: 0, girls: 0, programs: { boys: {}, girls: {} } };
-
-      if (selectedDate === 'today') {
-        console.log('getFilteredData - Fetching daily breakdown for today');
-        // Use same API as AdvancedStatsTable: /enquiries/daily-breakdown/year/month
-        const response = await api.get(`/enquiries/daily-breakdown/${currentYear}/${currentMonth}`);
-        console.log('getFilteredData - Daily API response:', response.data);
-        
-        if (response.data.success && response.data.data.days) {
-          const todayData = response.data.data.days.find(day => day.day === currentDate);
-          console.log('getFilteredData - Today data found:', todayData);
-          
-          if (todayData) {
-            const levelCount = todayData[`level${level}`] || 0;
-            levelData = {
-              total: levelCount,
-              boys: Math.floor(levelCount * realGenderRatios.boysRatio),
-              girls: Math.floor(levelCount * realGenderRatios.girlsRatio),
-              programs: { boys: {}, girls: {} }
-            };
-            console.log('getFilteredData - Today level data calculated:', levelData);
-          }
-        }
-      } else if (selectedDate === 'week') {
-        console.log('getFilteredData - Fetching daily breakdown for week');
-        // Get last 7 days from daily breakdown
-        const response = await api.get(`/enquiries/daily-breakdown/${currentYear}/${currentMonth}`);
-        console.log('getFilteredData - Daily API response for week:', response.data);
-        
-        if (response.data.success && response.data.data.days) {
-          const last7Days = response.data.data.days
-            .filter(day => day.day <= currentDate && day.day > currentDate - 7)
-            .reduce((sum, day) => sum + (day[`level${level}`] || 0), 0);
-          
-          levelData = {
-            total: last7Days,
-            boys: Math.floor(last7Days * realGenderRatios.boysRatio),
-            girls: Math.floor(last7Days * realGenderRatios.girlsRatio),
-            programs: { boys: {}, girls: {} }
-          };
-          console.log('getFilteredData - Week level data calculated:', levelData);
-        }
-      } else if (selectedDate === 'month') {
-        console.log('getFilteredData - Fetching monthly breakdown for current month');
-        // Use same API as AdvancedStatsTable: /enquiries/monthly-breakdown/year
-        const response = await api.get(`/enquiries/monthly-breakdown/${currentYear}`);
-        console.log('getFilteredData - Monthly API response:', response.data);
-        
-        if (response.data.success && response.data.data.months) {
-          // Find current month data by month number (1-based)
-          const currentMonthData = response.data.data.months.find(month => month.monthNumber === currentMonth);
-          console.log('getFilteredData - Current month data found:', currentMonthData);
-          
-          if (currentMonthData) {
-            const levelCount = currentMonthData[`level${level}`] || 0;
-            levelData = {
-              total: levelCount,
-              boys: Math.floor(levelCount * realGenderRatios.boysRatio),
-              girls: Math.floor(levelCount * realGenderRatios.girlsRatio),
-              programs: { boys: {}, girls: {} }
-            };
-            console.log('getFilteredData - Month level data calculated:', levelData);
-          }
-        }
-      } else if (selectedDate === 'year' || selectedDate === 'all') {
-        console.log('getFilteredData - Fetching monthly breakdown for year');
-        // Get all months and sum up - same API as AdvancedStatsTable
-        const response = await api.get(`/enquiries/monthly-breakdown/${currentYear}`);
-        console.log('getFilteredData - Monthly API response for year:', response.data);
-        
-        if (response.data.success && response.data.data.months) {
-          const yearTotal = response.data.data.months
-            .reduce((sum, month) => sum + (month[`level${level}`] || 0), 0);
-          
-          levelData = {
-            total: yearTotal,
-            boys: Math.floor(yearTotal * realGenderRatios.boysRatio),
-            girls: Math.floor(yearTotal * realGenderRatios.girlsRatio),
-            programs: { boys: {}, girls: {} }
-          };
-          console.log('getFilteredData - Year level data calculated:', levelData);
-        }
-      }
-
-      // Create basic progression data
-      const progressionData = {
-        1: { current: 0, previous: 0, change: 0 },
-        2: { current: 0, previous: 0, change: 0 },
-        3: { current: 0, previous: 0, change: 0 },
-        4: { current: 0, previous: 0, change: 0 },
-        5: { current: 0, previous: 0, change: 0 }
-      };
-      progressionData[level] = { current: levelData.total, previous: levelData.total, change: 0 };
-
-      const genderProgressionData = {
-        boys: {
-          1: { current: 0, previous: 0, change: 0 },
-          2: { current: 0, previous: 0, change: 0 },
-          3: { current: 0, previous: 0, change: 0 },
-          4: { current: 0, previous: 0, change: 0 },
-          5: { current: 0, previous: 0, change: 0 }
-        },
-        girls: {
-          1: { current: 0, previous: 0, change: 0 },
-          2: { current: 0, previous: 0, change: 0 },
-          3: { current: 0, previous: 0, change: 0 },
-          4: { current: 0, previous: 0, change: 0 },
-          5: { current: 0, previous: 0, change: 0 }
-        }
-      };
-      genderProgressionData.boys[level] = { current: levelData.boys, previous: levelData.boys, change: 0 };
-      genderProgressionData.girls[level] = { current: levelData.girls, previous: levelData.girls, change: 0 };
-
-      const result = {
-        ...levelData,
-        levelProgression: progressionData,
-        genderLevelProgression: genderProgressionData
-      };
-      
-      console.log('getFilteredData - Final result:', result);
-      return result;
-
-    } catch (error) {
-      console.error('Error fetching filtered data:', error);
+    // Use the comprehensive data that contains pre-calculated date ranges
+    const comprehensiveData = cache.data;
+    
+    if (!comprehensiveData || !comprehensiveData.dateRanges) {
+      console.error('getFilteredData - No comprehensive data available');
       return {
         total: 0,
         boys: 0,
@@ -683,10 +456,113 @@ const useEnquiryData = () => {
         genderLevelProgression: null
       };
     }
-  }, []);
+
+    console.log('getFilteredData - Available date ranges:', Object.keys(comprehensiveData.dateRanges));
+
+    // Get data for the selected date filter from comprehensive data
+    let dateRangeData = null;
+    
+    if (selectedDate === 'today') {
+      dateRangeData = comprehensiveData.dateRanges.today;
+    } else if (selectedDate === 'week') {
+      dateRangeData = comprehensiveData.dateRanges.week;
+    } else if (selectedDate === 'month') {
+      dateRangeData = comprehensiveData.dateRanges.month;
+    } else if (selectedDate === 'year') {
+      dateRangeData = comprehensiveData.dateRanges.year;
+    } else if (selectedDate === 'all') {
+      // For "all time", use the allTime data
+      dateRangeData = {
+        levelData: comprehensiveData.allTime?.levelData || {},
+        genderLevelProgression: comprehensiveData.allTime?.genderLevelProgression || null
+      };
+    }
+
+    if (!dateRangeData) {
+      console.error('getFilteredData - No data found for date filter:', selectedDate);
+      return {
+        total: 0,
+        boys: 0,
+        girls: 0,
+        programs: { boys: {}, girls: {} },
+        levelProgression: null,
+        genderLevelProgression: null
+      };
+    }
+
+    console.log('getFilteredData - Date range data found:', dateRangeData);
+
+    // Extract level data
+    let levelCount = 0;
+    let boysCount = 0;
+    let girlsCount = 0;
+    let programsData = { boys: {}, girls: {} };
+
+    if (dateRangeData.levelData && dateRangeData.levelData[level]) {
+      levelCount = dateRangeData.levelData[level].total || 0;
+      boysCount = dateRangeData.levelData[level].boys || 0;
+      girlsCount = dateRangeData.levelData[level].girls || 0;
+      
+      // Extract program data
+      if (dateRangeData.levelData[level].programs) {
+        programsData = {
+          boys: dateRangeData.levelData[level].programs.boys || {},
+          girls: dateRangeData.levelData[level].programs.girls || {}
+        };
+      }
+    }
+
+    console.log('getFilteredData - Level', level, 'data extracted:', {
+      total: levelCount,
+      boys: boysCount,
+      girls: girlsCount,
+      programs: programsData
+    });
+
+    // Create progression data
+    const progressionData = {
+      1: { current: 0, previous: 0, change: 0 },
+      2: { current: 0, previous: 0, change: 0 },
+      3: { current: 0, previous: 0, change: 0 },
+      4: { current: 0, previous: 0, change: 0 },
+      5: { current: 0, previous: 0, change: 0 }
+    };
+    progressionData[level] = { current: levelCount, previous: levelCount, change: 0 };
+
+    const genderProgressionData = {
+      boys: {
+        1: { current: 0, previous: 0, change: 0 },
+        2: { current: 0, previous: 0, change: 0 },
+        3: { current: 0, previous: 0, change: 0 },
+        4: { current: 0, previous: 0, change: 0 },
+        5: { current: 0, previous: 0, change: 0 }
+      },
+      girls: {
+        1: { current: 0, previous: 0, change: 0 },
+        2: { current: 0, previous: 0, change: 0 },
+        3: { current: 0, previous: 0, change: 0 },
+        4: { current: 0, previous: 0, change: 0 },
+        5: { current: 0, previous: 0, change: 0 }
+      }
+    };
+    genderProgressionData.boys[level] = { current: boysCount, previous: boysCount, change: 0 };
+    genderProgressionData.girls[level] = { current: girlsCount, previous: girlsCount, change: 0 };
+
+    const result = {
+      total: levelCount,
+      boys: boysCount,
+      girls: girlsCount,
+      programs: programsData,
+      levelProgression: progressionData,
+      genderLevelProgression: genderProgressionData
+    };
+    
+    console.log('getFilteredData - Final result:', result);
+    return result;
+  }, [cache.data, fetchComprehensiveData]);
 
   /**
-   * Get level statistics using same APIs as AdvancedStatsTable (for tab counts)
+   * Get level statistics using comprehensive data (for tab counts)
    */
   const getLevelStatistics = useCallback(async (selectedDate, customData = null) => {
     // If custom data is provided, extract level stats from levelProgression
@@ -699,83 +575,68 @@ const useEnquiryData = () => {
       return stats;
     }
 
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1; // Convert to 1-based month for API
-    const currentDate = new Date().getDate();
+    console.log('getLevelStatistics - Using comprehensive data for date filter:', selectedDate);
 
-    console.log('getLevelStatistics - Using same APIs as AdvancedStatsTable for date filter:', selectedDate);
+    // Check if we have cached comprehensive data
+    if (!cache.data || !cache.data.dateRanges) {
+      console.log('getLevelStatistics - No cached comprehensive data, fetching...');
+      await fetchComprehensiveData();
+    }
+
+    // Use the comprehensive data that contains pre-calculated date ranges
+    const comprehensiveData = cache.data;
+    
+    if (!comprehensiveData || !comprehensiveData.dateRanges) {
+      console.error('getLevelStatistics - No comprehensive data available');
+      return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    }
+
+    console.log('getLevelStatistics - Available date ranges:', Object.keys(comprehensiveData.dateRanges));
+    console.log('getLevelStatistics - AllTime data structure:', comprehensiveData.allTime);
+
+    // Get data for the selected date filter from comprehensive data
+    let dateRangeData = null;
+    
+    if (selectedDate === 'today') {
+      dateRangeData = comprehensiveData.dateRanges.today;
+    } else if (selectedDate === 'week') {
+      dateRangeData = comprehensiveData.dateRanges.week;
+    } else if (selectedDate === 'month') {
+      dateRangeData = comprehensiveData.dateRanges.month;
+    } else if (selectedDate === 'year') {
+      dateRangeData = comprehensiveData.dateRanges.year;
+    } else if (selectedDate === 'all') {
+      // For "all time", use the allTime data
+      dateRangeData = {
+        levelData: comprehensiveData.allTime?.levelData || {}
+      };
+    }
+
+    if (!dateRangeData || !dateRangeData.levelData) {
+      console.error('getLevelStatistics - No level data found for date filter:', selectedDate);
+      return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    }
+
+    console.log('getLevelStatistics - Level data found:', dateRangeData.levelData);
 
     try {
       let stats = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
-      if (selectedDate === 'today') {
-        // Use daily breakdown API to get today's data
-        const response = await api.get(`/enquiries/daily-breakdown/${currentYear}/${currentMonth}`);
-        if (response.data.success && response.data.data.days) {
-          const todayData = response.data.data.days.find(day => day.day === currentDate);
-          if (todayData) {
-            stats = {
-              1: todayData.level1 || 0,
-              2: todayData.level2 || 0,
-              3: todayData.level3 || 0,
-              4: todayData.level4 || 0,
-              5: todayData.level5 || 0
-            };
-          }
-        }
-      } else if (selectedDate === 'week') {
-        // Use daily breakdown API to get last 7 days
-        const response = await api.get(`/enquiries/daily-breakdown/${currentYear}`);
-        if (response.data.success && response.data.data.days) {
-          const weekData = response.data.data.days.filter(day => 
-            day.day <= currentDate && day.day > currentDate - 7
-          );
-          
-          stats = {
-            1: weekData.reduce((sum, day) => sum + (day.level1 || 0), 0),
-            2: weekData.reduce((sum, day) => sum + (day.level2 || 0), 0),
-            3: weekData.reduce((sum, day) => sum + (day.level3 || 0), 0),
-            4: weekData.reduce((sum, day) => sum + (day.level4 || 0), 0),
-            5: weekData.reduce((sum, day) => sum + (day.level5 || 0), 0)
-          };
-        }
-      } else if (selectedDate === 'month') {
-        // Use monthly breakdown API to get current month
-        const response = await api.get(`/enquiries/monthly-breakdown/${currentYear}`);
-        if (response.data.success && response.data.data.months) {
-          const currentMonthData = response.data.data.months.find(month => month.monthNumber === currentMonth);
-          if (currentMonthData) {
-            stats = {
-              1: currentMonthData.level1 || 0,
-              2: currentMonthData.level2 || 0,
-              3: currentMonthData.level3 || 0,
-              4: currentMonthData.level4 || 0,
-              5: currentMonthData.level5 || 0
-            };
-          }
-        }
-      } else if (selectedDate === 'year' || selectedDate === 'all') {
-        // Use monthly breakdown API to get all months and sum them
-        const response = await api.get(`/enquiries/monthly-breakdown/${currentYear}`);
-        if (response.data.success && response.data.data.months) {
-          stats = {
-            1: response.data.data.months.reduce((sum, month) => sum + (month.level1 || 0), 0),
-            2: response.data.data.months.reduce((sum, month) => sum + (month.level2 || 0), 0),
-            3: response.data.data.months.reduce((sum, month) => sum + (month.level3 || 0), 0),
-            4: response.data.data.months.reduce((sum, month) => sum + (month.level4 || 0), 0),
-            5: response.data.data.months.reduce((sum, month) => sum + (month.level5 || 0), 0)
-          };
+      // Extract level statistics from the levelData
+      for (let level = 1; level <= 5; level++) {
+        if (dateRangeData.levelData[level]) {
+          stats[level] = dateRangeData.levelData[level].total || 0;
         }
       }
       
-      console.log('getLevelStatistics - Stats calculated from API:', stats);
+      console.log('getLevelStatistics - Stats calculated from comprehensive data:', stats);
       return stats;
 
     } catch (error) {
       console.error('Error in getLevelStatistics:', error);
       return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     }
-  }, []);
+  }, [cache.data, fetchComprehensiveData]);
 
   return {
     // Data methods

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Clock, AlertTriangle, User, Calendar, FileText, X, Check, Send, Plus } from 'lucide-react';
+import { Bell, Clock, AlertTriangle, User, Calendar, FileText, X, Check, Plus } from 'lucide-react';
 import api from '../../services/api';
 
 const LateMarksheetNotifications = () => {
@@ -264,8 +264,6 @@ const ActionModal = ({ notification, onAction, onDismiss, onClose, loading }) =>
   const [notes, setNotes] = useState('');
 
   const actions = [
-    { value: 'remind_teacher', label: 'Send Reminder to Teacher', icon: Send, color: 'blue' },
-    { value: 'escalate', label: 'Escalate to Administration', icon: AlertTriangle, color: 'orange' },
     { value: 'extend_deadline', label: 'Extend Deadline', icon: Plus, color: 'green' },
     { value: 'mark_resolved', label: 'Mark as Resolved', icon: Check, color: 'purple' }
   ];

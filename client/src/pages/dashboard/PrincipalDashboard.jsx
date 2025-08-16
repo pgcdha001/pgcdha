@@ -3,6 +3,7 @@ import { useDashboard } from '../../contexts/DashboardContext';
 import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import LateMarksheetNotifications from '../../components/notifications/LateMarksheetNotifications';
+import LateTeacherNotifications from '../../components/notifications/LateTeacherNotifications';
 
 const PrincipalDashboard = () => {
   const { userRole } = usePermissions();
@@ -109,8 +110,12 @@ const PrincipalDashboard = () => {
       />
       
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Late Marksheet Notifications */}
-        <div className="mb-6">
+        {/* Notifications Section */}
+        <div className="space-y-6 mb-6">
+          {/* Late Teacher Notifications */}
+          <LateTeacherNotifications />
+          
+          {/* Late Marksheet Notifications */}
           <LateMarksheetNotifications />
         </div>
         

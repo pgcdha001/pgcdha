@@ -15,8 +15,7 @@ import {
   AlertTriangle,
   Filter,
   Download,
-  Search,
-  RefreshCw
+  Search
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../hooks/useAuth';
@@ -152,23 +151,15 @@ const TeacherAttendanceManagement = () => {
 
   const loadTeacherAttendanceData = async () => {
     try {
-      console.log('Loading attendance data for date:', selectedDate);
       const response = await api.get(`/teacher-attendance/date/${selectedDate}`);
-      console.log('Attendance API response:', response.data);
-      
       const attendanceRecords = response.data?.data || response.data || [];
-      console.log('Attendance records:', attendanceRecords);
       
       const attendanceMap = {};
       const remarksMap = {};
       const lateMinutesMap = {};
       
       attendanceRecords.forEach(record => {
-        // Ensure we extract the ID properly if it's populated
-        const timetableIdValue = record.timetableId?._id || record.timetableId;
-        const teacherIdValue = record.teacherId?._id || record.teacherId;
-        
-        const key = `${teacherIdValue}_${timetableIdValue}`;
+        const key = `${record.teacherId}_${record.timetableId}`;
         attendanceMap[key] = record.status;
         if (record.coordinatorRemarks) {
           remarksMap[key] = record.coordinatorRemarks;
@@ -177,10 +168,6 @@ const TeacherAttendanceManagement = () => {
           lateMinutesMap[key] = record.lateMinutes;
         }
       });
-      
-      console.log('Setting attendance data:', attendanceMap);
-      console.log('Setting remarks data:', remarksMap);
-      console.log('Setting late minutes data:', lateMinutesMap);
       
       setAttendanceData(attendanceMap);
       setRemarkData(remarksMap);
@@ -260,8 +247,8 @@ const TeacherAttendanceManagement = () => {
       const attendanceRecords = Object.entries(attendanceData).map(([key, status]) => {
         const [teacherId, timetableId] = key.split('_');
         const record = {
-          teacherId: teacherId,
-          timetableId: timetableId, // Ensure this is a string
+          teacherId,
+          timetableId,
           status,
           date: selectedDate,
           coordinatorRemarks: remarkData[key] || ''
@@ -276,8 +263,6 @@ const TeacherAttendanceManagement = () => {
         return record;
       });
 
-      console.log('Saving attendance records:', attendanceRecords);
-
       const response = await api.post('/teacher-attendance/mark-bulk', {
         attendanceRecords,
         date: selectedDate,
@@ -286,16 +271,10 @@ const TeacherAttendanceManagement = () => {
 
       if (response.data.success) {
         toast.success('Teacher attendance saved successfully!');
-        
-        // Immediate reload without timeout first
-        console.log('Reloading attendance data immediately...');
-        await loadTeacherAttendanceData();
-        
-        // If that doesn't work, try with a delay
-        setTimeout(async () => {
-          console.log('Reloading attendance data after delay...');
-          await loadTeacherAttendanceData();
-        }, 1000);
+        setAttendanceData({});
+        setRemarkData({});
+        setLateMinutesData({});
+        loadTeacherAttendanceData();
       }
     } catch (error) {
       console.error('Error saving attendance:', error);
@@ -397,15 +376,6 @@ const TeacherAttendanceManagement = () => {
             </div>
             
             <div className="flex gap-3">
-              <Button
-                onClick={loadTeacherAttendanceData}
-                disabled={loading}
-                variant="outline"
-                className="border-gray-300 hover:bg-gray-50"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
               <Button
                 onClick={saveAllAttendance}
                 disabled={saving || Object.keys(attendanceData).length === 0}
@@ -582,7 +552,7 @@ const TeacherAttendanceManagement = () => {
                                           </button>
                                           
                                           {/* Late Minutes Dropdown */}
-                                          {showLateOptions[`${teacherId}_${lecture._id}`] && (
+                                          {showLateDropdown && (
                                             <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[150px]">
                                               {lateMinutesOptions.map((option) => (
                                                 <button

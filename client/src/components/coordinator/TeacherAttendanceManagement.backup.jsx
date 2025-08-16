@@ -15,8 +15,7 @@ import {
   AlertTriangle,
   Filter,
   Download,
-  Search,
-  RefreshCw
+  Search
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../hooks/useAuth';
@@ -25,22 +24,22 @@ import api from '../../services/api';
 
 const TeacherAttendanceManagement = () => {
   const { user } = useAuth();
-  const { handleApiResponse, toast } = useApiWithToast();
+    const { handleApiResponse, toast } = useApiWithToast();
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [teachers, setTeachers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Add search state
   const [expandedTeacher, setExpandedTeacher] = useState(null);
   const [teacherLectures, setTeacherLectures] = useState({});
-  const [teacherLectureCounts, setTeacherLectureCounts] = useState({});
+  const [teacherLectureCounts, setTeacherLectureCounts] = useState({}); // Add lecture counts state
   const [attendanceData, setAttendanceData] = useState({});
-  const [lateMinutesData, setLateMinutesData] = useState({});
+  const [lateMinutesData, setLateMinutesData] = useState({}); // Add late minutes tracking
   const [remarkData, setRemarkData] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [currentRemark, setCurrentRemark] = useState({ lectureId: '', text: '' });
-  const [showLateOptions, setShowLateOptions] = useState({});
+  const [showLateOptions, setShowLateOptions] = useState({}); // Track which late dropdowns are open
 
   // Floor mapping for coordinator
   const floorNames = {
@@ -50,16 +49,6 @@ const TeacherAttendanceManagement = () => {
     4: '12th Girls'
   };
 
-  // Late minutes options
-  const lateMinutesOptions = [
-    { value: 5, label: '5 minutes' },
-    { value: 10, label: '10 minutes' },
-    { value: 15, label: '15 minutes' },
-    { value: 20, label: '20 minutes' },
-    { value: 30, label: '30 minutes' },
-    { value: 45, label: '45+ minutes' }
-  ];
-
   useEffect(() => {
     loadTeachers();
   }, []);
@@ -67,7 +56,7 @@ const TeacherAttendanceManagement = () => {
   useEffect(() => {
     if (selectedDate && teachers.length > 0) {
       loadTeacherAttendanceData();
-      loadAllTeacherLectureCounts(teachers);
+      loadAllTeacherLectureCounts(teachers); // Reload lecture counts when date changes
     }
   }, [selectedDate, teachers]);
 
@@ -76,28 +65,39 @@ const TeacherAttendanceManagement = () => {
       setLoading(true);
       const response = await api.get('/users?role=Teacher');
       
+      console.log('Teachers API response:', response);
+      console.log('Response data structure:', response.data);
+      
+      // Extract users from the correct path in the response
       const teachersData = response.data.data?.users || response.data?.users || response.data || [];
       const teachersArray = Array.isArray(teachersData) ? teachersData : [];
       
+      console.log('Teachers data extracted:', teachersData);
+      console.log('Setting teachers to:', teachersArray);
       setTeachers(teachersArray);
+      
+      // Load lecture counts for all teachers
       await loadAllTeacherLectureCounts(teachersArray);
     } catch (error) {
       console.error('Error loading teachers:', error);
-      setTeachers([]);
+      setTeachers([]); // Ensure teachers is always an array
     } finally {
       setLoading(false);
     }
   };
 
+  // New function to load lecture counts for all teachers
   const loadAllTeacherLectureCounts = async (teachersArray) => {
     try {
       const counts = {};
       
+      // Load lecture counts for each teacher
       await Promise.all(teachersArray.map(async (teacher) => {
         try {
           const response = await api.get(`/timetable/teacher/${teacher._id}/date/${selectedDate}`);
           const lectures = response.data?.data || response.data || [];
           
+          // Count total lectures and group by class
           const classCount = new Set(lectures.map(lecture => lecture.classId?._id)).size;
           const lectureCount = lectures.length;
           
@@ -122,9 +122,11 @@ const TeacherAttendanceManagement = () => {
 
   const loadTeacherLectures = async (teacherId) => {
     try {
+      // Get timetable for this teacher on the selected date
       const response = await api.get(`/timetable/teacher/${teacherId}/date/${selectedDate}`);
       const lectures = response.data?.data || response.data || [];
       
+      // Group lectures by class
       const groupedLectures = lectures.reduce((acc, lecture) => {
         const classKey = lecture.classId?._id || 'unknown';
         const className = lecture.classId?.name || 'Unknown Class';
@@ -152,39 +154,21 @@ const TeacherAttendanceManagement = () => {
 
   const loadTeacherAttendanceData = async () => {
     try {
-      console.log('Loading attendance data for date:', selectedDate);
       const response = await api.get(`/teacher-attendance/date/${selectedDate}`);
-      console.log('Attendance API response:', response.data);
-      
       const attendanceRecords = response.data?.data || response.data || [];
-      console.log('Attendance records:', attendanceRecords);
-      
       const attendanceMap = {};
       const remarksMap = {};
-      const lateMinutesMap = {};
       
       attendanceRecords.forEach(record => {
-        // Ensure we extract the ID properly if it's populated
-        const timetableIdValue = record.timetableId?._id || record.timetableId;
-        const teacherIdValue = record.teacherId?._id || record.teacherId;
-        
-        const key = `${teacherIdValue}_${timetableIdValue}`;
+        const key = `${record.teacherId}_${record.timetableId}`;
         attendanceMap[key] = record.status;
         if (record.coordinatorRemarks) {
           remarksMap[key] = record.coordinatorRemarks;
         }
-        if (record.status === 'Late' && record.lateMinutes) {
-          lateMinutesMap[key] = record.lateMinutes;
-        }
       });
-      
-      console.log('Setting attendance data:', attendanceMap);
-      console.log('Setting remarks data:', remarksMap);
-      console.log('Setting late minutes data:', lateMinutesMap);
       
       setAttendanceData(attendanceMap);
       setRemarkData(remarksMap);
-      setLateMinutesData(lateMinutesMap);
     } catch (error) {
       console.error('Error loading attendance data:', error);
     }
@@ -208,12 +192,14 @@ const TeacherAttendanceManagement = () => {
       [key]: status
     }));
     
+    // Store late minutes if provided
     if (status === 'Late' && lateMinutes) {
       setLateMinutesData(prev => ({
         ...prev,
         [key]: lateMinutes
       }));
     } else if (status !== 'Late') {
+      // Clear late minutes if not late
       setLateMinutesData(prev => {
         const updated = { ...prev };
         delete updated[key];
@@ -221,17 +207,10 @@ const TeacherAttendanceManagement = () => {
       });
     }
     
+    // Close late options dropdown
     setShowLateOptions(prev => ({
       ...prev,
       [key]: false
-    }));
-  };
-
-  const toggleLateOptions = (teacherId, lectureId) => {
-    const key = `${teacherId}_${lectureId}`;
-    setShowLateOptions(prev => ({
-      ...prev,
-      [key]: !prev[key]
     }));
   };
 
@@ -257,49 +236,32 @@ const TeacherAttendanceManagement = () => {
     try {
       setSaving(true);
       
-      const attendanceRecords = Object.entries(attendanceData).map(([key, status]) => {
-        const [teacherId, timetableId] = key.split('_');
-        const record = {
-          teacherId: teacherId,
-          timetableId: timetableId, // Ensure this is a string
+      const attendanceRecords = [];
+      
+      Object.entries(attendanceData).forEach(([key, status]) => {
+        const [teacherId, lectureId] = key.split('_');
+        attendanceRecords.push({
+          teacherId,
+          timetableId: lectureId,
           status,
+          coordinatorRemarks: remarkData[key] || '',
           date: selectedDate,
-          coordinatorRemarks: remarkData[key] || ''
-        };
-        
-        // Add late minutes if status is Late
-        if (status === 'Late' && lateMinutesData[key]) {
-          record.lateMinutes = lateMinutesData[key];
-          record.lateType = lateMinutesData[key] <= 10 ? `${lateMinutesData[key]} min` : 'Custom';
-        }
-        
-        return record;
+          markedBy: user._id
+        });
       });
 
-      console.log('Saving attendance records:', attendanceRecords);
-
-      const response = await api.post('/teacher-attendance/mark-bulk', {
-        attendanceRecords,
-        date: selectedDate,
-        markedBy: user._id
+      const response = await api.post('/teacher-attendance/coordinator/mark', {
+        attendanceRecords
       });
 
       if (response.data.success) {
-        toast.success('Teacher attendance saved successfully!');
-        
-        // Immediate reload without timeout first
-        console.log('Reloading attendance data immediately...');
+        toast?.success?.('Attendance saved successfully') || alert('Attendance saved successfully');
+        // Refresh data
         await loadTeacherAttendanceData();
-        
-        // If that doesn't work, try with a delay
-        setTimeout(async () => {
-          console.log('Reloading attendance data after delay...');
-          await loadTeacherAttendanceData();
-        }, 1000);
       }
     } catch (error) {
       console.error('Error saving attendance:', error);
-      toast.error('Failed to save attendance. Please try again.');
+      toast?.error?.('Failed to save attendance') || alert('Failed to save attendance');
     } finally {
       setSaving(false);
     }
@@ -398,15 +360,6 @@ const TeacherAttendanceManagement = () => {
             
             <div className="flex gap-3">
               <Button
-                onClick={loadTeacherAttendanceData}
-                disabled={loading}
-                variant="outline"
-                className="border-gray-300 hover:bg-gray-50"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              <Button
                 onClick={saveAllAttendance}
                 disabled={saving || Object.keys(attendanceData).length === 0}
                 className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -417,13 +370,16 @@ const TeacherAttendanceManagement = () => {
             </div>
           </div>
         </div>
+            </div>
+          </div>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">Total Marked</span>
+              <span className="text-sm font-medium text-blue-900">Total Lectures</span>
             </div>
             <p className="text-2xl font-bold text-blue-900 mt-1">{stats.total}</p>
           </div>
@@ -529,9 +485,7 @@ const TeacherAttendanceManagement = () => {
                               {classData.lectures.map((lecture) => {
                                 const lectureKey = `${teacherId}_${lecture._id}`;
                                 const currentStatus = attendanceData[lectureKey];
-                                const currentLateMinutes = lateMinutesData[lectureKey];
                                 const hasRemark = remarkData[lectureKey];
-                                const showLateDropdown = showLateOptions[lectureKey];
                                 
                                 return (
                                   <div key={lecture._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -542,17 +496,12 @@ const TeacherAttendanceManagement = () => {
                                           <p className="text-sm text-gray-600">
                                             {lecture.startTime} - {lecture.endTime} • {lecture.lectureType}
                                           </p>
-                                          {currentStatus === 'Late' && currentLateMinutes && (
-                                            <p className="text-sm text-orange-600 font-medium">
-                                              Late by {currentLateMinutes} minutes
-                                            </p>
-                                          )}
                                         </div>
                                       </div>
                                     </div>
 
                                     <div className="flex items-center gap-3">
-                                      {/* Attendance Buttons */}
+                                      {/* Attendance Checkboxes */}
                                       <div className="flex gap-2">
                                         <button
                                           onClick={() => handleAttendanceChange(teacherId, lecture._id, 'On Time')}
@@ -566,36 +515,17 @@ const TeacherAttendanceManagement = () => {
                                           Present
                                         </button>
                                         
-                                        {/* Late Button with Dropdown */}
-                                        <div className="relative">
-                                          <button
-                                            onClick={() => toggleLateOptions(teacherId, lecture._id)}
-                                            className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                                              currentStatus === 'Late'
-                                                ? 'bg-orange-600 text-white'
-                                                : 'bg-gray-200 text-gray-700 hover:bg-orange-100'
-                                            }`}
-                                          >
-                                            <Clock className="h-4 w-4" />
-                                            Late
-                                            <ChevronDown className="h-3 w-3" />
-                                          </button>
-                                          
-                                          {/* Late Minutes Dropdown */}
-                                          {showLateOptions[`${teacherId}_${lecture._id}`] && (
-                                            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[150px]">
-                                              {lateMinutesOptions.map((option) => (
-                                                <button
-                                                  key={option.value}
-                                                  onClick={() => handleAttendanceChange(teacherId, lecture._id, 'Late', option.value)}
-                                                  className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-800"
-                                                >
-                                                  {option.label}
-                                                </button>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
+                                        <button
+                                          onClick={() => handleAttendanceChange(teacherId, lecture._id, 'Late')}
+                                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                            currentStatus === 'Late'
+                                              ? 'bg-orange-600 text-white'
+                                              : 'bg-gray-200 text-gray-700 hover:bg-orange-100'
+                                          }`}
+                                        >
+                                          <Clock className="h-4 w-4" />
+                                          Late
+                                        </button>
                                         
                                         <button
                                           onClick={() => handleAttendanceChange(teacherId, lecture._id, 'Absent')}
@@ -639,18 +569,11 @@ const TeacherAttendanceManagement = () => {
         </div>
 
         {/* Empty State */}
-        {filteredTeachers.length === 0 && !loading && (
+        {teachers.length === 0 && !loading && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? 'No Teachers Found' : 'No Teachers Available'}
-            </h3>
-            <p className="text-gray-500">
-              {searchTerm 
-                ? `No teachers match your search "${searchTerm}"`
-                : 'No teachers are available in the system.'
-              }
-            </p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Teachers Found</h3>
+            <p className="text-gray-500">No teachers are available in the system.</p>
           </div>
         )}
       </div>
@@ -659,37 +582,48 @@ const TeacherAttendanceManagement = () => {
       {showRemarkModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowRemarkModal(false)} />
-            
-            <div className="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-                      Add Remark
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <MessageSquare className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Add Coordinator Remark
                     </h3>
-                    <textarea
-                      value={currentRemark.text}
-                      onChange={(e) => setCurrentRemark(prev => ({ ...prev, text: e.target.value }))}
-                      rows="4"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter your remark here..."
-                    />
+                    <div className="mt-4">
+                      <textarea
+                        value={currentRemark.text}
+                        onChange={(e) => setCurrentRemark(prev => ({ ...prev, text: e.target.value }))}
+                        placeholder="Enter your remark about this lecture..."
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        maxLength={500}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currentRemark.text.length}/500 characters
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
                   onClick={saveRemark}
-                  className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Save Remark
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowRemarkModal(false)}
-                  className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Cancel
                 </button>
