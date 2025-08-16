@@ -58,6 +58,7 @@ const ZoneStatisticsSchema = new mongoose.Schema({
           blue: { type: Number, default: 0 },
           yellow: { type: Number, default: 0 },
           red: { type: Number, default: 0 },
+          unassigned: { type: Number, default: 0 },
           total: { type: Number, default: 0 }
         }
       }],
@@ -68,6 +69,7 @@ const ZoneStatisticsSchema = new mongoose.Schema({
         blue: { type: Number, default: 0 },
         yellow: { type: Number, default: 0 },
         red: { type: Number, default: 0 },
+        unassigned: { type: Number, default: 0 },
         total: { type: Number, default: 0 }
       }
     }],
@@ -78,6 +80,7 @@ const ZoneStatisticsSchema = new mongoose.Schema({
       blue: { type: Number, default: 0 },
       yellow: { type: Number, default: 0 },
       red: { type: Number, default: 0 },
+      unassigned: { type: Number, default: 0 },
       total: { type: Number, default: 0 }
     }
   }],
@@ -88,6 +91,7 @@ const ZoneStatisticsSchema = new mongoose.Schema({
     blue: { type: Number, default: 0 },
     yellow: { type: Number, default: 0 },
     red: { type: Number, default: 0 },
+    unassigned: { type: Number, default: 0 },
     total: { type: Number, default: 0 }
   },
   
@@ -130,13 +134,14 @@ ZoneStatisticsSchema.index({ academicYear: 1, lastUpdated: -1 });
 // Virtual for zone percentages
 ZoneStatisticsSchema.virtual('collegeWidePercentages').get(function() {
   const total = this.collegeWideStats.total;
-  if (total === 0) return { green: 0, blue: 0, yellow: 0, red: 0 };
+  if (total === 0) return { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0 };
   
   return {
     green: Math.round((this.collegeWideStats.green / total) * 100),
     blue: Math.round((this.collegeWideStats.blue / total) * 100),
     yellow: Math.round((this.collegeWideStats.yellow / total) * 100),
-    red: Math.round((this.collegeWideStats.red / total) * 100)
+    red: Math.round((this.collegeWideStats.red / total) * 100),
+    unassigned: Math.round((this.collegeWideStats.unassigned / total) * 100)
   };
 });
 
@@ -180,7 +185,7 @@ ZoneStatisticsSchema.statics.generateOverallStatistics = async function(academic
       statisticType: 'overall',
       academicYear,
       campusStats: [],
-      collegeWideStats: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+      collegeWideStats: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
     };
     
     // Get all classes for structure
@@ -194,14 +199,14 @@ ZoneStatisticsSchema.statics.generateOverallStatistics = async function(academic
       const campusData = {
         campus,
         gradeStats: [],
-        campusZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+        campusZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
       };
       
       grades.forEach(grade => {
         const gradeData = {
           grade,
           classStats: [],
-          gradeZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+          gradeZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
         };
         
         // Add classes for this campus and grade
@@ -213,7 +218,7 @@ ZoneStatisticsSchema.statics.generateOverallStatistics = async function(academic
           gradeData.classStats.push({
             classId: cls._id,
             className: cls.name,
-            zoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+            zoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
           });
         });
         
@@ -316,7 +321,7 @@ ZoneStatisticsSchema.statics.generateSubjectStatistics = async function(subjectN
       subjectName,
       academicYear,
       campusStats: [],
-      collegeWideStats: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+      collegeWideStats: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
     };
     
     // Get all classes for structure
@@ -330,14 +335,14 @@ ZoneStatisticsSchema.statics.generateSubjectStatistics = async function(subjectN
       const campusData = {
         campus,
         gradeStats: [],
-        campusZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+        campusZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
       };
       
       grades.forEach(grade => {
         const gradeData = {
           grade,
           classStats: [],
-          gradeZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+          gradeZoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
         };
         
         const relevantClasses = allClasses.filter(cls => 
@@ -348,7 +353,7 @@ ZoneStatisticsSchema.statics.generateSubjectStatistics = async function(subjectN
           gradeData.classStats.push({
             classId: cls._id,
             className: cls.name,
-            zoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, total: 0 }
+            zoneDistribution: { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 }
           });
         });
         

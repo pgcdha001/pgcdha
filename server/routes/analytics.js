@@ -101,140 +101,62 @@ router.get('/overview', authenticate, requireAnalyticsAccess('view'), applyRoleB
     const statistics = await ZoneStatistics.findOne(filter);
     
     if (!statistics) {
-      // Return dummy data for demonstration purposes
-      const dummyData = {
-        collegeWideStats: { 
-          green: 342, 
-          blue: 287, 
-          yellow: 156, 
-          red: 89, 
-          total: 874 
-        },
-        campusStats: [
-          {
-            campusName: 'Main Campus',
-            stats: { green: 189, blue: 145, yellow: 78, red: 43, total: 455 },
-            gradeStats: [
-              {
-                gradeName: 'Grade 9',
-                stats: { green: 45, blue: 38, yellow: 22, red: 12, total: 117 }
-              },
-              {
-                gradeName: 'Grade 10',
-                stats: { green: 52, blue: 41, yellow: 19, red: 8, total: 120 }
-              },
-              {
-                gradeName: 'Grade 11',
-                stats: { green: 48, blue: 36, yellow: 21, red: 13, total: 118 }
-              },
-              {
-                gradeName: 'Grade 12',
-                stats: { green: 44, blue: 30, yellow: 16, red: 10, total: 100 }
-              }
-            ]
-          },
-          {
-            campusName: 'North Campus',
-            stats: { green: 98, blue: 89, yellow: 45, red: 28, total: 260 },
-            gradeStats: [
-              {
-                gradeName: 'Grade 9',
-                stats: { green: 28, blue: 25, yellow: 12, red: 8, total: 73 }
-              },
-              {
-                gradeName: 'Grade 10',
-                stats: { green: 25, blue: 22, yellow: 11, red: 7, total: 65 }
-              },
-              {
-                gradeName: 'Grade 11',
-                stats: { green: 24, blue: 21, yellow: 12, red: 7, total: 64 }
-              },
-              {
-                gradeName: 'Grade 12',
-                stats: { green: 21, blue: 21, yellow: 10, red: 6, total: 58 }
-              }
-            ]
-          },
-          {
-            campusName: 'South Campus',
-            stats: { green: 55, blue: 53, yellow: 33, red: 18, total: 159 },
-            gradeStats: [
-              {
-                gradeName: 'Grade 9',
-                stats: { green: 15, blue: 14, yellow: 9, red: 5, total: 43 }
-              },
-              {
-                gradeName: 'Grade 10',
-                stats: { green: 14, blue: 13, yellow: 8, red: 4, total: 39 }
-              },
-              {
-                gradeName: 'Grade 11',
-                stats: { green: 13, blue: 14, yellow: 8, red: 5, total: 40 }
-              },
-              {
-                gradeName: 'Grade 12',
-                stats: { green: 13, blue: 12, yellow: 8, red: 4, total: 37 }
-              }
-            ]
-          }
-        ],
-        subjectPerformance: [
-          { subjectName: 'Mathematics', green: 78, blue: 65, yellow: 42, red: 23, total: 208 },
-          { subjectName: 'Physics', green: 82, blue: 71, yellow: 38, red: 19, total: 210 },
-          { subjectName: 'Chemistry', green: 75, blue: 68, yellow: 45, red: 28, total: 216 },
-          { subjectName: 'Biology', green: 89, blue: 73, yellow: 41, red: 22, total: 225 },
-          { subjectName: 'English', green: 94, blue: 78, yellow: 35, red: 18, total: 225 },
-          { subjectName: 'Urdu', green: 88, blue: 76, yellow: 39, red: 21, total: 224 }
-        ],
-        trendData: [
-          { month: 'January', green: 320, blue: 280, yellow: 145, red: 95 },
-          { month: 'February', green: 325, blue: 275, yellow: 150, red: 90 },
-          { month: 'March', green: 330, blue: 285, yellow: 148, red: 87 },
-          { month: 'April', green: 335, blue: 290, yellow: 152, red: 85 },
-          { month: 'May', green: 342, blue: 287, yellow: 156, red: 89 }
-        ],
-        lastUpdated: new Date(),
-        academicYear: '2024-2025'
-      };
-
       return res.json({
-        success: true,
-        message: 'Demo data - Analytics calculated successfully',
-        data: dummyData
+        success: false,
+        message: 'No analytics data available. Please ensure zone statistics have been generated.',
+        data: null
       });
     }
     
-    // Filter data based on access scope
-    let responseData = {
+    // Transform the data structure to college → campus → grade → class hierarchy
+    const transformedData = {
       collegeWideStats: statistics.collegeWideStats,
-      campusStats: statistics.campusStats,
+      campusStats: statistics.campusStats.map(campus => ({
+        campusName: campus.campus, // Boys/Girls as campuses
+        campusZoneDistribution: campus.campusZoneDistribution,
+        gradeStats: campus.gradeStats.map(grade => ({
+          gradeName: grade.grade, // 11th/12th as grades
+          gradeZoneDistribution: grade.gradeZoneDistribution,
+          classStats: grade.classStats.map(cls => ({
+            classId: cls.classId,
+            className: cls.className,
+            classZoneDistribution: cls.zoneDistribution
+          }))
+        }))
+      })),
       lastUpdated: statistics.lastUpdated,
       academicYear: statistics.academicYear,
-      statisticType: statistics.statisticType
+      statisticType: statistics.statisticType,
+      calculationDuration: statistics.calculationDuration,
+      studentsProcessed: statistics.studentsProcessed
     };
+
+    // Filter data based on access scope
+    let responseData = transformedData;
     
     if (req.accessScope.type === 'coordinator') {
       // Filter to coordinator's campus/grade only
-      responseData.campusStats = statistics.campusStats.filter(campus => 
-        campus.campus === req.accessScope.campus
+      responseData.campusStats = transformedData.campusStats.filter(campus => 
+        campus.campusName === req.accessScope.campus
       ).map(campus => ({
-        ...campus.toObject(),
+        ...campus,
         gradeStats: campus.gradeStats.filter(grade => 
-          grade.grade === req.accessScope.grade
+          grade.gradeName === req.accessScope.grade
         )
       }));
       
       // Recalculate college-wide stats for coordinator's scope
       responseData.collegeWideStats = responseData.campusStats.reduce((acc, campus) => {
         campus.gradeStats.forEach(grade => {
-          acc.green += grade.gradeZoneDistribution.green;
-          acc.blue += grade.gradeZoneDistribution.blue;
-          acc.yellow += grade.gradeZoneDistribution.yellow;
-          acc.red += grade.gradeZoneDistribution.red;
-          acc.total += grade.gradeZoneDistribution.total;
+          acc.green += program.programZoneDistribution.green;
+          acc.blue += program.programZoneDistribution.blue;
+          acc.yellow += program.programZoneDistribution.yellow;
+          acc.red += program.programZoneDistribution.red;
+          acc.unassigned += program.programZoneDistribution.unassigned;
+          acc.total += program.programZoneDistribution.total;
         });
         return acc;
-      }, { green: 0, blue: 0, yellow: 0, red: 0, total: 0 });
+      }, { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 });
     }
     
     res.json({

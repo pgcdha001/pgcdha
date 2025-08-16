@@ -35,7 +35,8 @@ const StudentAnalyticsSchema = new mongoose.Schema({
     // Zone classification
     overallZone: {
       type: String,
-      enum: ['green', 'blue', 'yellow', 'red'],
+      enum: ['green', 'blue', 'yellow', 'red', 'unassigned', null],
+      default: null,
       index: true
     },
     
@@ -77,7 +78,8 @@ const StudentAnalyticsSchema = new mongoose.Schema({
     
     zone: {
       type: String,
-      enum: ['green', 'blue', 'yellow', 'red'],
+      enum: ['green', 'blue', 'yellow', 'red', 'unassigned', null],
+      default: null,
       index: true
     },
     
@@ -184,17 +186,16 @@ StudentAnalyticsSchema.virtual('overallAnalytics.zoneColor').get(function() {
     'green': '#10B981',
     'blue': '#3B82F6', 
     'yellow': '#F59E0B',
-    'red': '#EF4444'
+    'red': '#EF4444',
+    'unassigned': '#9CA3AF'
   };
   return zoneColors[this.overallAnalytics?.overallZone] || '#6B7280';
 });
 
 // Methods
-StudentAnalyticsSchema.methods.calculateOverallZone = function(percentage) {
-  if (percentage >= 76) return 'green';  // 76% and above (high performance)
-  if (percentage >= 71 && percentage <= 75) return 'blue';
-  if (percentage >= 66 && percentage <= 70) return 'yellow';
-  return 'red'; // Below 66%
+StudentAnalyticsSchema.methods.calculateOverallZone = function(currentPercentage, matriculationPercentage) {
+  const ZoneAnalyticsService = require('../services/zoneAnalyticsService');
+  return ZoneAnalyticsService.calculateZone(currentPercentage, matriculationPercentage);
 };
 
 StudentAnalyticsSchema.methods.getPerformanceMatrix = function() {
@@ -229,7 +230,7 @@ StudentAnalyticsSchema.methods.getPerformanceMatrix = function() {
       }
       testsByDate[testKey].subjects[subject.subjectName] = {
         percentage: test.percentage,
-        zone: this.calculateOverallZone(test.percentage)
+        zone: this.calculateOverallZone(test.percentage, this.overallAnalytics.matriculationPercentage)
       };
     });
   });
@@ -240,7 +241,7 @@ StudentAnalyticsSchema.methods.getPerformanceMatrix = function() {
     const subjectPercentages = Object.values(test.subjects).map(s => s.percentage);
     if (subjectPercentages.length > 0) {
       test.overall = subjectPercentages.reduce((sum, p) => sum + p, 0) / subjectPercentages.length;
-      test.overallZone = this.calculateOverallZone(test.overall);
+      test.overallZone = this.calculateOverallZone(test.overall, this.overallAnalytics.matriculationPercentage);
     }
   });
   
@@ -302,7 +303,7 @@ StudentAnalyticsSchema.methods.getGraphData = function() {
       date: null,
       percentage: matrix.matriculationBaseline.overall,
       type: 'baseline',
-      zone: this.calculateOverallZone(matrix.matriculationBaseline.overall)
+      zone: this.calculateOverallZone(matrix.matriculationBaseline.overall, matrix.matriculationBaseline.overall)
     });
   }
   
@@ -325,7 +326,7 @@ StudentAnalyticsSchema.methods.getGraphData = function() {
       label: `${test.testType} (${test.testDate.toLocaleDateString()})`,
       date: test.testDate,
       percentage: test.percentage,
-      zone: this.calculateOverallZone(test.percentage)
+      zone: this.calculateOverallZone(test.percentage, this.overallAnalytics.matriculationPercentage)
     }));
   });
   
@@ -410,8 +411,8 @@ StudentAnalyticsSchema.methods.convertToCSV = function(matrix) {
 
 StudentAnalyticsSchema.methods.updateOverallAnalytics = function(testResults) {
   if (!testResults || testResults.length === 0) {
-    this.overallAnalytics.currentOverallPercentage = 0;
-    this.overallAnalytics.overallZone = 'red';
+    this.overallAnalytics.currentOverallPercentage = null;
+    this.overallAnalytics.overallZone = 'unassigned';
     this.overallAnalytics.totalCTsIncluded = 0;
     return;
   }
@@ -422,7 +423,10 @@ StudentAnalyticsSchema.methods.updateOverallAnalytics = function(testResults) {
   if (totalMaximum > 0) {
     const percentage = (totalObtained / totalMaximum) * 100;
     this.overallAnalytics.currentOverallPercentage = Math.round(percentage * 100) / 100;
-    this.overallAnalytics.overallZone = this.calculateOverallZone(percentage);
+    this.overallAnalytics.overallZone = this.calculateOverallZone(
+      percentage, 
+      this.overallAnalytics.matriculationPercentage
+    );
     this.overallAnalytics.totalCTsIncluded = testResults.length;
     this.overallAnalytics.totalMarksObtained = totalObtained;
     this.overallAnalytics.totalMaxMarks = totalMaximum;
@@ -431,7 +435,7 @@ StudentAnalyticsSchema.methods.updateOverallAnalytics = function(testResults) {
   this.overallAnalytics.lastUpdated = new Date();
 };
 
-StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults) {
+StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults, programSubjects = []) {
   this.subjectAnalytics = [];
   
   // Group results by subject
@@ -444,15 +448,24 @@ StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults)
     subjectGroups[subject].push(result);
   });
   
+  // Get all subjects (from results + program subjects)
+  const allSubjects = new Set([...Object.keys(subjectGroups), ...programSubjects]);
+  
   // Calculate analytics for each subject
-  Object.keys(subjectGroups).forEach(subjectName => {
-    const results = subjectGroups[subjectName];
-    const totalObtained = results.reduce((sum, result) => sum + result.obtainedMarks, 0);
-    const totalMaximum = results.reduce((sum, result) => sum + result.totalMarks, 0);
+  allSubjects.forEach(subjectName => {
+    const results = subjectGroups[subjectName] || [];
     
-    if (totalMaximum > 0) {
+    if (results.length > 0) {
+      // Subject has test results
+      const totalObtained = results.reduce((sum, result) => sum + result.obtainedMarks, 0);
+      const totalMaximum = results.reduce((sum, result) => sum + result.totalMarks, 0);
+      
       const percentage = (totalObtained / totalMaximum) * 100;
-      const zone = this.calculateOverallZone(percentage);
+      
+      // Try to get subject-specific matriculation baseline
+      // For now, use overall matriculation as baseline since subject-specific data structure needs to be implemented
+      const subjectMatricBaseline = this.overallAnalytics.matriculationPercentage;
+      const zone = this.calculateOverallZone(percentage, subjectMatricBaseline);
       
       this.subjectAnalytics.push({
         subjectName,
@@ -471,8 +484,55 @@ StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults)
         })),
         lastUpdated: new Date()
       });
+    } else {
+      // Subject has no test results yet - show as unassigned
+      this.subjectAnalytics.push({
+        subjectName,
+        currentPercentage: null,
+        zone: 'unassigned',
+        totalCTsIncluded: 0,
+        totalMarksObtained: 0,
+        totalMaxMarks: 0,
+        testResults: [],
+        lastUpdated: new Date()
+      });
     }
   });
+};
+
+// Static method to get program subjects for a student
+StudentAnalyticsSchema.statics.getProgramSubjects = async function(student) {
+  // Default subjects based on common programs
+  const programSubjectsMap = {
+    'ICS': ['Mathematics', 'Physics', 'Chemistry', 'Computer Science', 'English', 'Urdu'],
+    'ICS-PHY': ['Mathematics', 'Physics', 'Chemistry', 'Computer Science', 'English', 'Urdu'],
+    'Pre-Engineering': ['Mathematics', 'Physics', 'Chemistry', 'Computer Science', 'English', 'Urdu'],
+    'Pre-Medical': ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Urdu'],
+    'FA': ['Economics', 'Psychology', 'Sociology', 'Mathematics', 'English', 'Urdu'],
+    'Commerce': ['Accounting', 'Economics', 'Business Studies', 'Mathematics', 'English', 'Urdu']
+  };
+  
+  // Try to get subjects from student's program
+  const program = student.program || student.admissionInfo?.program;
+  let subjects = programSubjectsMap[program] || [];
+  
+  // If no subjects found from program, try from class
+  if (subjects.length === 0 && student.classId) {
+    const Class = mongoose.model('Class');
+    const classData = await Class.findById(student.classId).select('subjects program');
+    if (classData?.subjects && classData.subjects.length > 0) {
+      subjects = classData.subjects;
+    } else if (classData?.program) {
+      subjects = programSubjectsMap[classData.program] || [];
+    }
+  }
+  
+  // Default fallback subjects
+  if (subjects.length === 0) {
+    subjects = ['Mathematics', 'Physics', 'Chemistry', 'English', 'Urdu'];
+  }
+  
+  return subjects;
 };
 
 // Static Methods
@@ -534,15 +594,45 @@ StudentAnalyticsSchema.statics.calculateForStudent = async function(studentId, a
       subject: result.testId.subject
     }));
     
-    // Calculate matriculation percentage if available
+    // Calculate matriculation percentage if available (multiple sources)
+    let matriculationPercentage = null;
+    
+    // Priority 1: Check matricMarks and matricTotal (legacy format)
     if (student.matricMarks && student.matricTotal) {
-      analytics.overallAnalytics.matriculationPercentage = 
-        Math.round((student.matricMarks / student.matricTotal) * 10000) / 100;
+      matriculationPercentage = Math.round((student.matricMarks / student.matricTotal) * 10000) / 100;
+      console.log(`Found legacy matric data: ${student.matricMarks}/${student.matricTotal} = ${matriculationPercentage}%`);
+    } 
+    // Priority 2: Check academicRecords.matriculation.percentage (new format - can be number or string)
+    else if (student.academicRecords?.matriculation?.percentage !== undefined && student.academicRecords.matriculation.percentage !== null) {
+      matriculationPercentage = parseFloat(student.academicRecords.matriculation.percentage);
+      console.log(`Found academic records matric data: ${matriculationPercentage}%`);
+    }
+    // Priority 3: Calculate from academicRecords.matriculation.subjects
+    else if (student.academicRecords?.matriculation?.subjects && student.academicRecords.matriculation.subjects.length > 0) {
+      const totalObtained = student.academicRecords.matriculation.subjects.reduce((sum, subject) => 
+        sum + (parseFloat(subject.obtainedMarks) || 0), 0);
+      const totalMaximum = student.academicRecords.matriculation.subjects.reduce((sum, subject) => 
+        sum + (parseFloat(subject.totalMarks) || 0), 0);
+      
+      if (totalMaximum > 0) {
+        matriculationPercentage = Math.round((totalObtained / totalMaximum) * 10000) / 100;
+        console.log(`Calculated matric data from subjects: ${totalObtained}/${totalMaximum} = ${matriculationPercentage}%`);
+      }
     }
     
-    // Update analytics
-    analytics.updateOverallAnalytics(resultsForCalculation);
-    analytics.updateSubjectAnalytics(resultsForCalculation);
+    if (matriculationPercentage !== null && !isNaN(matriculationPercentage)) {
+      analytics.overallAnalytics.matriculationPercentage = matriculationPercentage;
+      console.log(`✅ Set matriculation percentage for ${student.fullName?.firstName} ${student.fullName?.lastName}: ${matriculationPercentage}%`);
+    } else {
+      console.warn(`⚠️  No valid matriculation data found for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
+    }
+    
+    // Create subject placeholders based on student's program/class subjects
+    const programSubjects = await this.getProgramSubjects(student);
+    
+    // Update analytics (even if no test results available)
+    analytics.updateOverallAnalytics(validResults);
+    analytics.updateSubjectAnalytics(validResults, programSubjects);
     
     // Add to calculation history
     analytics.calculationHistory.push({

@@ -4,14 +4,13 @@ import BaseAnalyticsView from './BaseAnalyticsView';
 import { useAuth } from '../../hooks/useAuth';
 
 const ZoneAnalyticsComponent = ({ 
-  level = 'college',
   initialFilters = {},
   className = ''
 }) => {
   const { user } = useAuth();
   
-  // State for navigation
-  const [currentLevel, setCurrentLevel] = useState(level);
+  // State for navigation - always start with college level
+  const [currentLevel, setCurrentLevel] = useState('college');
   const [currentFilters, setCurrentFilters] = useState(initialFilters);
 
   if (!user) {
@@ -22,22 +21,7 @@ const ZoneAnalyticsComponent = ({
     );
   }
 
-  // Determine user's access level and default view
-  const getUserDefaultLevel = () => {
-    switch (user.role) {
-      case 'Teacher':
-        return 'class';
-      case 'Coordinator':
-        return 'campus';
-      case 'Principal':
-      case 'InstituteAdmin':
-      case 'IT':
-        return 'college';
-      default:
-        return 'college';
-    }
-  };
-
+  // Determine user's allowed actions
   const getUserAllowedActions = () => {
     switch (user.role) {
       case 'Principal':
@@ -54,14 +38,35 @@ const ZoneAnalyticsComponent = ({
 
   // Handle drill-down navigation
   const handleDrillDown = (data, type) => {
+    console.log('ZoneAnalyticsComponent drill-down:', { data, type });
+    
     switch (type) {
       case 'campus':
+        // Campus drill-down (Boys/Girls) -> show grades for that campus
         setCurrentLevel('campus');
         setCurrentFilters(prev => ({ ...prev, campus: data.campusName || data.campus }));
         break;
       case 'grade':
+        // Grade drill-down (11th/12th) -> show classes for that grade
         setCurrentLevel('grade');
-        setCurrentFilters(prev => ({ ...prev, grade: data.gradeName || data.grade }));
+        setCurrentFilters(prev => ({ 
+          ...prev, 
+          campus: prev.campus || data.campusName,
+          grade: data.gradeName || data.grade
+        }));
+        break;
+      case 'floor':
+        // Legacy support - floor = campus
+        setCurrentLevel('campus');
+        setCurrentFilters(prev => ({ ...prev, campus: data.floorName }));
+        break;
+      case 'program':
+        // Legacy support - program = grade
+        setCurrentLevel('grade');
+        setCurrentFilters(prev => ({ 
+          ...prev, 
+          grade: data.programName 
+        }));
         break;
       case 'class':
         setCurrentLevel('class');
@@ -76,8 +81,16 @@ const ZoneAnalyticsComponent = ({
   const handleNavigateBack = () => {
     switch (currentLevel) {
       case 'class':
-        setCurrentLevel('grade');
+        setCurrentLevel('program');
         setCurrentFilters(prev => ({ ...prev, classId: undefined }));
+        break;
+      case 'program':
+        setCurrentLevel('floor');
+        setCurrentFilters(prev => ({ ...prev, grade: undefined }));
+        break;
+      case 'floor':
+        setCurrentLevel('college');
+        setCurrentFilters(prev => ({ ...prev, campus: undefined }));
         break;
       case 'grade':
         setCurrentLevel('campus');
@@ -92,7 +105,7 @@ const ZoneAnalyticsComponent = ({
     }
   };
 
-  const defaultLevel = currentLevel || getUserDefaultLevel();
+  const defaultLevel = currentLevel; // Use currentLevel which starts as 'college'
   const allowedActions = getUserAllowedActions();
 
   return (
@@ -117,7 +130,14 @@ const ZoneAnalyticsComponent = ({
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
-                  Back to {currentLevel === 'campus' ? 'College' : currentLevel === 'grade' ? 'Campus' : 'Grade'} View
+                  Back to {
+                    currentLevel === 'class' ? 'Program' :
+                    currentLevel === 'program' ? 'Floor' :
+                    currentLevel === 'floor' ? 'College' :
+                    currentLevel === 'grade' ? 'Campus' :
+                    currentLevel === 'campus' ? 'College' :
+                    'College'
+                  } View
                 </button>
               </div>
             )}
