@@ -539,6 +539,78 @@ router.get('/report/monthly/:year/:month', authenticate, async (req, res) => {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
+    // Compute late buckets and status breakdown across the month
+    const startDate = new Date(yearNum, monthNum - 1, 1);
+    const endDate = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+    const matchQuery = { date: { $gte: startDate, $lte: endDate } };
+    if (floorNum) matchQuery.floor = floorNum;
+
+    const [bucketSummary] = await TeacherAttendance.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: null,
+          totalLectures: { $sum: 1 },
+          onTime: { $sum: { $cond: [{ $eq: ['$status', 'On Time'] }, 1, 0] } },
+          late5to10: { $sum: { $cond: [{ $and: [ { $eq: ['$status', 'Late'] }, { $gte: ['$lateMinutes', 5] }, { $lte: ['$lateMinutes', 10] } ] }, 1, 0] } },
+          lateOver10: { $sum: { $cond: [{ $and: [ { $eq: ['$status', 'Late'] }, { $gt: ['$lateMinutes', 10] } ] }, 1, 0] } },
+          absent: { $sum: { $cond: [{ $eq: ['$status', 'Absent'] }, 1, 0] } },
+          cancelled: { $sum: { $cond: [{ $eq: ['$status', 'Cancelled'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    // Per-teacher late buckets for listing breakdowns
+    const teacherBuckets = await TeacherAttendance.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: '$teacherId',
+          onTime: { $sum: { $cond: [{ $eq: ['$status', 'On Time'] }, 1, 0] } },
+          late5to10: { $sum: { $cond: [{ $and: [ { $eq: ['$status', 'Late'] }, { $gte: ['$lateMinutes', 5] }, { $lte: ['$lateMinutes', 10] } ] }, 1, 0] } },
+          lateOver10: { $sum: { $cond: [{ $and: [ { $eq: ['$status', 'Late'] }, { $gt: ['$lateMinutes', 10] } ] }, 1, 0] } },
+          notAttended: { $sum: { $cond: [{ $eq: ['$status', 'Absent'] }, 1, 0] } },
+          cancelled: { $sum: { $cond: [{ $eq: ['$status', 'Cancelled'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    const teacherIdToBuckets = new Map();
+    teacherBuckets.forEach(b => {
+      teacherIdToBuckets.set(b._id.toString(), {
+        onTime: b.onTime || 0,
+        late5to10: b.late5to10 || 0,
+        lateOver10: b.lateOver10 || 0,
+        notAttended: b.notAttended || 0,
+        cancelled: b.cancelled || 0
+      });
+    });
+
+    // Attach breakdown to each teacher in processed report
+    processedReport.forEach(t => {
+      const buckets = teacherIdToBuckets.get(String(t.teacherId)) || {
+        onTime: 0, late5to10: 0, lateOver10: 0, notAttended: 0, cancelled: 0
+      };
+      t.breakdown = buckets;
+    });
+
+    const summaryBase = {
+      totalTeachers: processedReport.length,
+      totalLectures: processedReport.reduce((sum, t) => sum + t.totalLectures, 0),
+      overallPunctuality: processedReport.length > 0 ? 
+        Math.round(processedReport.reduce((sum, t) => sum + t.punctualityPercentage, 0) / processedReport.length) : 0
+    };
+
+    const breakdown = bucketSummary ? {
+      onTime: bucketSummary.onTime || 0,
+      late5to10: bucketSummary.late5to10 || 0,
+      lateOver10: bucketSummary.lateOver10 || 0,
+      notAttended: bucketSummary.absent || 0,
+      cancelled: bucketSummary.cancelled || 0
+    } : {
+      onTime: 0, late5to10: 0, lateOver10: 0, notAttended: 0, cancelled: 0
+    };
+
     res.json({
       success: true,
       report: {
@@ -548,10 +620,8 @@ router.get('/report/monthly/:year/:month', authenticate, async (req, res) => {
         floor: floorNum,
         teachers: processedReport,
         summary: {
-          totalTeachers: processedReport.length,
-          totalLectures: processedReport.reduce((sum, t) => sum + t.totalLectures, 0),
-          overallPunctuality: processedReport.length > 0 ? 
-            Math.round(processedReport.reduce((sum, t) => sum + t.punctualityPercentage, 0) / processedReport.length) : 0
+          ...summaryBase,
+          breakdown
         }
       }
     });

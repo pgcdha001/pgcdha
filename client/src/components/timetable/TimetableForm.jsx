@@ -56,19 +56,7 @@ const TimetableForm = ({ timetable, classes, teachers, onSubmit, onClose }) => {
     'Ethics'
   ];
 
-  // Generate time slots (8:00 AM to 6:00 PM in 30-minute intervals)
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 8; hour <= 18; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        slots.push(time);
-      }
-    }
-    return slots;
-  };
-
-  const timeSlots = generateTimeSlots();
+  // Use native time inputs to allow minute-level precision (e.g., 08:20, 08:45)
 
   useEffect(() => {
     if (timetable) {
@@ -347,48 +335,28 @@ const TimetableForm = ({ timetable, classes, teachers, onSubmit, onClose }) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time *</Label>
-                <Select 
-                  value={formData.startTime} 
-                  onValueChange={(value) => handleInputChange('startTime', value)}
-                >
-                  <SelectTrigger className={errors.startTime ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Start time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map(time => (
-                      <SelectItem key={time} value={time}>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          {time}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="startTime">Start Time *</nLabel>
+                <Input
+                  id="startTime"
+                  type="time"
+                  step="60"
+                  value={formData.startTime}
+                  onChange={(e) => handleInputChange('startTime', e.target.value)}
+                  className={errors.startTime ? 'border-red-500' : ''}
+                />
                 {errors.startTime && <p className="text-sm text-red-500">{errors.startTime}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="endTime">End Time *</Label>
-                <Select 
-                  value={formData.endTime} 
-                  onValueChange={(value) => handleInputChange('endTime', value)}
-                >
-                  <SelectTrigger className={errors.endTime ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="End time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map(time => (
-                      <SelectItem key={time} value={time}>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          {time}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="endTime">End Time *</nLabel>
+                <Input
+                  id="endTime"
+                  type="time"
+                  step="60"
+                  value={formData.endTime}
+                  onChange={(e) => handleInputChange('endTime', e.target.value)}
+                  className={errors.endTime ? 'border-red-500' : ''}
+                />
                 {errors.endTime && <p className="text-sm text-red-500">{errors.endTime}</p>}
               </div>
             </div>

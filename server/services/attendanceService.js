@@ -294,15 +294,20 @@ class AttendanceService {
       },
       { $unwind: '$class' },
       {
-        $match: {
-          'class.program': { $exists: true, $ne: null }
-        }
-      },
-      {
         $group: {
           _id: {
             campus: '$class.campus',
-            program: '$class.program'
+            // Group null/empty program values under "Unknown" so UI still displays
+            program: {
+              $cond: [
+                { $or: [
+                  { $eq: ['$class.program', null] },
+                  { $eq: ['$class.program', ''] }
+                ] },
+                'Unknown',
+                '$class.program'
+              ]
+            }
           },
           totalRecords: { $sum: 1 },
           presentCount: {
@@ -314,14 +319,39 @@ class AttendanceService {
     ];
 
     const results = await Attendance.aggregate(pipeline);
-    
+
+    // Preload all programs from Class collection for each campus so UI shows zeroed entries
+    const [boysPrograms, girlsPrograms] = await Promise.all([
+      Class.distinct('program', { campus: 'Boys' }),
+      Class.distinct('program', { campus: 'Girls' })
+    ]);
+
     const breakdown = {};
     ['Boys', 'Girls'].forEach(campus => {
-      breakdown[campus.toLowerCase()] = {};
-      
+      const campusKey = campus.toLowerCase();
+      breakdown[campusKey] = {};
+
+      const basePrograms = campus === 'Boys' ? boysPrograms : girlsPrograms;
+      basePrograms.forEach(programName => {
+        if (!programName) return;
+        breakdown[campusKey][programName] = {
+          total: 0,
+          present: 0,
+          absent: 0,
+          percentage: 0
+        };
+      });
+      // Ensure Unknown bucket exists
+      breakdown[campusKey]['Unknown'] = breakdown[campusKey]['Unknown'] || {
+        total: 0,
+        present: 0,
+        absent: 0,
+        percentage: 0
+      };
+
       const campusResults = results.filter(r => r._id.campus === campus);
       campusResults.forEach(data => {
-        breakdown[campus.toLowerCase()][data._id.program] = {
+        breakdown[campusKey][data._id.program] = {
           total: data.uniqueStudents.length,
           present: data.presentCount,
           absent: data.uniqueStudents.length - data.presentCount,

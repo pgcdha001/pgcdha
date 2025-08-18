@@ -16,11 +16,7 @@ const EnhancedTimetableForm = ({ classes, teachers, onSubmit, onClose, editingTi
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
   ];
 
-  const timeSlots = [
-    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-    '16:00', '16:30', '17:00', '17:30', '18:00'
-  ];
+  // Use native time input for minute-level precision
 
   const lectureTypes = ['Theory', 'Practical', 'Lab', 'Tutorial', 'Seminar'];
   
@@ -453,21 +449,13 @@ const EnhancedTimetableForm = ({ classes, teachers, onSubmit, onClose, editingTi
                                       {/* Start Time */}
                                       <div>
                                         <Label>Start Time *</Label>
-                                        <Select 
-                                          value={lecture.startTime} 
-                                          onValueChange={(value) => updateLecture(day, lecture.id, 'startTime', value)}
-                                        >
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Select time" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {timeSlots.map(time => (
-                                              <SelectItem key={time} value={time}>
-                                                {time}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        <input
+                                          type="time"
+                                          step="60"
+                                          value={lecture.startTime}
+                                          onChange={(e) => updateLecture(day, lecture.id, 'startTime', e.target.value)}
+                                          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                        />
                                         {errors[`${day}_${lecture.id}_time`] && (
                                           <p className="text-sm text-red-500 mt-1">{errors[`${day}_${lecture.id}_time`]}</p>
                                         )}

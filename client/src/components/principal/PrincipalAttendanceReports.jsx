@@ -284,21 +284,73 @@ const PrincipalAttendanceReports = () => {
               </div>
             </div>
 
-            {/* Teachers List */}
+            {/* Status breakdown incl. late buckets */}
+            {monthlyData.summary?.breakdown && (
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+                <div className="p-4 rounded-lg border border-green-200 bg-green-50">
+                  <p className="text-sm text-green-800">On Time</p>
+                  <p className="text-xl font-bold text-green-700">{monthlyData.summary.breakdown.onTime}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-yellow-200 bg-yellow-50">
+                  <p className="text-sm text-yellow-800">Late 5–10 min</p>
+                  <p className="text-xl font-bold text-yellow-700">{monthlyData.summary.breakdown.late5to10}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-orange-200 bg-orange-50">
+                  <p className="text-sm text-orange-800">Late &gt; 10 min</p>
+                  <p className="text-xl font-bold text-orange-700">{monthlyData.summary.breakdown.lateOver10}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-red-200 bg-red-50">
+                  <p className="text-sm text-red-800">Not Attended</p>
+                  <p className="text-xl font-bold text-red-700">{monthlyData.summary.breakdown.notAttended}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-gray-200 bg-gray-50">
+                  <p className="text-sm text-gray-800">Cancelled</p>
+                  <p className="text-xl font-bold text-gray-700">{monthlyData.summary.breakdown.cancelled}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Teachers List with per-teacher breakdown */}
             {monthlyData.teachers && monthlyData.teachers.length > 0 && (
               <div>
                 <h3 className="font-medium text-gray-800 mb-4">Teacher Performance Summary</h3>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {monthlyData.teachers.map((teacher, index) => (
-                    <div key={index} className="p-3 border border-gray-200 rounded-lg bg-white/50 flex justify-between items-center">
-                      <div>
-                        <p className="font-medium text-gray-800">{getTeacherName(teacher)}</p>
-                        <p className="text-sm text-gray-600">Total Lectures: {teacher.totalLectures}</p>
+                    <div key={index} className="p-3 border border-gray-200 rounded-lg bg-white/50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-800">{getTeacherName(teacher)}</p>
+                          <p className="text-sm text-gray-600">Total Lectures: {teacher.totalLectures}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-purple-600">{teacher.punctualityPercentage}%</p>
+                          <p className="text-xs text-gray-500">Punctuality</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-purple-600">{teacher.punctualityPercentage}%</p>
-                        <p className="text-xs text-gray-500">Punctuality</p>
-                      </div>
+                      {teacher.breakdown && (
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
+                          <div className="p-2 rounded border border-green-200 bg-green-50 text-center">
+                            <p className="text-xs text-green-800">On Time</p>
+                            <p className="text-sm font-semibold text-green-700">{teacher.breakdown.onTime}</p>
+                          </div>
+                          <div className="p-2 rounded border border-yellow-200 bg-yellow-50 text-center">
+                            <p className="text-xs text-yellow-800">Late 5–10</p>
+                            <p className="text-sm font-semibold text-yellow-700">{teacher.breakdown.late5to10}</p>
+                          </div>
+                          <div className="p-2 rounded border border-orange-200 bg-orange-50 text-center">
+                            <p className="text-xs text-orange-800">Late &gt; 10</p>
+                            <p className="text-sm font-semibold text-orange-700">{teacher.breakdown.lateOver10}</p>
+                          </div>
+                          <div className="p-2 rounded border border-red-200 bg-red-50 text-center">
+                            <p className="text-xs text-red-800">Not Attended</p>
+                            <p className="text-sm font-semibold text-red-700">{teacher.breakdown.notAttended}</p>
+                          </div>
+                          <div className="p-2 rounded border border-gray-200 bg-gray-50 text-center">
+                            <p className="text-xs text-gray-800">Cancelled</p>
+                            <p className="text-sm font-semibold text-gray-700">{teacher.breakdown.cancelled}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
