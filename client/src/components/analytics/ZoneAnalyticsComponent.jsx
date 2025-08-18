@@ -41,20 +41,21 @@ const ZoneAnalyticsComponent = ({
     console.log('ZoneAnalyticsComponent drill-down:', { data, type });
     
     switch (type) {
-      case 'campus':
-        // Campus drill-down (Boys/Girls) -> show grades for that campus
+      case 'campus': {
+        // Campus drill-down (Boys/Girls)
+        const campusName = data.campusName || data.campus;
         setCurrentLevel('campus');
-        setCurrentFilters(prev => ({ ...prev, campus: data.campusName || data.campus }));
+        setCurrentFilters(prev => ({ ...prev, campus: campusName }));
         break;
-      case 'grade':
+      }
+      case 'grade': {
         // Grade drill-down (11th/12th) -> show classes for that grade
+        const campusName = data.campusName || data.campus || currentFilters.campus;
+        const gradeName = data.gradeName || data.grade;
         setCurrentLevel('grade');
-        setCurrentFilters(prev => ({ 
-          ...prev, 
-          campus: prev.campus || data.campusName,
-          grade: data.gradeName || data.grade
-        }));
+        setCurrentFilters(prev => ({ ...prev, campus: campusName, grade: gradeName }));
         break;
+      }
       case 'floor':
         // Legacy support - floor = campus
         setCurrentLevel('campus');

@@ -101,11 +101,35 @@ router.get('/overview', authenticate, requireAnalyticsAccess('view'), applyRoleB
     const statistics = await ZoneStatistics.findOne(filter);
     
     if (!statistics) {
-      return res.json({
-        success: false,
-        message: 'No analytics data available. Please ensure zone statistics have been generated.',
-        data: null
-      });
+      // Return zeroed structure so UI can render hierarchy even without data
+      const zero = { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
+      const responseData = {
+        collegeWideStats: { ...zero },
+        campusStats: [
+          {
+            campusName: 'Boys',
+            campusZoneDistribution: { ...zero },
+            gradeStats: [
+              { gradeName: '11th', gradeZoneDistribution: { ...zero }, classStats: [] },
+              { gradeName: '12th', gradeZoneDistribution: { ...zero }, classStats: [] }
+            ]
+          },
+          {
+            campusName: 'Girls',
+            campusZoneDistribution: { ...zero },
+            gradeStats: [
+              { gradeName: '11th', gradeZoneDistribution: { ...zero }, classStats: [] },
+              { gradeName: '12th', gradeZoneDistribution: { ...zero }, classStats: [] }
+            ]
+          }
+        ],
+        lastUpdated: new Date(),
+        academicYear,
+        statisticType,
+        calculationDuration: 0,
+        studentsProcessed: 0
+      };
+      return res.json({ success: true, data: responseData });
     }
     
     // Transform the data structure to college → campus → grade → class hierarchy
@@ -193,50 +217,38 @@ router.get('/campus/:campus', authenticate, requireAnalyticsAccess('view'), appl
     const statistics = await ZoneStatistics.findOne(filter);
     
     if (!statistics) {
-      // Return campus-specific dummy data
-      const campusDummyData = {
-        campusName: campus,
-        stats: campus === 'Main Campus' 
-          ? { green: 189, blue: 145, yellow: 78, red: 43, total: 455 }
-          : campus === 'North Campus'
-          ? { green: 98, blue: 89, yellow: 45, red: 28, total: 260 }
-          : { green: 55, blue: 53, yellow: 33, red: 18, total: 159 },
-        gradeStats: [
-          {
-            gradeName: 'Grade 9',
-            stats: campus === 'Main Campus' 
-              ? { green: 45, blue: 38, yellow: 22, red: 12, total: 117 }
-              : { green: 28, blue: 25, yellow: 12, red: 8, total: 73 }
-          },
-          {
-            gradeName: 'Grade 10',
-            stats: campus === 'Main Campus'
-              ? { green: 52, blue: 41, yellow: 19, red: 8, total: 120 }
-              : { green: 25, blue: 22, yellow: 11, red: 7, total: 65 }
-          }
-        ],
-        subjectPerformance: [
-          { subjectName: 'Mathematics', green: 45, blue: 38, yellow: 22, red: 12, total: 117 },
-          { subjectName: 'Physics', green: 42, blue: 35, yellow: 20, red: 10, total: 107 },
-          { subjectName: 'Chemistry', green: 48, blue: 40, yellow: 18, red: 9, total: 115 }
-        ],
-        lastUpdated: new Date(),
-        academicYear: '2024-2025'
-      };
-
+      // Return zeroed data for requested campus (Boys/Girls)
+      const zero = { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
       return res.json({
         success: true,
-        message: `Demo data for ${campus}`,
-        data: campusDummyData
+        data: {
+          campusName: campus,
+          campusZoneDistribution: { ...zero },
+          gradeStats: [
+            { gradeName: '11th', gradeZoneDistribution: { ...zero }, classStats: [] },
+            { gradeName: '12th', gradeZoneDistribution: { ...zero }, classStats: [] }
+          ],
+          lastUpdated: new Date(),
+          academicYear
+        }
       });
     }
     
     const campusData = statistics.campusStats.find(c => c.campus === campus);
     if (!campusData) {
+      const zero = { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
       return res.json({
         success: true,
-        message: `No data found for ${campus} campus`,
-        data: null
+        data: {
+          campusName: campus,
+          campusZoneDistribution: { ...zero },
+          gradeStats: [
+            { gradeName: '11th', gradeZoneDistribution: { ...zero }, classStats: [] },
+            { gradeName: '12th', gradeZoneDistribution: { ...zero }, classStats: [] }
+          ],
+          lastUpdated: new Date(),
+          academicYear
+        }
       });
     }
     

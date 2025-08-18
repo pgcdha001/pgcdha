@@ -19,11 +19,19 @@ const BaseAnalyticsView = ({
     academicYear: '2024-2025',
     statisticType: 'overall',
     campus: '',
+    floor: '',
     grade: '',
     classId: '',
     subjectName: '',
     ...initialFilters
   });
+
+  // Keep local filters in sync with parent-provided filters (e.g., after drill-down)
+  React.useEffect(() => {
+    if (initialFilters) {
+      setFilters(prev => ({ ...prev, ...initialFilters }));
+    }
+  }, [initialFilters]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [view, setView] = useState('overview'); // overview, students, matrix
 
@@ -40,6 +48,11 @@ const BaseAnalyticsView = ({
           case 'campus':
             if (filters.campus) {
               endpoint = `/analytics/campus/${filters.campus}`;
+            }
+            break;
+          case 'floor':
+            if (filters.campus && filters.floor) {
+              endpoint = `/analytics/campus/${filters.campus}/grade/${filters.floor === '1st' ? '11th' : '12th'}`;
             }
             break;
           case 'grade':
@@ -197,22 +210,26 @@ const BaseAnalyticsView = ({
         return (
           <div className="space-y-6">
             <ZoneStatisticsCard 
-              data={analyticsData.campusZoneDistribution}
-              title={`${analyticsData.campusName || 'Campus'} Overview`}
+              data={analyticsData.campusZoneDistribution || analyticsData.stats}
+              title={`${analyticsData.campusName || analyticsData.campus || 'Campus'} Overview`}
               showPercentages={true}
             />
             
+            {/* Floor distribution (11th/12th) reusing gradeStats */}
             {analyticsData.gradeStats && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {analyticsData.gradeStats.map(grade => (
-                  <ZoneStatisticsCard
-                    key={grade.gradeName || grade.grade}
-                    data={grade.gradeZoneDistribution || grade.stats}
-                    title={`${grade.gradeName || grade.grade || 'Grade'} Overview`}
-                    allowDrillDown={canAccessGrade(grade.gradeName || grade.grade)}
-                    onDrillDown={() => handleDrillDown(grade, 'grade')}
-                  />
-                ))}
+                {analyticsData.gradeStats.map(grade => {
+                  const floorId = (grade.grade || grade.gradeName) === '11th' ? '1st' : '2nd';
+                  return (
+                    <ZoneStatisticsCard
+                      key={grade.gradeName || grade.grade}
+                      data={grade.gradeZoneDistribution || grade.stats}
+                      title={`${floorId === '1st' ? '1st Floor (11th)' : '2nd Floor (12th)'} - ${analyticsData.campusName || analyticsData.campus || 'Campus'}`}
+                      allowDrillDown={canAccessGrade(grade.gradeName || grade.grade)}
+                      onDrillDown={() => handleDrillDown({ ...grade, floor: floorId }, 'grade')}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -238,6 +255,22 @@ const BaseAnalyticsView = ({
                     onDrillDown={() => handleDrillDown(classData, 'class')}
                   />
                 ))}
+                {/* Show a pseudo-class card for unassigned students so totals reconcile */}
+                {(() => {
+                  const unassigned = (analyticsData.gradeZoneDistribution?.unassigned) ?? (analyticsData.gradeStats?.unassigned) ?? 0;
+                  if (unassigned > 0) {
+                    const unassignedData = { green: 0, blue: 0, yellow: 0, red: 0, unassigned, total: unassigned };
+                    return (
+                      <ZoneStatisticsCard
+                        key="unassigned"
+                        data={unassignedData}
+                        title="Unassigned Students"
+                        allowDrillDown={false}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>
