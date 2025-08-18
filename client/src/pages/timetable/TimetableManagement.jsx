@@ -205,8 +205,11 @@ const TimetableManagement = () => {
       // Use the bulk delete endpoint
       const response = await api.delete(`/timetable/class/${classId}`);
       
-      // Remove all entries for this class from local state
-      setTimetableData(prevData => prevData.filter(item => item.classId._id !== classId));
+      // Remove all entries for this class from local state (defensive for null classId)
+      setTimetableData(prevData => prevData.filter(item => {
+        const id = item?.classId?._id || item?.classId; // handle populated or raw id
+        return String(id) !== String(classId) ? true : false;
+      }));
       
       if (typeof addToast === 'function') {
         addToast({ 
@@ -231,11 +234,32 @@ const TimetableManagement = () => {
 
   const handleFormSubmit = async (formData) => {
     try {
-      // Transform the formData to create individual timetable entries for each lecture
+      // Transform the formData to create/update individual timetable entries for each lecture
       const { classId, lectures } = formData;
-      
-      // Create separate API calls for each lecture
-      const timetablePromises = lectures.map(lecture => {
+
+      // Build an index of existing entries by day and start time to avoid conflicts (e.g., Monday duplicates)
+      const daysToUpdate = Array.from(new Set(lectures.map(l => l.dayOfWeek)));
+      const existingByDay = {};
+      const existingIndex = {};
+
+      for (const day of daysToUpdate) {
+        try {
+          const res = await api.get(`/timetable/class/${classId}?dayOfWeek=${encodeURIComponent(day)}`);
+          const existing = Array.isArray(res.data?.timetable) ? res.data.timetable : [];
+          existingByDay[day] = existing;
+          existing.forEach(item => {
+            const key = `${day}|${item.startTime}`;
+            if (!existingIndex[key]) existingIndex[key] = [];
+            existingIndex[key].push(item);
+          });
+        } catch (e) {
+          // If fetch fails, proceed with creation; conflicts will be handled by server
+          existingByDay[day] = [];
+        }
+      }
+
+      // For each lecture: if an entry exists at same day/startTime, update it; otherwise create
+      const results = await Promise.allSettled(lectures.map(async (lecture) => {
         const lectureData = {
           title: lecture.lectureName,
           classId,
@@ -248,16 +272,27 @@ const TimetableManagement = () => {
           duration: lecture.duration,
           academicYear: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
         };
-        
+
+        const key = `${lecture.dayOfWeek}|${lecture.startTime}`;
+        const existing = existingIndex[key]?.[0];
+
+        if (existing && existing._id) {
+          // Update in place to avoid time conflict
+          return api.put(`/timetable/${existing._id}`, lectureData);
+        }
+        // Create new entry
         return api.post('/timetable', lectureData);
-      });
-      
-      await Promise.all(timetablePromises);
+      }));
+
+      const failed = results.filter(r => r.status === 'rejected');
+      if (failed.length > 0 && typeof addToast === 'function') {
+        addToast({ type: 'warning', message: `${failed.length} lecture(s) had conflicts or failed to save. Others were saved.` });
+      }
       
       if (typeof addToast === 'function') {
-        addToast({ type: 'success', message: `Class timetable created successfully with ${lectures.length} lectures` });
+        addToast({ type: 'success', message: `Timetable saved. ${lectures.length - failed.length} saved, ${failed.length} failed.` });
       } else {
-        console.log(`Class timetable created successfully with ${lectures.length} lectures`);
+        console.log(`Timetable saved. ${lectures.length - failed.length} saved, ${failed.length} failed.`);
       }
       
       setShowForm(false);
