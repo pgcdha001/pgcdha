@@ -4,7 +4,7 @@ export const teacherAttendanceAPI = {
   // Mark teacher attendance
   markAttendance: async (attendanceData) => {
     try {
-      const response = await api.post('/teacherAttendance/mark', attendanceData);
+      const response = await api.post('/teacher-attendance/mark', attendanceData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to mark teacher attendance' };
@@ -14,7 +14,7 @@ export const teacherAttendanceAPI = {
   // Mark bulk teacher attendance
   markBulkAttendance: async (attendanceRecords) => {
     try {
-      const response = await api.post('/teacherAttendance/mark-bulk', attendanceRecords);
+      const response = await api.post('/teacher-attendance/mark-bulk', attendanceRecords);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to mark bulk teacher attendance' };
@@ -24,7 +24,7 @@ export const teacherAttendanceAPI = {
   // Get teacher attendance for a specific floor and date
   getFloorAttendance: async (floor, date) => {
     try {
-      const response = await api.get(`/teacherAttendance/floor/${floor}/${date}`);
+      const response = await api.get(`/teacher-attendance/floor/${floor}/${date}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get floor attendance' };
@@ -34,7 +34,7 @@ export const teacherAttendanceAPI = {
   // Get teacher attendance history
   getTeacherAttendance: async (teacherId, params = {}) => {
     try {
-      const response = await api.get(`/teacherAttendance/teacher/${teacherId}`, { params });
+      const response = await api.get(`/teacher-attendance/teacher/${teacherId}`, { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get teacher attendance' };
@@ -45,7 +45,7 @@ export const teacherAttendanceAPI = {
   getMonthlyReport: async (year, month, floor = null) => {
     try {
       const params = floor ? { floor } : {};
-      const response = await api.get(`/teacherAttendance/report/monthly/${year}/${month}`, { params });
+      const response = await api.get(`/teacher-attendance/report/monthly/${year}/${month}`, { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get monthly report' };
@@ -56,7 +56,7 @@ export const teacherAttendanceAPI = {
   getDailyReport: async (date, floor = null) => {
     try {
       const params = floor ? { floor } : {};
-      const response = await api.get(`/teacherAttendance/report/daily/${date}`, { params });
+      const response = await api.get(`/teacher-attendance/report/daily/${date}`, { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get daily report' };
@@ -66,7 +66,7 @@ export const teacherAttendanceAPI = {
   // Get teacher punctuality statistics
   getPunctualityStats: async (teacherId, days = 30) => {
     try {
-      const response = await api.get(`/teacherAttendance/stats/punctuality/${teacherId}`, {
+      const response = await api.get(`/teacher-attendance/stats/punctuality/${teacherId}`, {
         params: { days }
       });
       return response.data;
@@ -78,7 +78,7 @@ export const teacherAttendanceAPI = {
   // Mark attendance by coordinator
   markByCoordinator: async (attendanceRecords) => {
     try {
-      const response = await api.post('/teacherAttendance/coordinator/mark', { attendanceRecords });
+      const response = await api.post('/teacher-attendance/coordinator/mark', { attendanceRecords });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to mark attendance by coordinator' };
@@ -88,7 +88,7 @@ export const teacherAttendanceAPI = {
   // Get teacher attendance for a specific date
   getAttendanceByDate: async (date) => {
     try {
-      const response = await api.get(`/teacherAttendance/date/${date}`);
+      const response = await api.get(`/teacher-attendance/date/${date}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get attendance by date' };
