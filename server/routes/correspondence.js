@@ -533,7 +533,7 @@ router.get('/', authenticate, async (req, res) => {
 // Create new correspondence
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { studentId, type, subject, message } = req.body;
+    const { studentId, type, subject, message, toWhom, communicationCategory } = req.body;
 
     // Validate required fields
     if (!studentId || !type || !subject || !message) {
@@ -554,6 +554,8 @@ router.post('/', authenticate, async (req, res) => {
 
     // Validate correspondence type based on student level
     const studentLevel = student.prospectusStage || 1;
+    const isAdmitted = studentLevel === 5;
+    const hasClass = student.classId && student.classId !== null;
     
     // Allow all correspondence types for any level, but with logical constraints
     const validTypes = ['student', 'call', 'meeting', 'follow-up', 'enquiry'];
@@ -564,14 +566,32 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
 
+    // Validate additional fields for admitted students with class assignments
+    if (type === 'student' && isAdmitted && hasClass) {
+      // For admitted students with class, validate required fields
+      if (!toWhom || !['parent', 'sibling', 'student'].includes(toWhom)) {
+        return res.status(400).json({
+          success: false,
+          message: 'toWhom field is required for admitted students with class assignments. Must be: parent, sibling, or student'
+        });
+      }
+      
+      if (!communicationCategory || !['appreciation', 'results', 'discipline', 'attendance', 'fee', 'general'].includes(communicationCategory)) {
+        return res.status(400).json({
+          success: false,
+          message: 'communicationCategory field is required for admitted students with class assignments. Must be: appreciation, results, discipline, attendance, fee, or general'
+        });
+      }
+    }
+
     // 'student' type is primarily for admitted students (Level 5+)
     // 'enquiry', 'call', 'meeting', 'follow-up' are for all levels
     if (type === 'student' && studentLevel < 5) {
       console.warn(`Student correspondence created for non-admitted student (Level ${studentLevel})`);
     }
 
-    // Create correspondence
-    const correspondence = new Correspondence({
+    // Create correspondence object
+    const correspondenceData = {
       studentId,
       type,
       subject,
@@ -582,12 +602,21 @@ router.post('/', authenticate, async (req, res) => {
         role: req.user.role
       },
       studentLevel
-    });
+    };
+
+    // Add additional fields for admitted students with class assignments
+    if (type === 'student' && isAdmitted && hasClass) {
+      correspondenceData.toWhom = toWhom;
+      correspondenceData.communicationCategory = communicationCategory || 'general';
+    }
+
+    // Create correspondence
+    const correspondence = new Correspondence(correspondenceData);
 
     await correspondence.save();
 
     // Populate student details for response
-    await correspondence.populate('studentId', 'fullName email prospectusStage');
+    await correspondence.populate('studentId', 'fullName email prospectusStage classId');
 
     res.status(201).json({
       success: true,

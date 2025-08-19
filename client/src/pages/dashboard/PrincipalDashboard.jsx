@@ -81,6 +81,16 @@ const PrincipalDashboard = () => {
       type: 'normal',
       permission: null,
       description: 'Real-time timetable with teacher attendance status for all classes'
+    },
+    {
+      id: 'student-profiles',
+      title: 'Student Profiles', 
+      href: '/principal/student-profiles', 
+      icon: 'Users', 
+      bgGradient: 'from-cyan-500 to-cyan-600',
+      type: 'normal',
+      permission: null,
+      description: 'Comprehensive student profiles with attendance, examination, and correspondence details'
     }
   ];
 

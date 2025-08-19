@@ -1108,9 +1108,9 @@ const AdminCorrespondenceManagement = () => {
       {/* Student Details Modal */}
       {showStudentModal && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
                   Correspondence History
@@ -1127,8 +1127,8 @@ const AdminCorrespondenceManagement = () => {
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+            {/* Modal Body with Scroll */}
+            <div className="flex-1 overflow-y-auto p-6">
               {studentCorrespondences.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500">No correspondence found for this student</p>
@@ -1158,6 +1158,17 @@ const AdminCorrespondenceManagement = () => {
                             {index === 0 && (
                               <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-600 border border-green-200">
                                 Latest
+                              </span>
+                            )}
+                            {/* Additional fields for admitted students */}
+                            {correspondence.toWhom && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
+                                To: {correspondence.toWhom}
+                              </span>
+                            )}
+                            {correspondence.communicationCategory && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-600 border border-purple-200">
+                                {correspondence.communicationCategory}
                               </span>
                             )}
                           </div>
@@ -1290,9 +1301,9 @@ const AdminCorrespondenceManagement = () => {
       {/* Glimpse Modal */}
       {showGlimpseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">
                 Correspondence Statistics Overview
               </h3>
@@ -1306,8 +1317,8 @@ const AdminCorrespondenceManagement = () => {
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            {/* Modal Content with Scroll */}
+            <div className="flex-1 overflow-y-auto p-6">
               {/* Overview Stats */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg">
@@ -1537,9 +1548,9 @@ const AdminCorrespondenceManagement = () => {
       {/* Month Detail Modal */}
       {showMonthDetailModal && selectedMonthData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">
                 {selectedEmployeeName} - {formatMonthDisplay(selectedMonthData.month)} Details
               </h3>
@@ -1553,8 +1564,8 @@ const AdminCorrespondenceManagement = () => {
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            {/* Modal Content with Scroll */}
+            <div className="flex-1 overflow-y-auto p-6">
               {/* Month Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg text-center">

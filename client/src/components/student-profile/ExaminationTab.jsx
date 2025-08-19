@@ -1,0 +1,446 @@
+import React, { useState, useEffect } from 'react';
+import { BookOpen, TrendingUp, TrendingDown, Award, Target, BarChart3, PieChart, Calendar, Star, AlertTriangle } from 'lucide-react';
+import { Button } from '../ui/button';
+import api from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
+
+const ExaminationTab = ({ studentId }) => {
+  const [examData, setExamData] = useState([]);
+  const [stats, setStats] = useState({
+    totalExams: 0,
+    averageMarks: 0,
+    highestMarks: 0,
+    lowestMarks: 0,
+    passedExams: 0,
+    failedExams: 0,
+    improvementNeeded: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [selectedSubject, setSelectedSubject] = useState('all');
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const [subjectPerformance, setSubjectPerformance] = useState([]);
+
+  const { showToast } = useToast();
+
+  // Fetch examination data
+  const fetchExaminationData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch test results for the student
+      const response = await api.get(`/examinations/student/${studentId}/results`);
+
+      if (response.data.success) {
+        const results = response.data.data || [];
+        setExamData(results);
+        calculateStats(results);
+        calculateSubjectPerformance(results);
+      }
+
+    } catch (error) {
+      console.error('Error fetching examination data:', error);
+      showToast('Failed to load examination data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate examination statistics
+  const calculateStats = (data) => {
+    if (!data.length) {
+      setStats({
+        totalExams: 0,
+        averageMarks: 0,
+        highestMarks: 0,
+        lowestMarks: 0,
+        passedExams: 0,
+        failedExams: 0,
+        improvementNeeded: []
+      });
+      return;
+    }
+
+    const totalExams = data.length;
+    const marks = data.map(exam => exam.obtainedMarks || 0);
+    const averageMarks = Math.round(marks.reduce((sum, mark) => sum + mark, 0) / totalExams);
+    const highestMarks = Math.max(...marks);
+    const lowestMarks = Math.min(...marks);
+    
+    // Assuming passing marks is 40% (can be made dynamic)
+    const passingMarks = 40;
+    const passedExams = data.filter(exam => {
+      const percentage = ((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100;
+      return percentage >= passingMarks;
+    }).length;
+    
+    const failedExams = totalExams - passedExams;
+    
+    // Identify subjects needing improvement (below 50%)
+    const improvementNeeded = data.filter(exam => {
+      const percentage = ((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100;
+      return percentage < 50;
+    }).map(exam => exam.subject).filter((subject, index, self) => self.indexOf(subject) === index);
+
+    setStats({
+      totalExams,
+      averageMarks,
+      highestMarks,
+      lowestMarks,
+      passedExams,
+      failedExams,
+      improvementNeeded
+    });
+  };
+
+  // Calculate subject-wise performance
+  const calculateSubjectPerformance = (data) => {
+    const subjectMap = {};
+    
+    data.forEach(exam => {
+      const subject = exam.subject || 'Unknown';
+      if (!subjectMap[subject]) {
+        subjectMap[subject] = {
+          subject,
+          totalMarks: 0,
+          obtainedMarks: 0,
+          exams: 0,
+          highest: 0,
+          lowest: 100
+        };
+      }
+      
+      const percentage = ((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100;
+      subjectMap[subject].totalMarks += exam.totalMarks || 0;
+      subjectMap[subject].obtainedMarks += exam.obtainedMarks || 0;
+      subjectMap[subject].exams += 1;
+      subjectMap[subject].highest = Math.max(subjectMap[subject].highest, percentage);
+      subjectMap[subject].lowest = Math.min(subjectMap[subject].lowest, percentage);
+    });
+
+    const performance = Object.values(subjectMap).map(subject => ({
+      ...subject,
+      average: Math.round((subject.obtainedMarks / subject.totalMarks) * 100) || 0
+    })).sort((a, b) => b.average - a.average);
+
+    setSubjectPerformance(performance);
+  };
+
+  useEffect(() => {
+    if (studentId) {
+      fetchExaminationData();
+    }
+  }, [studentId]);
+
+  const getGradeFromPercentage = (percentage) => {
+    if (percentage >= 90) return { grade: 'A+', color: 'text-green-600' };
+    if (percentage >= 80) return { grade: 'A', color: 'text-green-500' };
+    if (percentage >= 70) return { grade: 'B', color: 'text-blue-500' };
+    if (percentage >= 60) return { grade: 'C', color: 'text-yellow-500' };
+    if (percentage >= 50) return { grade: 'D', color: 'text-orange-500' };
+    return { grade: 'F', color: 'text-red-500' };
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getPerformanceIcon = (percentage) => {
+    if (percentage >= 80) return <TrendingUp className="h-4 w-4 text-green-500" />;
+    if (percentage >= 60) return <Star className="h-4 w-4 text-yellow-500" />;
+    return <TrendingDown className="h-4 w-4 text-red-500" />;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <BookOpen className="h-5 w-5 text-blue-500" />
+          Examination Performance
+        </h3>
+        <p className="text-gray-600 text-sm">Comprehensive analysis of test results and academic performance</p>
+      </div>
+
+      {/* Overall Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Exams</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalExams}</p>
+            </div>
+            <BookOpen className="h-8 w-8 text-blue-500" />
+          </div>
+        </div>
+        
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Average Score</p>
+              <p className="text-2xl font-bold text-purple-600">{stats.averageMarks}%</p>
+            </div>
+            <Target className="h-8 w-8 text-purple-500" />
+          </div>
+        </div>
+        
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Passed Exams</p>
+              <p className="text-2xl font-bold text-green-600">{stats.passedExams}</p>
+            </div>
+            <Award className="h-8 w-8 text-green-500" />
+          </div>
+        </div>
+        
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Highest Score</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.highestMarks}%</p>
+            </div>
+            <TrendingUp className="h-8 w-8 text-blue-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Overview */}
+      <div className="bg-white border rounded-lg p-6">
+        <h4 className="font-medium text-gray-900 mb-4">Performance Overview</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Grade Distribution */}
+          <div>
+            <h5 className="text-sm font-medium text-gray-700 mb-3">Overall Grade</h5>
+            <div className="flex items-center gap-4">
+              <div className={`text-4xl font-bold ${getGradeFromPercentage(stats.averageMarks).color}`}>
+                {getGradeFromPercentage(stats.averageMarks).grade}
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-gray-900">{stats.averageMarks}%</div>
+                <div className="text-sm text-gray-600">Average Performance</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Pass/Fail Ratio */}
+          <div>
+            <h5 className="text-sm font-medium text-gray-700 mb-3">Pass/Fail Ratio</h5>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Passed</span>
+                <span className="text-sm font-medium text-green-600">{stats.passedExams}/{stats.totalExams}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full"
+                  style={{ width: `${stats.totalExams > 0 ? (stats.passedExams / stats.totalExams) * 100 : 0}%` }}
+                ></div>
+              </div>
+              {stats.failedExams > 0 && (
+                <div className="text-sm text-red-600">
+                  {stats.failedExams} exam(s) need attention
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Subject-wise Performance */}
+      <div className="bg-white border rounded-lg p-6">
+        <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-blue-500" />
+          Subject-wise Performance
+        </h4>
+        
+        {subjectPerformance.length === 0 ? (
+          <div className="text-center py-8">
+            <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No subject performance data available</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {subjectPerformance.map((subject, index) => (
+              <div key={index} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    {getPerformanceIcon(subject.average)}
+                    <div>
+                      <h5 className="font-medium text-gray-900">{subject.subject}</h5>
+                      <p className="text-sm text-gray-600">{subject.exams} exam(s)</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-lg font-bold ${getGradeFromPercentage(subject.average).color}`}>
+                      {subject.average}%
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {getGradeFromPercentage(subject.average).grade}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Progress</span>
+                    <span className="font-medium">{subject.average}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full ${
+                        subject.average >= 80 ? 'bg-green-500' :
+                        subject.average >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${subject.average}%` }}
+                    ></div>
+                  </div>
+                  
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Lowest: {Math.round(subject.lowest)}%</span>
+                    <span>Highest: {Math.round(subject.highest)}%</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Areas Needing Improvement */}
+      {stats.improvementNeeded.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            Areas Needing Improvement
+          </h4>
+          <div className="space-y-2">
+            {stats.improvementNeeded.map((subject, index) => (
+              <div key={index} className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <span className="text-gray-700">
+                  <strong>{subject}</strong> - Consider additional practice and support
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Exam Results */}
+      <div className="bg-white border rounded-lg p-6">
+        <h4 className="font-medium text-gray-900 mb-4">Recent Exam Results</h4>
+        
+        {examData.length === 0 ? (
+          <div className="text-center py-8">
+            <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Exam Results</h3>
+            <p className="text-gray-600">No examination records found for this student.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {examData.slice().reverse().slice(0, 10).map((exam, index) => {
+              const percentage = Math.round(((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100);
+              const gradeInfo = getGradeFromPercentage(percentage);
+              
+              return (
+                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {getPerformanceIcon(percentage)}
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {exam.subject || 'Unknown Subject'}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {exam.testName || 'Test'} • {formatDate(exam.date || exam.createdAt)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="font-medium text-gray-900">
+                        {exam.obtainedMarks || 0}/{exam.totalMarks || 100}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {percentage}%
+                      </div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      percentage >= 80 ? 'bg-green-100 text-green-800' :
+                      percentage >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {gradeInfo.grade}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {examData.length > 10 && (
+              <div className="text-center pt-4">
+                <Button variant="outline" size="sm">
+                  View All Results ({examData.length})
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Performance Insights */}
+      <div className="bg-white border rounded-lg p-6">
+        <h4 className="font-medium text-gray-900 mb-4">Performance Insights</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h5 className="text-sm font-medium text-gray-700 mb-2">Strengths</h5>
+            <div className="space-y-2">
+              {subjectPerformance.filter(s => s.average >= 70).slice(0, 3).map((subject, index) => (
+                <div key={index} className="flex items-center gap-2 text-sm">
+                  <Star className="h-4 w-4 text-yellow-500" />
+                  <span className="text-gray-700">
+                    Strong performance in <strong>{subject.subject}</strong> ({subject.average}%)
+                  </span>
+                </div>
+              ))}
+              {subjectPerformance.filter(s => s.average >= 70).length === 0 && (
+                <p className="text-sm text-gray-600">Focus on improving overall performance</p>
+              )}
+            </div>
+          </div>
+          
+          <div>
+            <h5 className="text-sm font-medium text-gray-700 mb-2">Recommendations</h5>
+            <div className="space-y-2 text-sm text-gray-700">
+              {stats.averageMarks >= 80 ? (
+                <p>Excellent work! Maintain this high standard and consider advanced topics.</p>
+              ) : stats.averageMarks >= 60 ? (
+                <p>Good progress! Focus on consistency and strengthening weaker areas.</p>
+              ) : (
+                <p>Consider additional tutoring and regular practice to improve performance.</p>
+              )}
+              
+              {stats.improvementNeeded.length > 0 && (
+                <p>Special attention needed in: {stats.improvementNeeded.join(', ')}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ExaminationTab;

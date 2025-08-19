@@ -4,19 +4,22 @@ import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 
-const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
+const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated }) => {
   const [formData, setFormData] = useState({
     studentId: '',
     type: 'enquiry',
     subject: '',
-    message: ''
+    message: '',
+    toWhom: 'student', // For admitted students with class
+    communicationCategory: 'general' // For admitted students with class
   });
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [studentsLoading, setStudentsLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const { showToast } = useToast();
 
-  // Communication types with icons and descriptions
+  // Communication types with icons and descriptions - for non-admitted students
   const communicationTypes = [
     { 
       value: 'enquiry', 
@@ -53,6 +56,22 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
       description: 'Communication with admitted students',
       color: 'text-purple-600 bg-purple-50 border-purple-200'
     }
+  ];
+
+  // To Whom options for admitted students with class
+  const toWhomOptions = [
+    { value: 'parent', label: 'Parent', icon: Users },
+    { value: 'sibling', label: 'Sibling', icon: Users },
+    { value: 'student', label: 'Student', icon: MessageSquare }
+  ];
+
+  // Communication categories for admitted students with class
+  const communicationCategories = [
+    { value: 'appreciation', label: 'Appreciation', icon: '👏', color: 'text-green-600 bg-green-50 border-green-200' },
+    { value: 'results', label: 'Results', icon: '📊', color: 'text-blue-600 bg-blue-50 border-blue-200' },
+    { value: 'discipline', label: 'Discipline', icon: '⚠️', color: 'text-red-600 bg-red-50 border-red-200' },
+    { value: 'attendance', label: 'Attendance', icon: '📅', color: 'text-orange-600 bg-orange-50 border-orange-200' },
+    { value: 'fee', label: 'Fee', icon: '💰', color: 'text-purple-600 bg-purple-50 border-purple-200' }
   ];
 
   // Fetch students for dropdown
@@ -94,12 +113,23 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       setLoading(true);
       
-      const response = await api.post('/correspondence', {
+      // Prepare request data based on student status
+      const requestData = {
         studentId: formData.studentId,
-        type: formData.type,
         subject: formData.subject.trim(),
         message: formData.message.trim()
-      });
+      };
+
+      // Add additional fields based on student status
+      if (isStudentAdmittedWithClass()) {
+        requestData.type = 'student'; // For admitted students with class
+        requestData.toWhom = formData.toWhom;
+        requestData.communicationCategory = formData.communicationCategory;
+      } else {
+        requestData.type = formData.type;
+      }
+
+      const response = await api.post('/correspondence', requestData);
 
       if (response.data.success) {
         showToast('Communication created successfully', 'success');
@@ -107,9 +137,14 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
           studentId: '',
           type: 'enquiry',
           subject: '',
-          message: ''
+          message: '',
+          toWhom: 'student',
+          communicationCategory: 'general'
         });
-        onSuccess();
+        setSelectedStudent(null);
+        if (onCorrespondenceCreated) {
+          onCorrespondenceCreated();
+        }
         onClose();
       } else {
         showToast('Failed to create communication', 'error');
@@ -127,17 +162,41 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
       ...prev,
       [field]: value
     }));
+
+    // If student is selected, find the student details and update selectedStudent
+    if (field === 'studentId') {
+      const student = students.find(s => s._id === value);
+      setSelectedStudent(student || null);
+      
+      // Reset form fields when student changes
+      if (student) {
+        setFormData(prev => ({
+          ...prev,
+          type: 'enquiry',
+          toWhom: 'student',
+          communicationCategory: 'general',
+          subject: '',
+          message: ''
+        }));
+      }
+    }
+  };
+
+  // Check if selected student is admitted and has class assigned
+  const isStudentAdmittedWithClass = () => {
+    if (!selectedStudent) return false;
+    const isAdmitted = selectedStudent.prospectusStage === 5 || selectedStudent.enquiryLevel === 5;
+    const hasClass = selectedStudent.classId && selectedStudent.classId !== null;
+    return isAdmitted && hasClass;
   };
 
   if (!isOpen) return null;
 
-  const selectedType = communicationTypes.find(type => type.value === formData.type);
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-2xl flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -157,15 +216,17 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Form Container with Scroll */}
+        <div className="flex-1 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Student Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Student <span className="text-red-500">*</span>
             </label>
             {studentsLoading ? (
-              <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+              <div className="flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
                 Loading students...
               </div>
             ) : (
@@ -176,51 +237,149 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
                 required
               >
                 <option value="">Select a student...</option>
-                {students.map((student) => (
-                  <option key={student._id} value={student._id}>
-                    {`${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim()} 
-                    - Level {student.prospectusStage || 1}
-                    {student.email ? ` (${student.email})` : ''}
-                  </option>
-                ))}
+                {students.map((student) => {
+                  const studentName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
+                  const level = student.prospectusStage || student.enquiryLevel || 1;
+                  const isAdmitted = level === 5;
+                  const hasClass = student.classId && student.classId !== null;
+                  const classInfo = hasClass ? ` - Class Assigned` : '';
+                  const statusInfo = isAdmitted ? (hasClass ? ' (Admitted + Class)' : ' (Admitted)') : ` (Level ${level})`;
+                  
+                  return (
+                    <option key={student._id} value={student._id}>
+                      {studentName}{statusInfo}{classInfo}
+                      {student.email ? ` - ${student.email}` : ''}
+                    </option>
+                  );
+                })}
               </select>
+            )}
+            
+            {/* Student Status Info */}
+            {selectedStudent && (
+              <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                <div className="text-sm">
+                  <div className="font-medium text-gray-900 mb-1">
+                    Selected: {selectedStudent.fullName?.firstName} {selectedStudent.fullName?.lastName}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-600">
+                    <span>Level: {selectedStudent.prospectusStage || selectedStudent.enquiryLevel || 1}</span>
+                    <span>Status: {isStudentAdmittedWithClass() ? 'Admitted with Class' : (selectedStudent.prospectusStage === 5 || selectedStudent.enquiryLevel === 5) ? 'Admitted (No Class)' : 'Enquiry Stage'}</span>
+                    {selectedStudent.classId && <span>Has Class Assignment</span>}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Communication Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Communication Type <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {communicationTypes.map((type) => {
-                const Icon = type.icon;
-                const isSelected = formData.type === type.value;
-                
-                return (
-                  <div
-                    key={type.value}
-                    onClick={() => handleInputChange('type', type.value)}
-                    className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50 shadow-md'
-                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${type.color}`}>
-                        <Icon className="h-4 w-4" />
+          {/* Conditional Form Sections Based on Student Status */}
+          {isStudentAdmittedWithClass() ? (
+            <>
+              {/* To Whom - For admitted students with class */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  To Whom <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {toWhomOptions.map((option) => {
+                    const Icon = option.icon;
+                    const isSelected = formData.toWhom === option.value;
+                    
+                    return (
+                      <div
+                        key={option.value}
+                        onClick={() => handleInputChange('toWhom', option.value)}
+                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{option.label}</h4>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{type.label}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{type.description}</p>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Communication Category - For admitted students with class */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Communication Category <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {communicationCategories.map((category) => {
+                    const isSelected = formData.communicationCategory === category.value;
+                    
+                    return (
+                      <div
+                        key={category.value}
+                        onClick={() => handleInputChange('communicationCategory', category.value)}
+                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${category.color}`}>
+                            <span className="text-lg">{category.icon}</span>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{category.label}</h4>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Communication Type - For non-admitted students or students without class */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Communication Type <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {communicationTypes.map((type) => {
+                    const Icon = type.icon;
+                    const isSelected = formData.type === type.value;
+                    
+                    return (
+                      <div
+                        key={type.value}
+                        onClick={() => handleInputChange('type', type.value)}
+                        className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${type.color}`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{type.label}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{type.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Subject */}
           <div>
@@ -252,37 +411,51 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onSuccess }) => {
             />
           </div>
 
-          {/* Selected Type Summary */}
-          {selectedType && (
-            <div className={`p-4 rounded-lg border ${selectedType.color}`}>
-              <div className="flex items-center gap-2">
-                <selectedType.icon className="h-4 w-4" />
-                <span className="font-medium">Selected: {selectedType.label}</span>
+          {/* Summary Information */}
+          {selectedStudent && (
+            <div className="p-4 rounded-lg border bg-gray-50">
+              <div className="text-sm">
+                <div className="font-medium text-gray-900 mb-2">Communication Summary</div>
+                <div className="space-y-1 text-gray-700">
+                  <div>Student: {selectedStudent.fullName?.firstName} {selectedStudent.fullName?.lastName}</div>
+                  {isStudentAdmittedWithClass() ? (
+                    <>
+                      <div>To: {toWhomOptions.find(opt => opt.value === formData.toWhom)?.label || 'Student'}</div>
+                      <div>Category: {communicationCategories.find(cat => cat.value === formData.communicationCategory)?.label || 'General'}</div>
+                      <div>Type: Student Communication (Admitted with Class)</div>
+                    </>
+                  ) : (
+                    <>
+                      <div>Type: {communicationTypes.find(type => type.value === formData.type)?.label || 'Enquiry Communication'}</div>
+                      <div>Status: {selectedStudent.prospectusStage === 5 || selectedStudent.enquiryLevel === 5 ? 'Admitted Student' : 'Enquiry Student'}</div>
+                    </>
+                  )}
+                </div>
               </div>
-              <p className="text-sm mt-1">{selectedType.description}</p>
             </div>
           )}
 
-          {/* Form Actions */}
-          <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
-            <Button
-              type="button"
-              onClick={onClose}
-              variant="outline"
-              className="flex-1"
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-              disabled={loading}
-            >
-              {loading ? 'Creating...' : 'Create Communication'}
-            </Button>
-          </div>
-        </form>
+            {/* Form Actions */}
+            <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                onClick={onClose}
+                variant="outline"
+                className="flex-1"
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                disabled={loading}
+              >
+                {loading ? 'Creating...' : 'Create Communication'}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

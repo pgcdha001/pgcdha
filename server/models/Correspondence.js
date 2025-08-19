@@ -27,6 +27,24 @@ const correspondenceSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  // Additional fields for admitted students with class assignments
+  toWhom: {
+    type: String,
+    enum: ['parent', 'sibling', 'student'],
+    required: function() {
+      // Required only if the student is admitted (type === 'student') and has class
+      return this.type === 'student';
+    }
+  },
+  communicationCategory: {
+    type: String,
+    enum: ['appreciation', 'results', 'discipline', 'attendance', 'fee', 'general'],
+    required: function() {
+      // Required only if the student is admitted (type === 'student') and has class
+      return this.type === 'student';
+    },
+    default: 'general'
+  },
   staffMember: {
     id: {
       type: mongoose.Schema.Types.ObjectId,
