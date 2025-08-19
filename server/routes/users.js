@@ -185,13 +185,9 @@ router.get('/',
 
     // Exclude students with class assignments (for enquiry reports)
     if (excludeClassAssigned === 'true') {
-      filter.$and = filter.$and || [];
-      filter.$and.push({
-        $or: [
-          { classId: { $exists: false } }, // Students without classId field
-          { classId: null } // Students with null classId
-        ]
-      });
+      filter.classId = { $exists: false };
+      // Also apply the same level constraints as Principal enquiry reports
+      filter.prospectusStage = { $gte: 1, $lte: 5 };
     }
 
     // Build sort object
