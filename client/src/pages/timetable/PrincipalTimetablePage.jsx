@@ -38,10 +38,18 @@ const PrincipalTimetablePage = () => {
 
   // Floor to section mapping
   const floorToSection = {
-    1: '11-Boys',
-    2: '12-Boys', 
-    3: '11-Girls',
-    4: '12-Girls'
+    1: '11-Boys',   // Floor 1: 11th Boys
+    2: '12-Boys',   // Floor 2: 12th Boys  
+    3: '11-Girls',  // Floor 3: 11th Girls
+    4: '12-Girls'   // Floor 4: 12th Girls
+  };
+
+  // Section to floor mapping (reverse)
+  const sectionToFloor = {
+    '11-Boys': 1,
+    '12-Boys': 2,
+    '11-Girls': 3,
+    '12-Girls': 4
   };
 
   // Fetch real timetable and attendance data
@@ -49,39 +57,65 @@ const PrincipalTimetablePage = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('Fetching timetable data for date:', selectedDate);
       
       // Get day of week for the selected date
       const queryDate = new Date(selectedDate);
       const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][queryDate.getDay()];
+      console.log('Day of week:', dayOfWeek);
       
       // Get all classes grouped by floors
+      console.log('Fetching classes...');
       const classesResponse = await classesAPI.getClasses();
+      console.log('Classes response:', classesResponse);
       const allClasses = classesResponse.classes || classesResponse.data || [];
+      console.log('All classes:', allClasses);
       
       // Group classes by floor
       const classesByFloor = {};
       allClasses.forEach(cls => {
-        const floor = cls.floor;
+        // Use the original numeric floor from database, not the transformed one
+        let floor;
+        
+        // Calculate the actual floor based on campus and grade since API transforms it
+        if (cls.campus === 'Boys' && cls.grade === '11th') floor = 1;
+        else if (cls.campus === 'Boys' && cls.grade === '12th') floor = 2;
+        else if (cls.campus === 'Girls' && cls.grade === '11th') floor = 3;
+        else if (cls.campus === 'Girls' && cls.grade === '12th') floor = 4;
+        else floor = 1; // fallback
+        
+        console.log(`Processing class: ${cls.name}, original floor: ${cls.floor}, calculated floor: ${floor}, campus: ${cls.campus}, grade: ${cls.grade}`);
+        
         if (!classesByFloor[floor]) {
           classesByFloor[floor] = [];
         }
         classesByFloor[floor].push(cls);
       });
+      console.log('Classes by floor:', classesByFloor);
       setClasses(classesByFloor);
 
       // Get timetable data for all floors
       const floors = [1, 2, 3, 4];
-      const timetablePromises = floors.map(floor => 
-        timetableAPI.getFloorTimetable(floor, dayOfWeek)
-      );
+      console.log('Fetching timetable for floors:', floors);
+      const timetablePromises = floors.map(floor => {
+        console.log(`Fetching timetable for floor ${floor}, day: ${dayOfWeek}`);
+        return timetableAPI.getFloorTimetable(floor, dayOfWeek);
+      });
       
       // Get attendance data for the selected date
+      console.log('Fetching attendance data for date:', selectedDate);
       const attendancePromise = teacherAttendanceAPI.getAttendanceByDate(selectedDate);
       
       const [timetableResponses, attendanceResponse] = await Promise.all([
         Promise.allSettled(timetablePromises),
-        attendancePromise.catch(() => ({ data: [] }))
+        attendancePromise.catch((err) => {
+          console.log('Attendance fetch failed (using empty data):', err);
+          return { data: [] };
+        })
       ]);
+
+      console.log('Timetable responses:', timetableResponses);
+      console.log('Attendance response:', attendanceResponse);
 
       // Process timetable data
       const processedData = {};
@@ -99,17 +133,23 @@ const PrincipalTimetablePage = () => {
           };
         });
       }
+      console.log('Attendance map:', attendanceMap);
 
       // Process each floor's timetable
       floors.forEach((floor, index) => {
         const section = floorToSection[floor];
         processedData[section] = {};
         
+        console.log(`Processing floor ${floor} (${section})`);
+        
         if (timetableResponses[index].status === 'fulfilled') {
           const floorTimetable = timetableResponses[index].value.timetable || [];
+          console.log(`Floor ${floor} timetable:`, floorTimetable);
           
           // Group classes for this floor
           const floorClasses = classesByFloor[floor] || [];
+          console.log(`Floor ${floor} classes:`, floorClasses);
+          
           floorClasses.forEach(cls => {
             processedData[section][cls.name] = {};
             
@@ -134,6 +174,7 @@ const PrincipalTimetablePage = () => {
               );
 
               if (timetableEntry) {
+                console.log(`Found timetable entry for ${cls.name} at ${slot.start}:`, timetableEntry);
                 const teacherId = timetableEntry.teacher._id;
                 const timetableId = timetableEntry._id;
                 const attendanceKey = `${teacherId}_${timetableId}`;
@@ -181,23 +222,40 @@ const PrincipalTimetablePage = () => {
               }
             });
           });
+        } else {
+          console.error(`Failed to fetch timetable for floor ${floor}:`, timetableResponses[index].reason);
         }
       });
 
+      console.log('Final processed data:', processedData);
       setTimetableData(processedData);
       
     } catch (error) {
       console.error('Error fetching timetable data:', error);
-      setError('Failed to load timetable data. Please try again.');
+      
+      // Check if it's an authentication error
+      if (error.message && error.message.includes('token')) {
+        setError('Authentication failed. Please login again.');
+      } else if (error.message && error.message.includes('permission')) {
+        setError('You do not have permission to access this data.');
+      } else {
+        setError('Failed to load timetable data. Please try again. ' + (error.message || ''));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Fetch real data when component mounts or date changes
-    fetchTimetableData();
-  }, [selectedDate]);
+    // Only fetch data if user is authenticated
+    if (user && user.role === 'Principal') {
+      fetchTimetableData();
+    } else if (!user) {
+      setError('Please login to access this page');
+    } else {
+      setError('Access denied. This page is only for Principal users.');
+    }
+  }, [selectedDate, user]);
 
   const getCellStyle = (cellData) => {
     if (cellData.isBreak) {
@@ -405,6 +463,44 @@ const PrincipalTimetablePage = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 mb-4">
+            <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchTimetableData}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchTimetableData}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
             <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -478,6 +574,18 @@ const PrincipalTimetablePage = () => {
             </div>
           </div>
         </div>
+
+        {/* Debug information */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-6 p-4 bg-gray-100 rounded-lg text-sm">
+            <h3 className="font-semibold mb-2">Debug Info:</h3>
+            <p>Selected Date: {selectedDate}</p>
+            <p>Classes Data: {JSON.stringify(Object.keys(classes))} (should be [1,2,3,4])</p>
+            <p>Classes Count by Floor: {Object.entries(classes).map(([floor, classList]) => `Floor ${floor}: ${classList.length} classes`).join(', ')}</p>
+            <p>Timetable Sections: {Object.keys(timetableData).join(', ')}</p>
+            {error && <p className="text-red-600">Error: {error}</p>}
+          </div>
+        )}
 
         {/* Timetable Sections */}
         <div className="space-y-8">

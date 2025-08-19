@@ -28,6 +28,8 @@ router.get('/',
       enquiryLevel = '',
       grade = '',
       campus = '',
+      gender = '', // Add gender filter
+      minLevel = '', // Add minimum level filter
       sortBy = 'createdAt',
       sortOrder = 'desc',
       dateFilter = '',
@@ -163,6 +165,20 @@ router.get('/',
       filter.$or = [
         { 'admissionInfo.campus': campus }, // For admitted students
         { 'campus': campus } // For general campus assignment
+      ];
+    }
+
+    // Gender filter
+    if (gender) {
+      filter.gender = gender;
+    }
+
+    // Minimum Level filter (for students)
+    if (minLevel) {
+      const levelNumber = parseInt(minLevel);
+      filter.$or = [
+        { prospectusStage: { $gte: levelNumber } }, // Use prospectusStage
+        { enquiryLevel: { $gte: levelNumber } } // Fallback to enquiryLevel
       ];
     }
 

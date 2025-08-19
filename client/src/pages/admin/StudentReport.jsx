@@ -95,10 +95,11 @@ const StudentReport = () => {
       if (stageFilter) {
         p.minLevel = stageFilter;
       }
-      // Gender filter
-      if (genderFilter) {
-        p.gender = genderFilter;
-      }
+    }
+    
+    // Gender filter (apply regardless of progression mode)
+    if (genderFilter) {
+      p.gender = genderFilter;
     }
     
     // Search (name, cnic)
