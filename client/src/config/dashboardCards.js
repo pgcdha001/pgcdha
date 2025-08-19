@@ -402,17 +402,8 @@ export const DASHBOARD_CARDS = {
     }
   ],
 
-  // Coordinator/Floor Head - Student supervision + Limited enquiry management
+  // Coordinator/Floor Head - Teacher supervision + Limited enquiry management (No student management access)
   'Coordinator': [
-    {
-      id: 'student-management',
-      title: 'Student Management',
-      href: '/students',
-      icon: 'Users',
-      bgGradient: 'from-teal-500 to-teal-600',
-      type: 'normal',
-      permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
-    },
     {
       id: 'teacher-attendance',
       title: 'Teacher Attendance',
@@ -432,16 +423,6 @@ export const DASHBOARD_CARDS = {
       permission: PERMISSIONS.REPORTS.VIEW_ATTENDANCE_REPORTS
     },
     {
-      id: 'student-reports',
-      title: 'Student Reports',
-      href: '/analytics?view=students',
-      icon: 'FileText',
-      bgGradient: 'from-green-500 to-green-600',
-      type: 'normal',
-      recentActivity: null,
-      todayCount: null
-    },
-    {
       id: 'enquiry-management',
       title: 'Enquiry Management',
       href: '/institute-admin/enquiries',
@@ -449,24 +430,6 @@ export const DASHBOARD_CARDS = {
       bgGradient: 'from-orange-500 to-orange-600',
       type: 'normal',
       permission: PERMISSIONS.ENQUIRY_MANAGEMENT.VIEW_ENQUIRIES
-    },
-    {
-      id: 'class-management',
-      title: 'Class Management',
-      href: '/classes',
-      icon: 'School',
-      bgGradient: 'from-indigo-500 to-indigo-600',
-      type: 'normal',
-      permission: PERMISSIONS.CLASS_MANAGEMENT.VIEW_CLASSES
-    },
-    {
-      id: 'student-assignment',
-      title: 'Student Assignment',
-      href: '/classes/assign-students',
-      icon: 'UserPlus',
-      bgGradient: 'from-rose-500 to-rose-600',
-      type: 'normal',
-      permission: PERMISSIONS.CLASS_MANAGEMENT.BULK_ASSIGN_STUDENTS
     },
     {
       id: 'campus-analytics',
@@ -674,13 +637,6 @@ export const QUICK_MANAGEMENT_ACCESS = {
   ],
 
   'Coordinator': [
-    {
-      title: 'Student Management',
-      href: '/students',
-      icon: 'Users',
-      description: 'Supervise and manage student information',
-      permission: PERMISSIONS.USER_MANAGEMENT.VIEW_USERS
-    },
     {
       title: 'Teacher Attendance',
       href: '/coordinator/teacher-attendance',
