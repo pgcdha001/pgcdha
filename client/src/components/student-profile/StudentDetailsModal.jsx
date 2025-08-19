@@ -34,16 +34,11 @@ const StudentDetailsModal = ({ isOpen, onClose, student, className }) => {
   };
 
   const getStudentAge = () => {
-    if (!student.dob) return 'Not specified';
-    const dob = new Date(student.dob);
+    if (!student.personalInfo?.dateOfBirth) return 'Not specified';
+    const dob = new Date(student.personalInfo.dateOfBirth);
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      age--;
-    }
-    return `${age} years`;
-  };
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
       age--;
     }
@@ -115,15 +110,9 @@ const StudentDetailsModal = ({ isOpen, onClose, student, className }) => {
             </p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-500">User Name</label>
-            <p className="text-gray-900">
-              {student.userName || 'Not provided'}
-            </p>
-          </div>
-          <div>
             <label className="text-sm font-medium text-gray-500">Date of Birth</label>
             <p className="text-gray-900">
-              {formatDate(student.dob)}
+              {formatDate(student.personalInfo?.dateOfBirth)}
             </p>
           </div>
           <div>
@@ -132,11 +121,15 @@ const StudentDetailsModal = ({ isOpen, onClose, student, className }) => {
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">Gender</label>
-            <p className="text-gray-900">{student.gender || 'Not specified'}</p>
+            <p className="text-gray-900">{student.personalInfo?.gender || 'Not specified'}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">CNIC</label>
-            <p className="text-gray-900">{student.cnic || 'Not provided'}</p>
+            <p className="text-gray-900">{student.personalInfo?.cnicNumber || 'Not provided'}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500">Religion</label>
+            <p className="text-gray-900">{student.personalInfo?.religion || 'Not specified'}</p>
           </div>
         </div>
       </div>
@@ -153,21 +146,13 @@ const StudentDetailsModal = ({ isOpen, onClose, student, className }) => {
             <p className="text-gray-900">{student.phoneNumber || 'Not provided'}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-500">Secondary Phone</label>
-            <p className="text-gray-900">{student.secondaryPhone || 'Not provided'}</p>
-          </div>
-          <div>
             <label className="text-sm font-medium text-gray-500">Email Address</label>
             <p className="text-gray-900">{student.email || 'Not provided'}</p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-500">Reference</label>
-            <p className="text-gray-900">{student.reference || 'Not provided'}</p>
           </div>
           <div className="md:col-span-2">
             <label className="text-sm font-medium text-gray-500">Address</label>
             <p className="text-gray-900">
-              {student.address || 'Not provided'}
+              {student.personalInfo?.address || 'Not provided'}
             </p>
           </div>
         </div>
@@ -197,133 +182,87 @@ const StudentDetailsModal = ({ isOpen, onClose, student, className }) => {
             <p className="text-gray-900 font-medium">{className}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-500">Roll Number</label>
-            <p className="text-gray-900">{student.rollNumber || 'Not assigned'}</p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-500">Enquiry Level</label>
-            <p className="text-gray-900">{student.enquiryLevel || student.prospectusStage || 1}</p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-500">Previous School</label>
-            <p className="text-gray-900">{student.previousSchool || 'Not provided'}</p>
-          </div>
-          <div>
             <label className="text-sm font-medium text-gray-500">Student ID</label>
             <p className="text-gray-900 font-mono text-sm">{student._id}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">Admission Date</label>
-            <p className="text-gray-900">{formatDate(student.createdOn || student.createdAt)}</p>
+            <p className="text-gray-900">{formatDate(student.createdAt)}</p>
           </div>
         </div>
       </div>
 
-      {/* Guardian/Family Information */}
-      {(student.fatherName || student.familyInfo?.fatherName) && (
+      {/* Guardian Information */}
+      {(student.guardianInfo?.fatherName || student.guardianInfo?.motherName) && (
         <div className="bg-white border rounded-xl p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Users className="h-5 w-5 text-orange-500" />
-            Family Information
+            Guardian Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {(student.fatherName || student.familyInfo?.fatherName) && (
+            {student.guardianInfo?.fatherName && (
               <div>
                 <label className="text-sm font-medium text-gray-500">Father's Name</label>
-                <p className="text-gray-900">{student.fatherName || student.familyInfo?.fatherName}</p>
-                {student.familyInfo?.fatherOccupation && (
+                <p className="text-gray-900">{student.guardianInfo.fatherName}</p>
+                {student.guardianInfo?.fatherPhone && (
                   <p className="text-sm text-gray-600 mt-1">
-                    Occupation: {student.familyInfo.fatherOccupation}
+                    <Phone className="h-3 w-3 inline mr-1" />
+                    {student.guardianInfo.fatherPhone}
                   </p>
                 )}
               </div>
             )}
-            {student.familyInfo?.emergencyContact && (
+            {student.guardianInfo?.motherName && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Mother's Name</label>
+                <p className="text-gray-900">{student.guardianInfo.motherName}</p>
+                {student.guardianInfo?.motherPhone && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    <Phone className="h-3 w-3 inline mr-1" />
+                    {student.guardianInfo.motherPhone}
+                  </p>
+                )}
+              </div>
+            )}
+            {student.guardianInfo?.guardianOccupation && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Guardian Occupation</label>
+                <p className="text-gray-900">{student.guardianInfo.guardianOccupation}</p>
+              </div>
+            )}
+            {student.guardianInfo?.emergencyContact && (
               <div>
                 <label className="text-sm font-medium text-gray-500">Emergency Contact</label>
-                <p className="text-gray-900">{student.familyInfo.emergencyContact.name}</p>
-                <p className="text-sm text-gray-600 mt-1">
-                  <Phone className="h-3 w-3 inline mr-1" />
-                  {student.familyInfo.emergencyContact.phone} ({student.familyInfo.emergencyContact.relationship})
-                </p>
+                <p className="text-gray-900">{student.guardianInfo.emergencyContact}</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Academic Records */}
-      {(student.academicRecords?.matriculation || student.matricMarks) && (
+      {/* Additional Information */}
+      {(student.personalInfo?.previousSchool || student.personalInfo?.medicalInfo) && (
         <div className="bg-white border rounded-xl p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Star className="h-5 w-5 text-yellow-500" />
-            Academic Records
+            Additional Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Matriculation Records */}
-            {student.academicRecords?.matriculation ? (
-              <>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Matriculation Marks</label>
-                  <p className="text-gray-900">
-                    {student.academicRecords.matriculation.obtainedMarks}/{student.academicRecords.matriculation.totalMarks}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {student.academicRecords.matriculation.percentage}%
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Board</label>
-                  <p className="text-gray-900">{student.academicRecords.matriculation.board || 'Not specified'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Passing Year</label>
-                  <p className="text-gray-900">{student.academicRecords.matriculation.passingYear || 'Not specified'}</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Matriculation Marks</label>
-                  <p className="text-gray-900">
-                    {student.matricMarks || 'Not provided'}/{student.matricTotal || 'Not provided'}
-                  </p>
-                </div>
-              </>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {student.personalInfo?.previousSchool && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Previous School</label>
+                <p className="text-gray-900">{student.personalInfo.previousSchool}</p>
+              </div>
+            )}
+            {student.personalInfo?.medicalInfo && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Medical Information</label>
+                <p className="text-gray-900">{student.personalInfo.medicalInfo}</p>
+              </div>
             )}
           </div>
         </div>
       )}
-
-      {/* Account Status */}
-      <div className="bg-white border rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Star className="h-5 w-5 text-blue-500" />
-          Account Status
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div>
-            <label className="text-sm font-medium text-gray-500">Account Status</label>
-            <p className={`font-medium ${
-              student.isActive && student.isApproved ? 'text-green-600' : 
-              student.isSuspended ? 'text-red-600' : 'text-yellow-600'
-            }`}>
-              {student.isActive && student.isApproved ? 'Active' : 
-               student.isSuspended ? 'Suspended' : 'Pending'}
-            </p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-500">Enrollment Status</label>
-            <p className="text-gray-900">
-              {student.isEnrolledPreClasses ? 'Enrolled in Pre-Classes' : 'Regular Enrollment'}
-            </p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-500">Last Updated</label>
-            <p className="text-gray-900">{formatDate(student.updatedOn || student.updatedAt)}</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
