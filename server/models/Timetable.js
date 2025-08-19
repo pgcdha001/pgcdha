@@ -199,6 +199,7 @@ TimetableSchema.statics.getFloorTimetable = function(floor, dayOfWeek) {
         endTime: 1,
         subject: 1,
         lectureType: 1,
+        'class._id': 1,
         'class.name': 1,
         'class.grade': 1,
         'class.campus': 1,

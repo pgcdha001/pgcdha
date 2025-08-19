@@ -34,7 +34,8 @@ router.get('/', authenticate, async (req, res) => {
       return {
         ...classObj,
         className: cls.fullName, // Use the full descriptive name
-        floor: cls.grade === '11th' ? '1st' : '2nd' // Transform floor to frontend format
+        // Keep the original floor number (1-4) as per the actual floor mapping
+        floor: cls.floor
       };
     });
 

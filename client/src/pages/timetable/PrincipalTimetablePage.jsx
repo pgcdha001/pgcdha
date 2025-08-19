@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { timetableAPI } from '../../services/timetableAPI';
 import { classesAPI } from '../../services/classesAPI';
@@ -11,41 +11,18 @@ const PrincipalTimetablePage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [classes, setClasses] = useState({});
-
-  // Time slots for Girls (8:00 AM - 1:20 PM)
-  const girlsTimeSlots = [
-    { start: '08:00', end: '08:40', label: '8:00 - 8:40' },
-    { start: '08:40', end: '09:20', label: '8:40 - 9:20' },
-    { start: '09:20', end: '10:00', label: '9:20 - 10:00' },
-    { start: '10:00', end: '10:40', label: '10:00 - 10:40' },
-    { start: '10:40', end: '11:20', label: '10:40 - 11:20' },
-    { start: '11:20', end: '12:00', label: '11:20 - 12:00' }, // Break for girls
-    { start: '12:00', end: '12:40', label: '12:00 - 12:40' },
-    { start: '12:40', end: '13:20', label: '12:40 - 1:20' },
-  ];
-
-  // Time slots for Boys (8:40 AM - 2:00 PM)
-  const boysTimeSlots = [
-    { start: '08:40', end: '09:20', label: '8:40 - 9:20' },
-    { start: '09:20', end: '10:00', label: '9:20 - 10:00' },
-    { start: '10:00', end: '10:40', label: '10:00 - 10:40' },
-    { start: '10:40', end: '11:20', label: '10:40 - 11:20' },
-    { start: '11:20', end: '12:00', label: '11:20 - 12:00' },
-    { start: '12:00', end: '12:40', label: '12:00 - 12:40' }, // Break for boys
-    { start: '12:40', end: '13:20', label: '12:40 - 1:20' },
-    { start: '13:20', end: '14:00', label: '1:20 - 2:00' },
-  ];
+  const [timeSlots, setTimeSlots] = useState([]);
 
   // Floor to section mapping
-  const floorToSection = {
+  const floorToSection = useMemo(() => ({
     1: '11-Boys',   // Floor 1: 11th Boys
     2: '12-Boys',   // Floor 2: 12th Boys  
     3: '11-Girls',  // Floor 3: 11th Girls
     4: '12-Girls'   // Floor 4: 12th Girls
-  };
+  }), []);
 
-  // Section to floor mapping (reverse)
-  const sectionToFloor = {
+  // Section to floor mapping (reverse) - for potential future use
+  const _sectionToFloor = {
     '11-Boys': 1,
     '12-Boys': 2,
     '11-Girls': 3,
@@ -53,7 +30,7 @@ const PrincipalTimetablePage = () => {
   };
 
   // Fetch real timetable and attendance data
-  const fetchTimetableData = async () => {
+  const fetchTimetableData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -64,16 +41,85 @@ const PrincipalTimetablePage = () => {
       const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][queryDate.getDay()];
       console.log('Day of week:', dayOfWeek);
       
-      // Get all classes grouped by floors
+      // Get all classes first
       console.log('Fetching classes...');
       const classesResponse = await classesAPI.getClasses();
       console.log('Classes response:', classesResponse);
       const allClasses = classesResponse.classes || classesResponse.data || [];
       console.log('All classes:', allClasses);
+
+      // Get timetable data for all floors to identify which classes have timetables
+      const floors = [1, 2, 3, 4];
+      console.log('Fetching timetable for floors:', floors);
+      const timetablePromises = floors.map(floor => {
+        console.log(`Fetching timetable for floor ${floor}, day: ${dayOfWeek}`);
+        return timetableAPI.getFloorTimetable(floor, dayOfWeek);
+      });
       
-      // Group classes by floor
+      const timetableResponses = await Promise.allSettled(timetablePromises);
+      console.log('Timetable responses:', timetableResponses);
+
+      // Collect all class IDs that have timetables from the timetable responses
+      const classesWithTimetables = new Set();
+      timetableResponses.forEach((response, index) => {
+        if (response.status === 'fulfilled') {
+          const floorTimetable = response.value.timetable || [];
+          console.log(`Floor ${floors[index]} timetable entries:`, floorTimetable.length);
+          floorTimetable.forEach(entry => {
+            console.log(`Timetable entry:`, entry);
+            if (entry.class && entry.class._id) {
+              classesWithTimetables.add(entry.class._id);
+              console.log(`Found class with timetable: ${entry.class.name} (ID: ${entry.class._id})`);
+            } else {
+              console.log('Timetable entry missing class or class._id:', entry);
+            }
+          });
+        }
+      });
+      
+      // Collect all unique time slots from the actual timetable data
+      const allTimeSlots = new Set();
+      timetableResponses.forEach((response) => {
+        if (response.status === 'fulfilled') {
+          const floorTimetable = response.value.timetable || [];
+          floorTimetable.forEach(entry => {
+            if (entry.startTime && entry.endTime) {
+              allTimeSlots.add(`${entry.startTime}-${entry.endTime}`);
+            }
+          });
+        }
+      });
+      
+      // Convert to sorted array of time slot objects with correct 24-hour label
+      const format24 = (t) => {
+        // If t is '00:15', convert to '12:15' (midnight is rare, but just in case)
+        if (t.startsWith('00:')) return '12:' + t.slice(3);
+        return t;
+      };
+      const timeSlotsList = Array.from(allTimeSlots)
+        .map(slot => {
+          const [start, end] = slot.split('-');
+          return { start, end, label: `${format24(start)} - ${format24(end)}` };
+        })
+        .sort((a, b) => a.start.localeCompare(b.start));
+      
+      console.log('Unique time slots from database:', timeSlotsList);
+      setTimeSlots(timeSlotsList);
+
+      // Filter classes to only those that have timetables
+      const classesWithTimetableData = allClasses.filter(cls => {
+        const hasTable = classesWithTimetables.has(cls._id);
+        console.log(`Class ${cls.name} (ID: ${cls._id}) has timetable: ${hasTable}`);
+        console.log(`Class object:`, cls);
+        return hasTable;
+      });
+      console.log('Filtered classes with timetables:', classesWithTimetableData);
+      console.log('All class IDs from classes API:', allClasses.map(c => c._id));
+      console.log('Class IDs with timetables:', Array.from(classesWithTimetables));
+
+      // Group classes by floor (only those with timetables)
       const classesByFloor = {};
-      allClasses.forEach(cls => {
+      classesWithTimetableData.forEach(cls => {
         // Use the original numeric floor from database, not the transformed one
         let floor;
         
@@ -91,30 +137,14 @@ const PrincipalTimetablePage = () => {
         }
         classesByFloor[floor].push(cls);
       });
-      console.log('Classes by floor:', classesByFloor);
-      setClasses(classesByFloor);
-
-      // Get timetable data for all floors
-      const floors = [1, 2, 3, 4];
-      console.log('Fetching timetable for floors:', floors);
-      const timetablePromises = floors.map(floor => {
-        console.log(`Fetching timetable for floor ${floor}, day: ${dayOfWeek}`);
-        return timetableAPI.getFloorTimetable(floor, dayOfWeek);
-      });
-      
-      // Get attendance data for the selected date
+      console.log('Classes by floor (with timetables only):', classesByFloor);
+      setClasses(classesByFloor);      // Get attendance data for the selected date
       console.log('Fetching attendance data for date:', selectedDate);
-      const attendancePromise = teacherAttendanceAPI.getAttendanceByDate(selectedDate);
-      
-      const [timetableResponses, attendanceResponse] = await Promise.all([
-        Promise.allSettled(timetablePromises),
-        attendancePromise.catch((err) => {
-          console.log('Attendance fetch failed (using empty data):', err);
-          return { data: [] };
-        })
-      ]);
+      const attendanceResponse = await teacherAttendanceAPI.getAttendanceByDate(selectedDate).catch((err) => {
+        console.log('Attendance fetch failed (using empty data):', err);
+        return { data: [] };
+      });
 
-      console.log('Timetable responses:', timetableResponses);
       console.log('Attendance response:', attendanceResponse);
 
       // Process timetable data
@@ -135,7 +165,7 @@ const PrincipalTimetablePage = () => {
       }
       console.log('Attendance map:', attendanceMap);
 
-      // Process each floor's timetable
+      // Process each floor's timetable using the already fetched responses
       floors.forEach((floor, index) => {
         const section = floorToSection[floor];
         processedData[section] = {};
@@ -146,17 +176,15 @@ const PrincipalTimetablePage = () => {
           const floorTimetable = timetableResponses[index].value.timetable || [];
           console.log(`Floor ${floor} timetable:`, floorTimetable);
           
-          // Group classes for this floor
+          // Get classes for this floor (only those with timetables)
           const floorClasses = classesByFloor[floor] || [];
           console.log(`Floor ${floor} classes:`, floorClasses);
           
           floorClasses.forEach(cls => {
             processedData[section][cls.name] = {};
             
-            // Get time slots based on section
-            const timeSlots = section.includes('Girls') ? girlsTimeSlots : boysTimeSlots;
-            
-            timeSlots.forEach(slot => {
+            // Get time slots - use dynamic time slots from database
+            timeSlotsList.forEach(slot => {
               // Check if this is break time
               if ((section.includes('Girls') && slot.start === '11:20') || 
                   (section.includes('Boys') && slot.start === '12:00')) {
@@ -244,7 +272,7 @@ const PrincipalTimetablePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, floorToSection]);
 
   useEffect(() => {
     // Only fetch data if user is authenticated
@@ -255,7 +283,7 @@ const PrincipalTimetablePage = () => {
     } else {
       setError('Access denied. This page is only for Principal users.');
     }
-  }, [selectedDate, user]);
+  }, [selectedDate, user, fetchTimetableData]);
 
   const getCellStyle = (cellData) => {
     if (cellData.isBreak) {
@@ -332,7 +360,8 @@ const PrincipalTimetablePage = () => {
   };
 
   const renderTimetableSection = (section, title) => {
-    const timeSlots = section.includes('Girls') ? girlsTimeSlots : boysTimeSlots;
+    // Use dynamic time slots from database instead of hardcoded ones
+    const sectionTimeSlots = timeSlots;
     const floorNumber = section === '11-Girls' ? 3 : section === '11-Boys' ? 1 : section === '12-Girls' ? 4 : 2;
     const sectionClasses = classes[floorNumber] || [];
     const sectionData = timetableData[section] || {};
@@ -341,8 +370,14 @@ const PrincipalTimetablePage = () => {
       return (
         <div key={section} className="mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">{title}</h2>
-          <div className="text-center py-8 text-gray-500">
-            No classes found for this section
+          <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="text-gray-400 mb-2">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012-2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <p className="font-medium text-gray-600">No classes with timetables found</p>
+            <p className="text-sm text-gray-500 mt-1">Classes will appear here once timetables are created for this section</p>
           </div>
         </div>
       );
@@ -350,46 +385,53 @@ const PrincipalTimetablePage = () => {
 
     return (
       <div key={section} className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">{title}</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+          <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            {sectionClasses.length} classe{sectionClasses.length !== 1 ? 's' : ''} with timetables
+          </div>
+        </div>
         
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse border border-gray-300">
-            {/* Header with class names */}
-            <thead>
-              <tr>
-                <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left font-semibold">
-                  Time
-                </th>
-                {sectionClasses.map(cls => (
-                  <th key={cls._id} className="border border-gray-300 bg-gray-100 px-3 py-2 text-center font-semibold min-w-[150px]">
-                    {cls.name}
+        <div className="overflow-x-auto border border-gray-300 rounded-lg">
+          <div className="min-w-max">
+            <table className="w-full border-collapse">
+              {/* Header with class names */}
+              <thead>
+                <tr>
+                  <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left font-semibold sticky left-0 z-10 min-w-[120px]">
+                    Time
                   </th>
-                ))}
-              </tr>
-            </thead>
-            
-            {/* Timetable rows */}
-            <tbody>
-              {timeSlots.map(slot => (
-                <tr key={slot.start}>
-                  <td className="border border-gray-300 bg-gray-50 px-3 py-2 font-medium text-sm">
-                    {slot.label}
-                  </td>
-                  {sectionClasses.map(cls => {
-                    const cellData = sectionData[cls.name]?.[slot.start] || { isEmpty: true };
-                    return (
-                      <td 
-                        key={`${cls.name}-${slot.start}`} 
-                        className={`border border-gray-300 p-1 h-16 ${getCellStyle(cellData)}`}
-                      >
-                        {getCellContent(cellData)}
-                      </td>
-                    );
-                  })}
+                  {sectionClasses.map(cls => (
+                    <th key={cls._id} className="border border-gray-300 bg-gray-100 px-3 py-2 text-center font-semibold min-w-[180px]">
+                      {cls.name}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              
+              {/* Timetable rows */}
+              <tbody>
+                {sectionTimeSlots.map(slot => (
+                  <tr key={slot.start}>
+                    <td className="border border-gray-300 bg-gray-50 px-3 py-2 font-medium text-sm sticky left-0 z-10 min-w-[120px]">
+                      {slot.label}
+                    </td>
+                    {sectionClasses.map(cls => {
+                      const cellData = sectionData[cls.name]?.[slot.start] || { isEmpty: true };
+                      return (
+                        <td 
+                          key={`${cls.name}-${slot.start}`} 
+                          className={`border border-gray-300 p-1 h-16 min-w-[180px] ${getCellStyle(cellData)}`}
+                        >
+                          {getCellContent(cellData)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Statistics for this section */}
@@ -529,6 +571,23 @@ const PrincipalTimetablePage = () => {
             Real-time attendance tracking for all classes and teachers
           </p>
           
+          {/* Summary */}
+          <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="font-medium text-blue-900">
+                  Total Classes with Timetables: {Object.values(classes).reduce((total, floorClasses) => total + floorClasses.length, 0)}
+                </span>
+              </div>
+              <div className="text-blue-700">
+                {Object.entries(classes).map(([floor, floorClasses]) => 
+                  floorClasses.length > 0 ? `Floor ${floor}: ${floorClasses.length}` : null
+                ).filter(Boolean).join(', ')}
+              </div>
+            </div>
+          </div>
+          
           {/* Date selector */}
           <div className="mt-4 flex items-center gap-4">
             <label htmlFor="date" className="text-sm font-medium text-gray-700">
@@ -576,14 +635,25 @@ const PrincipalTimetablePage = () => {
         </div>
 
         {/* Debug information */}
-        {process.env.NODE_ENV === 'development' && (
+        {import.meta.env.DEV && (
           <div className="mb-6 p-4 bg-gray-100 rounded-lg text-sm">
             <h3 className="font-semibold mb-2">Debug Info:</h3>
-            <p>Selected Date: {selectedDate}</p>
-            <p>Classes Data: {JSON.stringify(Object.keys(classes))} (should be [1,2,3,4])</p>
-            <p>Classes Count by Floor: {Object.entries(classes).map(([floor, classList]) => `Floor ${floor}: ${classList.length} classes`).join(', ')}</p>
-            <p>Timetable Sections: {Object.keys(timetableData).join(', ')}</p>
-            {error && <p className="text-red-600">Error: {error}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p><strong>Selected Date:</strong> {selectedDate}</p>
+                <p><strong>Total Classes with Timetables:</strong> {Object.values(classes).reduce((total, floorClasses) => total + floorClasses.length, 0)}</p>
+                <p><strong>Sections with Data:</strong> {Object.keys(timetableData).join(', ')}</p>
+              </div>
+              <div>
+                <p><strong>Classes by Floor:</strong></p>
+                <ul className="ml-4">
+                  {Object.entries(classes).map(([floor, classList]) => (
+                    <li key={floor}>Floor {floor}: {classList.length} classes ({classList.map(c => c.name).join(', ')})</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            {error && <p className="text-red-600 mt-2"><strong>Error:</strong> {error}</p>}
           </div>
         )}
 
