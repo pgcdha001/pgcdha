@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/button';
 import Card from '../../components/ui/card';
 import { default as api } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 import { FileDown, FileSpreadsheet, FileText, CalendarDays, AlertTriangle } from 'lucide-react';
 import DateFilter from '../../components/enquiry/DateFilter';
 import CustomDateRange from '../../components/enquiry/CustomDateRange';
@@ -35,6 +36,7 @@ const extractNotesFromRemark = (remark) => {
 
 const StudentReport = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   
   // Simple data states without pagination
   const [loading, setLoading] = useState(true);
@@ -110,8 +112,13 @@ const StudentReport = () => {
       p.search = searchTerms.join(' ');
     }
     
+    // Exclude students with class assignments for IT role users
+    if (user?.role === 'IT') {
+      p.excludeClassAssigned = 'true';
+    }
+    
     return p;
-  }, [selectedDate, customStartDate, customEndDate, customDatesApplied, showNonProgression, progressionLevel, stageFilter, genderFilter, debouncedSearchTerm, cnicFilter]);
+  }, [selectedDate, customStartDate, customEndDate, customDatesApplied, showNonProgression, progressionLevel, stageFilter, genderFilter, debouncedSearchTerm, cnicFilter, user?.role]);
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);

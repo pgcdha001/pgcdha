@@ -30,6 +30,7 @@ router.get('/',
       campus = '',
       gender = '', // Add gender filter
       minLevel = '', // Add minimum level filter
+      excludeClassAssigned = '', // Add excludeClassAssigned parameter
       sortBy = 'createdAt',
       sortOrder = 'desc',
       dateFilter = '',
@@ -180,6 +181,17 @@ router.get('/',
         { prospectusStage: { $gte: levelNumber } }, // Use prospectusStage
         { enquiryLevel: { $gte: levelNumber } } // Fallback to enquiryLevel
       ];
+    }
+
+    // Exclude students with class assignments (for enquiry reports)
+    if (excludeClassAssigned === 'true') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { classId: { $exists: false } }, // Students without classId field
+          { classId: null } // Students with null classId
+        ]
+      });
     }
 
     // Build sort object
