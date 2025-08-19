@@ -476,7 +476,7 @@ const StudentAssignment = () => {
                   <option value="ICOM">ICOM</option>
                   <option value="Pre Engineering">Pre Engineering</option>
                   <option value="Pre Medical">Pre Medical</option>
-                  <option value="F.A">F.A</option>
+                  <option value="FA">FA</option>
                   <option value="FA IT">FA IT</option>
                   <option value="General Science">General Science</option>
                 </select>
@@ -865,7 +865,7 @@ const StudentAssignment = () => {
                       <option value="ICOM">ICOM</option>
                       <option value="Pre Engineering">Pre Engineering</option>
                       <option value="Pre Medical">Pre Medical</option>
-                      <option value="F.A">F.A</option>
+                      <option value="FA">FA</option>
                       <option value="FA IT">FA IT</option>
                       <option value="General Science">General Science</option>
                     </select>

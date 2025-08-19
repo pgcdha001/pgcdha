@@ -68,7 +68,7 @@ const UserSchema = new mongoose.Schema({
           'ICS': 'ICS-PHY',
           'ICS PHY': 'ICS-PHY',
           'ICS STAT': 'ICS-STAT',
-          'FA': 'F.A',
+          'F.A': 'FA',
           'Pre Eng': 'Pre Engineering',
           'Pre Med': 'Pre Medical'
         };
@@ -79,10 +79,10 @@ const UserSchema = new mongoose.Schema({
           this.program = mappedProgram; // Auto-correct the value
         }
 
-        const validPrograms = ['ICS-PHY', 'ICS-STAT', 'ICOM', 'Pre Engineering', 'Pre Medical', 'F.A', 'FA IT', 'General Science'];
+        const validPrograms = ['ICS-PHY', 'ICS-STAT', 'ICOM', 'Pre Engineering', 'Pre Medical', 'FA', 'FA IT', 'General Science'];
         return validPrograms.includes(mappedProgram);
       },
-      message: 'Invalid program. Valid programs are: ICS, ICOM, Pre Engineering, Pre Medical, ICS-PHY, ICS-STAT, FA'
+      message: 'Invalid program. Valid programs are: ICS-PHY, ICS-STAT, ICOM, Pre Engineering, Pre Medical, FA, FA IT, General Science'
     }
   },
 
@@ -277,7 +277,7 @@ UserSchema.pre('save', async function (next) {
       'ICS': 'ICS-PHY',
       'ICS PHY': 'ICS-PHY',
       'ICS STAT': 'ICS-STAT',
-      'FA': 'F.A',
+      'F.A': 'FA',
       'Pre Eng': 'Pre Engineering',
       'Pre Med': 'Pre Medical'
     };

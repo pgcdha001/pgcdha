@@ -278,7 +278,7 @@ const UserForm = ({
       { value: 'ICOM', label: 'ICOM (Commerce)' },
       { value: 'Pre Engineering', label: 'Pre Engineering' },
       { value: 'Pre Medical', label: 'Pre Medical' },
-      { value: 'F.A', label: 'F.A (Faculty of Arts)' },
+      { value: 'FA', label: 'FA (Faculty of Arts)' },
       { value: 'FA IT', label: 'FA IT (Faculty of Arts - Information Technology)' },
       { value: 'General Science', label: 'General Science' }
     ];

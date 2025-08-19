@@ -51,6 +51,7 @@ const ClassSchema = new mongoose.Schema({
       'Pre Engineering', 
       'Pre Medical',
       'FA',           // Faculty of Arts
+      'FA IT',        // Faculty of Arts with IT
       'FSc',          // Faculty of Science
       'Commerce'      // Commerce
     ],

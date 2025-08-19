@@ -440,7 +440,7 @@ const ClassManagement = () => {
                   <option value="ICOM">ICOM (Commerce)</option>
                   <option value="Pre Engineering">Pre Engineering</option>
                   <option value="Pre Medical">Pre Medical</option>
-                  <option value="F.A">F.A (Faculty of Arts)</option>
+                  <option value="FA">FA (Faculty of Arts)</option>
                   <option value="FA IT">FA IT (Faculty of Arts - Information Technology)</option>
                   <option value="General Science">General Science</option>
                 </select>
@@ -526,7 +526,7 @@ const ClassManagement = () => {
                   <option value="ICOM">ICOM (Commerce)</option>
                   <option value="Pre Engineering">Pre Engineering</option>
                   <option value="Pre Medical">Pre Medical</option>
-                  <option value="F.A">F.A (Faculty of Arts)</option>
+                  <option value="FA">FA (Faculty of Arts)</option>
                   <option value="FA IT">FA IT (Faculty of Arts - Information Technology)</option>
                   <option value="General Science">General Science</option>
                 </select>
