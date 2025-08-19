@@ -27,7 +27,7 @@ const ExaminationTab = ({ studentId }) => {
     try {
       setLoading(true);
       
-      // Fetch test results for the student
+      // Fetch test results for the specific student
       const response = await api.get(`/examinations/student/${studentId}/results`);
 
       if (response.data.success) {
@@ -35,11 +35,31 @@ const ExaminationTab = ({ studentId }) => {
         setExamData(results);
         calculateStats(results);
         calculateSubjectPerformance(results);
+      } else {
+        // Fallback to get test results with student filter
+        const fallbackResponse = await api.get('/examinations/results', {
+          params: {
+            studentId: studentId,
+            limit: 100,
+            sortBy: 'enteredOn',
+            sortOrder: 'desc'
+          }
+        });
+        
+        if (fallbackResponse.data.success) {
+          const results = fallbackResponse.data.data || [];
+          setExamData(results);
+          calculateStats(results);
+          calculateSubjectPerformance(results);
+        }
       }
 
     } catch (error) {
       console.error('Error fetching examination data:', error);
-      showToast('Failed to load examination data', 'error');
+      // Use safe toast call
+      if (typeof showToast === 'function') {
+        showToast('Failed to load examination data', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -61,25 +81,29 @@ const ExaminationTab = ({ studentId }) => {
     }
 
     const totalExams = data.length;
-    const marks = data.map(exam => exam.obtainedMarks || 0);
-    const averageMarks = Math.round(marks.reduce((sum, mark) => sum + mark, 0) / totalExams);
-    const highestMarks = Math.max(...marks);
-    const lowestMarks = Math.min(...marks);
+    const percentages = data.map(exam => {
+      const totalMarks = exam.test?.totalMarks || exam.totalMarks || 100;
+      const obtainedMarks = exam.obtainedMarks || 0;
+      return Math.round((obtainedMarks / totalMarks) * 100);
+    });
     
-    // Assuming passing marks is 40% (can be made dynamic)
+    const averageMarks = Math.round(percentages.reduce((sum, perc) => sum + perc, 0) / totalExams);
+    const highestMarks = Math.max(...percentages);
+    const lowestMarks = Math.min(...percentages);
+    
+    // Assuming passing marks is 40%
     const passingMarks = 40;
-    const passedExams = data.filter(exam => {
-      const percentage = ((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100;
-      return percentage >= passingMarks;
-    }).length;
-    
+    const passedExams = percentages.filter(perc => perc >= passingMarks).length;
     const failedExams = totalExams - passedExams;
     
     // Identify subjects needing improvement (below 50%)
     const improvementNeeded = data.filter(exam => {
-      const percentage = ((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100;
+      const totalMarks = exam.test?.totalMarks || exam.totalMarks || 100;
+      const obtainedMarks = exam.obtainedMarks || 0;
+      const percentage = (obtainedMarks / totalMarks) * 100;
       return percentage < 50;
-    }).map(exam => exam.subject).filter((subject, index, self) => self.indexOf(subject) === index);
+    }).map(exam => exam.test?.subject || exam.subject || 'Unknown')
+      .filter((subject, index, self) => self.indexOf(subject) === index);
 
     setStats({
       totalExams,
@@ -97,7 +121,11 @@ const ExaminationTab = ({ studentId }) => {
     const subjectMap = {};
     
     data.forEach(exam => {
-      const subject = exam.subject || 'Unknown';
+      // Use test subject from populated test data or fallback to direct subject
+      const subject = exam.test?.subject || exam.subject || 'Unknown Subject';
+      const totalMarks = exam.test?.totalMarks || exam.totalMarks || 100;
+      const obtainedMarks = exam.obtainedMarks || 0;
+      
       if (!subjectMap[subject]) {
         subjectMap[subject] = {
           subject,
@@ -109,9 +137,9 @@ const ExaminationTab = ({ studentId }) => {
         };
       }
       
-      const percentage = ((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100;
-      subjectMap[subject].totalMarks += exam.totalMarks || 0;
-      subjectMap[subject].obtainedMarks += exam.obtainedMarks || 0;
+      const percentage = Math.round((obtainedMarks / totalMarks) * 100);
+      subjectMap[subject].totalMarks += totalMarks;
+      subjectMap[subject].obtainedMarks += obtainedMarks;
       subjectMap[subject].exams += 1;
       subjectMap[subject].highest = Math.max(subjectMap[subject].highest, percentage);
       subjectMap[subject].lowest = Math.min(subjectMap[subject].lowest, percentage);
@@ -351,8 +379,14 @@ const ExaminationTab = ({ studentId }) => {
         ) : (
           <div className="space-y-3">
             {examData.slice().reverse().slice(0, 10).map((exam, index) => {
-              const percentage = Math.round(((exam.obtainedMarks || 0) / (exam.totalMarks || 100)) * 100);
+              const totalMarks = exam.test?.totalMarks || exam.totalMarks || 100;
+              const obtainedMarks = exam.obtainedMarks || 0;
+              const percentage = Math.round((obtainedMarks / totalMarks) * 100);
               const gradeInfo = getGradeFromPercentage(percentage);
+              const testName = exam.test?.title || exam.testName || 'Test';
+              const subject = exam.test?.subject || exam.subject || 'Unknown Subject';
+              const testType = exam.test?.testType || exam.testType || '';
+              const testDate = exam.test?.testDate || exam.date || exam.createdAt || exam.enteredOn;
               
               return (
                 <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -360,10 +394,10 @@ const ExaminationTab = ({ studentId }) => {
                     {getPerformanceIcon(percentage)}
                     <div>
                       <div className="font-medium text-gray-900">
-                        {exam.subject || 'Unknown Subject'}
+                        {subject}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {exam.testName || 'Test'} • {formatDate(exam.date || exam.createdAt)}
+                        {testName} {testType && `(${testType})`} • {formatDate(testDate)}
                       </div>
                     </div>
                   </div>
@@ -371,7 +405,7 @@ const ExaminationTab = ({ studentId }) => {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <div className="font-medium text-gray-900">
-                        {exam.obtainedMarks || 0}/{exam.totalMarks || 100}
+                        {obtainedMarks}/{totalMarks}
                       </div>
                       <div className="text-sm text-gray-600">
                         {percentage}%

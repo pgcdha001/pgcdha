@@ -17,6 +17,8 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
   const [loading, setLoading] = useState(false);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const { showToast } = useToast();
 
   // Communication types with icons and descriptions - for non-admitted students
@@ -78,19 +80,51 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
   const fetchStudents = async () => {
     try {
       setStudentsLoading(true);
-      const response = await api.get('/users?role=Student&limit=100');
       
-      if (response.data.success) {
-        const sortedStudents = (response.data.data || []).sort((a, b) => {
+      // Try multiple approaches to get students
+      let response;
+      try {
+        response = await api.get('/users', {
+          params: {
+            role: 'Student',
+            limit: 500,
+            sortBy: 'fullName.firstName',
+            sortOrder: 'asc'
+          }
+        });
+      } catch (error) {
+        console.log('First attempt failed, trying basic params...');
+        response = await api.get('/users', {
+          params: {
+            role: 'Student'
+          }
+        });
+      }
+      
+      if (response.data.success && response.data.data) {
+        let allStudents = Array.isArray(response.data.data) ? response.data.data : [];
+        
+        // Sort students by name
+        const sortedStudents = allStudents.sort((a, b) => {
           const aName = `${a.fullName?.firstName || ''} ${a.fullName?.lastName || ''}`;
           const bName = `${b.fullName?.firstName || ''} ${b.fullName?.lastName || ''}`;
           return aName.localeCompare(bName);
         });
+        
         setStudents(sortedStudents);
+      } else {
+        console.error('Invalid response structure:', response.data);
+        setStudents([]);
+        if (showToast && typeof showToast === 'function') {
+          showToast('Failed to load students', 'error');
+        }
       }
     } catch (error) {
       console.error('Error fetching students:', error);
-      showToast('Failed to load students', 'error');
+      setStudents([]);
+      if (showToast && typeof showToast === 'function') {
+        showToast('Failed to load students', 'error');
+      }
     } finally {
       setStudentsLoading(false);
     }
@@ -99,6 +133,19 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
   useEffect(() => {
     if (isOpen) {
       fetchStudents();
+    } else {
+      // Reset form when modal closes
+      setFormData({
+        studentId: '',
+        type: 'enquiry',
+        subject: '',
+        message: '',
+        toWhom: 'student',
+        communicationCategory: 'general'
+      });
+      setSelectedStudent(null);
+      setStudentSearch('');
+      setShowStudentDropdown(false);
     }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -142,6 +189,8 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
           communicationCategory: 'general'
         });
         setSelectedStudent(null);
+        setStudentSearch('');
+        setShowStudentDropdown(false);
         if (onCorrespondenceCreated) {
           onCorrespondenceCreated();
         }
@@ -230,29 +279,80 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
                 Loading students...
               </div>
             ) : (
-              <select
-                value={formData.studentId}
-                onChange={(e) => handleInputChange('studentId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select a student...</option>
-                {students.map((student) => {
-                  const studentName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
-                  const level = student.prospectusStage || student.enquiryLevel || 1;
-                  const isAdmitted = level === 5;
-                  const hasClass = student.classId && student.classId !== null;
-                  const classInfo = hasClass ? ` - Class Assigned` : '';
-                  const statusInfo = isAdmitted ? (hasClass ? ' (Admitted + Class)' : ' (Admitted)') : ` (Level ${level})`;
-                  
-                  return (
-                    <option key={student._id} value={student._id}>
-                      {studentName}{statusInfo}{classInfo}
-                      {student.email ? ` - ${student.email}` : ''}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={studentSearch}
+                  onChange={(e) => {
+                    setStudentSearch(e.target.value);
+                    setShowStudentDropdown(true);
+                  }}
+                  onFocus={() => setShowStudentDropdown(true)}
+                  placeholder="Search for a student by name or email..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                
+                {showStudentDropdown && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {students
+                      .filter(student => {
+                        const searchLower = studentSearch.toLowerCase();
+                        const studentName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase();
+                        const studentEmail = student.email?.toLowerCase() || '';
+                        return studentName.includes(searchLower) || studentEmail.includes(searchLower) || searchLower === '';
+                      })
+                      .slice(0, 50) // Limit to 50 results for performance
+                      .map((student) => {
+                        const studentName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim();
+                        const level = student.prospectusStage || student.enquiryLevel || 1;
+                        const isAdmitted = level === 5;
+                        const hasClass = student.classId && student.classId !== null;
+                        const classInfo = hasClass ? ` - Class Assigned` : '';
+                        const statusInfo = isAdmitted ? (hasClass ? ' (Admitted + Class)' : ' (Admitted)') : ` (Level ${level})`;
+                        
+                        return (
+                          <div
+                            key={student._id}
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, studentId: student._id }));
+                              setSelectedStudent(student);
+                              setStudentSearch(studentName + statusInfo + classInfo);
+                              setShowStudentDropdown(false);
+                            }}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-900">{studentName}</div>
+                            <div className="text-sm text-gray-600">
+                              {statusInfo}{classInfo}
+                              {student.email && ` • ${student.email}`}
+                              {student.phoneNumber && ` • ${student.phoneNumber}`}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    
+                    {students.filter(student => {
+                      const searchLower = studentSearch.toLowerCase();
+                      const studentName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase();
+                      const studentEmail = student.email?.toLowerCase() || '';
+                      return studentName.includes(searchLower) || studentEmail.includes(searchLower) || searchLower === '';
+                    }).length === 0 && (
+                      <div className="px-3 py-2 text-gray-500 text-center">
+                        No students found matching your search
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Click outside to close dropdown */}
+                {showStudentDropdown && (
+                  <div
+                    className="fixed inset-0 z-5"
+                    onClick={() => setShowStudentDropdown(false)}
+                  ></div>
+                )}
+              </div>
             )}
             
             {/* Student Status Info */}

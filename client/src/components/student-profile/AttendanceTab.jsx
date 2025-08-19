@@ -172,17 +172,7 @@ const AttendanceTab = ({ studentId }) => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Classes</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalClasses}</p>
-            </div>
-            <Users className="h-8 w-8 text-blue-500" />
-          </div>
-        </div>
-        
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -202,49 +192,6 @@ const AttendanceTab = ({ studentId }) => {
             <XCircle className="h-8 w-8 text-red-500" />
           </div>
         </div>
-        
-        <div className="bg-white border rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Attendance Rate</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.attendancePercentage}%</p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-blue-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* Attendance Status Indicator */}
-      <div className="bg-white border rounded-lg p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-medium text-gray-900">Attendance Health</h4>
-          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-            stats.attendancePercentage >= 85 ? 'bg-green-100 text-green-800' :
-            stats.attendancePercentage >= 70 ? 'bg-yellow-100 text-yellow-800' :
-            'bg-red-100 text-red-800'
-          }`}>
-            {stats.attendancePercentage >= 85 ? 'Excellent' :
-             stats.attendancePercentage >= 70 ? 'Good' : 'Needs Improvement'}
-          </div>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className={`h-2 rounded-full ${
-              stats.attendancePercentage >= 85 ? 'bg-green-500' :
-              stats.attendancePercentage >= 70 ? 'bg-yellow-500' :
-              'bg-red-500'
-            }`}
-            style={{ width: `${stats.attendancePercentage}%` }}
-          ></div>
-        </div>
-        <p className="text-sm text-gray-600 mt-2">
-          {stats.attendancePercentage >= 85 
-            ? 'Outstanding attendance record! Keep up the excellent work.'
-            : stats.attendancePercentage >= 70
-            ? 'Good attendance, but there\'s room for improvement.'
-            : 'Attendance needs attention. Consider discussing with student and parents.'
-          }
-        </p>
       </div>
 
       {/* Monthly Trend Chart (Simple) */}

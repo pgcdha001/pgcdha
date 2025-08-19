@@ -77,24 +77,55 @@ const CorrespondenceTab = ({ studentId, studentName }) => {
     try {
       setLoading(true);
       
-      const response = await api.get('/correspondence', {
+      // Filter correspondence by specific student ID - only after admission
+      const response = await api.get(`/correspondence/student/${studentId}`, {
         params: {
-          studentId: studentId,
           limit: 100,
-          sortBy: 'createdAt',
-          sortOrder: 'desc'
+          sortBy: 'timestamp',
+          sortOrder: 'desc',
+          type: 'student' // Only get correspondence for admitted students
         }
       });
 
       if (response.data.success) {
         const data = response.data.data || [];
-        setCorrespondenceData(data);
-        calculateStats(data);
+        // Filter only correspondence that happened after student admission
+        const admittedStudentCorrespondence = data.filter(item => 
+          item.type === 'student' && 
+          (item.toWhom || item.communicationCategory) // Has admitted student fields
+        );
+        setCorrespondenceData(admittedStudentCorrespondence);
+        calculateStats(admittedStudentCorrespondence);
+      } else {
+        // Fallback to general correspondence endpoint with studentId filter
+        const fallbackResponse = await api.get('/correspondence', {
+          params: {
+            studentId: studentId,
+            limit: 100,
+            sortBy: 'timestamp',
+            sortOrder: 'desc',
+            type: 'student'
+          }
+        });
+        
+        if (fallbackResponse.data.success) {
+          const data = fallbackResponse.data.data || [];
+          // Filter only correspondence that happened after student admission
+          const admittedStudentCorrespondence = data.filter(item => 
+            item.type === 'student' && 
+            (item.toWhom || item.communicationCategory) // Has admitted student fields
+          );
+          setCorrespondenceData(admittedStudentCorrespondence);
+          calculateStats(admittedStudentCorrespondence);
+        }
       }
 
     } catch (error) {
       console.error('Error fetching correspondence data:', error);
-      showToast('Failed to load correspondence data', 'error');
+      // Use safe toast call
+      if (typeof showToast === 'function') {
+        showToast('Failed to load correspondence data', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -103,7 +134,7 @@ const CorrespondenceTab = ({ studentId, studentName }) => {
   // Calculate correspondence statistics
   const calculateStats = (data) => {
     const totalCorrespondence = data.length;
-    const byTeacher = data.filter(item => item.createdBy?.role === 'Teacher').length;
+    const byTeacher = data.filter(item => item.createdBy?.role === 'Teacher' || item.staffMember?.role === 'Teacher').length;
     
     // Group by communication type
     const byType = {};
@@ -356,17 +387,22 @@ const CorrespondenceTab = ({ studentId, studentName }) => {
                         {item.message || item.description || 'No description available'}
                       </p>
                       
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3" />
                           <span>
-                            {item.createdBy?.fullName?.firstName} {item.createdBy?.fullName?.lastName}
+                            {item.createdBy?.fullName?.firstName} {item.createdBy?.fullName?.lastName} 
                             {item.createdBy?.role && ` (${item.createdBy.role})`}
+                            {!item.createdBy && item.staffMember && (
+                              <>
+                                {item.staffMember.name} ({item.staffMember.role})
+                              </>
+                            )}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          <span>{formatDate(item.createdAt)}</span>
+                          <span>{formatDate(item.createdAt || item.timestamp)}</span>
                         </div>
                         {item.communicationType && (
                           <div className="flex items-center gap-1">
@@ -496,12 +532,17 @@ const CorrespondenceTab = ({ studentId, studentName }) => {
                     <p className="text-gray-900">
                       {selectedCorrespondence.createdBy?.fullName?.firstName} {selectedCorrespondence.createdBy?.fullName?.lastName}
                       {selectedCorrespondence.createdBy?.role && ` (${selectedCorrespondence.createdBy.role})`}
+                      {!selectedCorrespondence.createdBy && selectedCorrespondence.staffMember && (
+                        <>
+                          {selectedCorrespondence.staffMember.name} ({selectedCorrespondence.staffMember.role})
+                        </>
+                      )}
                     </p>
                   </div>
                   
                   <div>
                     <label className="text-sm font-medium text-gray-500">Date & Time</label>
-                    <p className="text-gray-900">{formatDate(selectedCorrespondence.createdAt)}</p>
+                    <p className="text-gray-900">{formatDate(selectedCorrespondence.createdAt || selectedCorrespondence.timestamp)}</p>
                   </div>
                 </div>
               </div>
