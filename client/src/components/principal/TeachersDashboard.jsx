@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import api from '../../services/api';
 import { 
   Search, 
   Users, 
@@ -22,19 +24,14 @@ const TeachersDashboard = () => {
     fetchTeachersOverview();
   }, []);
 
+  const [range, setRange] = useState('week');
+
   const fetchTeachersOverview = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/teacher-analytics/teachers-overview', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTeachers(data);
-      }
+      const response = await api.get('/teacher-analytics/teachers-overview', { params: { range } });
+      // This endpoint returns a raw array of teachers with stats
+      setTeachers(response.data);
     } catch (error) {
       console.error('Error fetching teachers overview:', error);
     } finally {
@@ -144,6 +141,19 @@ const TeachersDashboard = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Range</span>
+              <Select value={range} onValueChange={(v) => { setRange(v); fetchTeachersOverview(); }}>
+                <SelectTrigger className="w-28 h-8">
+                  <SelectValue placeholder="Week" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">Week</SelectItem>
+                  <SelectItem value="month">Month</SelectItem>
+                  <SelectItem value="year">Year</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Badge variant="outline" className="whitespace-nowrap">
               {filteredTeachers.length} of {totalTeachers} teachers

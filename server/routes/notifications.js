@@ -449,19 +449,7 @@ router.post('/late-marksheet-notifications/:testId/dismiss', authenticate, async
     const { testId } = req.params;
     const { reason } = req.body;
 
-    // Mark action taken so the notification no longer appears
-    const test = await Test.findById(testId);
-    if (!test) {
-      return res.status(404).json({
-        success: false,
-        message: 'Test not found'
-      });
-    }
-
-    test.notificationActionTaken = true;
-    test.lastNotificationActionDate = new Date();
-    await test.save();
-
+    // Ephemeral dismiss: do NOT mark action taken; client will hide per session
     res.json({
       success: true,
       data: {
