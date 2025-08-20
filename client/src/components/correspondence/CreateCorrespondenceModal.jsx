@@ -21,6 +21,17 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const { showToast } = useToast();
 
+  // Fallback function for toast if context is not available
+  const safeShowToast = (message, type = 'info') => {
+    if (showToast && typeof showToast === 'function') {
+      showToast(message, type);
+    } else {
+      console.log(`Toast (${type}): ${message}`);
+      // You could also use a different toast library or alert as fallback
+      alert(`${type.toUpperCase()}: ${message}`);
+    }
+  };
+
   // Communication types with icons and descriptions - for non-admitted students
   const communicationTypes = [
     { 
@@ -134,19 +145,15 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
         });
         
         setStudents(sortedStudents);
-      } else {
-        console.error('Invalid response structure:', response.data);
-        setStudents([]);
-        if (showToast && typeof showToast === 'function') {
-          showToast('Failed to load students', 'error');
+              } else {
+          console.error('Invalid response structure:', response.data);
+          setStudents([]);
+          safeShowToast('Failed to load students', 'error');
         }
-      }
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      setStudents([]);
-      if (showToast && typeof showToast === 'function') {
-        showToast('Failed to load students', 'error');
-      }
+      } catch (error) {
+        console.error('Error fetching students:', error);
+        setStudents([]);
+        safeShowToast('Failed to load students', 'error');
     } finally {
       setStudentsLoading(false);
     }
@@ -175,7 +182,7 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
     e.preventDefault();
     
     if (!formData.studentId || !formData.subject.trim() || !formData.message.trim()) {
-      showToast('Please fill in all required fields', 'error');
+      safeShowToast('Please fill in all required fields', 'error');
       return;
     }
 
@@ -201,7 +208,7 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
       const response = await api.post('/correspondence', requestData);
 
       if (response.data.success) {
-        showToast('Communication created successfully', 'success');
+        safeShowToast('Communication created successfully', 'success');
         setFormData({
           studentId: '',
           type: 'enquiry',
@@ -218,11 +225,11 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
         }
         onClose();
       } else {
-        showToast('Failed to create communication', 'error');
+        safeShowToast('Failed to create communication', 'error');
       }
     } catch (error) {
       console.error('Error creating correspondence:', error);
-      showToast(error.response?.data?.message || 'Failed to create communication', 'error');
+      safeShowToast(error.response?.data?.message || 'Failed to create communication', 'error');
     } finally {
       setLoading(false);
     }

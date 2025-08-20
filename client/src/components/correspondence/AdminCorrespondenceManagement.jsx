@@ -1,9 +1,10 @@
 import React, { useState, useEffect, Fragment, useRef } from 'react';
-import { MessageSquare, TrendingUp, Users, Phone, Clock, RefreshCw, Search, User, ChevronLeft, ChevronRight, Eye, X, Calendar, Filter, Plus } from 'lucide-react';
+import { MessageSquare, TrendingUp, Users, Phone, Clock, RefreshCw, Search, User, ChevronLeft, ChevronRight, Eye, X, Calendar, Filter, Plus, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import CreateCorrespondenceModal from './CreateCorrespondenceModal';
+import CorrespondenceStatsModal from './CorrespondenceStatsModal';
 import PermissionGuard from '../PermissionGuard';
 import { PERMISSIONS } from '../../utils/rolePermissions';
 
@@ -14,6 +15,9 @@ const AdminCorrespondenceManagement = () => {
   const [selectedLevel, setSelectedLevel] = useState(null); // null means show all
   const [selectedEmployee, setSelectedEmployee] = useState(null); // null means show all staff
   const [searchTerm, setSearchTerm] = useState(''); // search across communications
+  const [selectedAssignmentFilter, setSelectedAssignmentFilter] = useState('all'); // all, call, meeting, follow-up, student, enquiry
+  const [activeTab, setActiveTab] = useState('general'); // general, level-change
+  const [generalSubFilter, setGeneralSubFilter] = useState('all'); // all, fees, attendance, discipline, results, appreciation
   const [levelStats, setLevelStats] = useState({});
   const [employeeStats, setEmployeeStats] = useState({});
   
@@ -29,9 +33,8 @@ const AdminCorrespondenceManagement = () => {
   const [studentCorrespondences, setStudentCorrespondences] = useState([]);
   const [showStudentModal, setShowStudentModal] = useState(false);
   
-  // Glimpse modal state
-  const [showGlimpseModal, setShowGlimpseModal] = useState(false);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Stats modal state
+  const [showStatsModal, setShowStatsModal] = useState(false);
   
   // Month detail modal state
   const [showMonthDetailModal, setShowMonthDetailModal] = useState(false);
@@ -153,9 +156,9 @@ const AdminCorrespondenceManagement = () => {
   useEffect(() => {
     if (allCorrespondences.length > 0) {
       const dateRange = getDateRange(selectedTimeFilter);
-      applyAllFilters(selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, dateRange, false);
+      applyAllFilters(selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, dateRange, selectedAssignmentFilter, false);
     }
-  }, [allCorrespondences, selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, customStartDate, customEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allCorrespondences, selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, customStartDate, customEndDate, selectedAssignmentFilter, activeTab, generalSubFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = () => {
     fetchCorrespondences();
@@ -177,11 +180,11 @@ const AdminCorrespondenceManagement = () => {
     if (selectedLevel === level) {
       // If clicking the same level, show all
       setSelectedLevel(null);
-      applyAllFilters(null, selectedEmployee, searchTerm, selectedTimeFilter, dateRange);
+      applyAllFilters(null, selectedEmployee, searchTerm, selectedTimeFilter, dateRange, selectedAssignmentFilter);
     } else {
       // Filter by selected level
       setSelectedLevel(level);
-      applyAllFilters(level, selectedEmployee, searchTerm, selectedTimeFilter, dateRange);
+      applyAllFilters(level, selectedEmployee, searchTerm, selectedTimeFilter, dateRange, selectedAssignmentFilter);
     }
   };
 
@@ -191,18 +194,18 @@ const AdminCorrespondenceManagement = () => {
     if (selectedEmployee === employeeId) {
       // If clicking the same employee, show all
       setSelectedEmployee(null);
-      applyAllFilters(selectedLevel, null, searchTerm, selectedTimeFilter, dateRange);
+      applyAllFilters(selectedLevel, null, searchTerm, selectedTimeFilter, dateRange, selectedAssignmentFilter);
     } else {
       // Filter by selected employee
       setSelectedEmployee(employeeId);
-      applyAllFilters(selectedLevel, employeeId, searchTerm, selectedTimeFilter, dateRange);
+      applyAllFilters(selectedLevel, employeeId, searchTerm, selectedTimeFilter, dateRange, selectedAssignmentFilter);
     }
   };
 
   const handleSearch = (term) => {
     setSearchTerm(term);
     const dateRange = getDateRange(selectedTimeFilter);
-    applyAllFilters(selectedLevel, selectedEmployee, term, selectedTimeFilter, dateRange);
+    applyAllFilters(selectedLevel, selectedEmployee, term, selectedTimeFilter, dateRange, selectedAssignmentFilter);
   };
 
   // Time filter utility functions
@@ -270,14 +273,29 @@ const AdminCorrespondenceManagement = () => {
     setCustomEndDate(pendingEndDate);
     
     // Apply all filters including time
-    applyAllFilters(selectedLevel, selectedEmployee, searchTerm, pendingTimeFilter, dateRange);
+    applyAllFilters(selectedLevel, selectedEmployee, searchTerm, pendingTimeFilter, dateRange, selectedAssignmentFilter);
     
     // Close dropdown
     setShowTimeFilter(false);
   };
 
-  const applyAllFilters = (level, employeeId, search, timeFilter, dateRange, resetPage = true) => {
+  const applyAllFilters = (level, employeeId, search, timeFilter, dateRange, assignmentFilter, resetPage = true) => {
     let filtered = [...allCorrespondences];
+
+    // Apply tab filter
+    filtered = filtered.filter(item => {
+      if (activeTab === 'level-change' && !item.isLevelChange) return false;
+      if (activeTab === 'general' && item.isLevelChange) return false;
+      return true;
+    });
+
+    // Apply general sub-filter
+    if (activeTab === 'general' && generalSubFilter !== 'all') {
+      filtered = filtered.filter(item => {
+        const category = item.communicationCategory || item.type;
+        return generalSubFilter === category;
+      });
+    }
 
     // Apply level filter
     if (level) {
@@ -306,6 +324,14 @@ const AdminCorrespondenceManagement = () => {
                subject.includes(searchLower) ||
                message.includes(searchLower) ||
                staffName.includes(searchLower);
+      });
+    }
+
+    // Apply communication type filter
+    if (assignmentFilter !== 'all') {
+      filtered = filtered.filter(item => {
+        const communicationType = item.type || item.communicationType;
+        return assignmentFilter === communicationType;
       });
     }
 
@@ -367,107 +393,7 @@ const AdminCorrespondenceManagement = () => {
       }));
   };
 
-  // Get overall filtered statistics for glimpse modal
-  const getOverallFilteredStats = () => {
-    // Get all employees with their monthwise statistics
-    const employeeStatsMap = new Map();
-    
-    allCorrespondences.forEach((item) => {
-      const empId = item.staffMember?.id || item.staffMember?._id;
-      const empName = item.staffMember?.name || 'Unknown Staff';
-      
-      // Use timestamp field instead of communicationDate
-      const dateField = item.timestamp || item.communicationDate;
-      if (!dateField) {
-        return;
-      }
-      
-      const commDate = new Date(dateField);
-      
-      // Check if date is valid
-      if (isNaN(commDate.getTime())) {
-        return;
-      }
-      
-      const monthKey = `${commDate.getFullYear()}-${(commDate.getMonth() + 1).toString().padStart(2, '0')}`;
-      
-      if (!empId) {
-        return; // Skip if no valid employee ID
-      }
-      
-      if (!employeeStatsMap.has(empId)) {
-        employeeStatsMap.set(empId, {
-          id: empId,
-          name: empName,
-          totalCount: 0,
-          monthlyData: new Map()
-        });
-      }
-      
-      const empStats = employeeStatsMap.get(empId);
-      empStats.totalCount++;
-      
-      if (!empStats.monthlyData.has(monthKey)) {
-        empStats.monthlyData.set(monthKey, {
-          month: monthKey,
-          total: 0,
-          levelChanges: 0,
-          general: 0,
-          dailyData: new Map()
-        });
-      }
-      
-      const monthStats = empStats.monthlyData.get(monthKey);
-      monthStats.total++;
-      
-      if (item.isLevelChange) {
-        monthStats.levelChanges++;
-      } else {
-        monthStats.general++;
-      }
-      
-      // Track daily data for detailed view
-      const dayKey = commDate.getDate().toString();
-      if (!monthStats.dailyData.has(dayKey)) {
-        monthStats.dailyData.set(dayKey, {
-          day: dayKey,
-          total: 0,
-          levelChanges: 0,
-          general: 0
-        });
-      }
-      
-      const dayStats = monthStats.dailyData.get(dayKey);
-      dayStats.total++;
-      
-      if (item.isLevelChange) {
-        dayStats.levelChanges++;
-      } else {
-        dayStats.general++;
-      }
-    });
-    
-    // Convert to array and sort by total count
-    const employeeStats = Array.from(employeeStatsMap.values())
-      .map(emp => ({
-        ...emp,
-        monthlyData: Array.from(emp.monthlyData.values()).sort((a, b) => b.month.localeCompare(a.month))
-      }))
-      .sort((a, b) => b.totalCount - a.totalCount);
-    
-    const uniqueStudents = new Set(allCorrespondences.map(item => item.studentId)).size;
-    const levelChanges = allCorrespondences.filter(item => item.isLevelChange).length;
-    
-    return {
-      total: allCorrespondences.length,
-      employeeCount: employeeStats.length,
-      uniqueStudents,
-      levelChanges,
-      employeeStats
-    };
-  };
 
-  const overallStats = getOverallFilteredStats();
 
   // Function to handle month cell click for detailed view
   const handleMonthClick = (employeeName, monthData) => {
@@ -503,33 +429,7 @@ const AdminCorrespondenceManagement = () => {
     }
   };
 
-  // Get available years from the data
-  const getAvailableYears = () => {
-    const yearsSet = new Set();
-    allCorrespondences.forEach(item => {
-      const dateField = item.timestamp || item.communicationDate;
-      if (dateField) {
-        const year = new Date(dateField).getFullYear();
-        if (!isNaN(year)) {
-          yearsSet.add(year);
-        }
-      }
-    });
-    return Array.from(yearsSet).sort((a, b) => b - a); // Latest years first
-  };
 
-  // Get all months for the selected year
-  const getMonthsForYear = (year) => {
-    const months = [];
-    for (let month = 12; month >= 1; month--) { // December to January
-      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
-      months.push(monthKey);
-    }
-    return months;
-  };
-
-  const availableYears = getAvailableYears();
-  const displayMonths = getMonthsForYear(selectedYear);
 
   // Calculate filtered employee stats based on current filtered correspondences
   const getFilteredEmployeeStats = (employeeId) => {
@@ -592,6 +492,9 @@ const AdminCorrespondenceManagement = () => {
     setSelectedLevel(null);
     setSelectedEmployee(null);
     setSearchTerm('');
+    setSelectedAssignmentFilter('all');
+    setActiveTab('general');
+    setGeneralSubFilter('all');
     setCurrentPage(1);
     setCorrespondences(allCorrespondences);
   };
@@ -766,9 +669,109 @@ const AdminCorrespondenceManagement = () => {
         ))}
       </div>
 
+      {/* Tab Navigation */}
+      <div className="bg-white/60 backdrop-blur-2xl rounded-2xl shadow-lg border border-border p-6">
+        <div className="flex space-x-1 mb-4">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'general'
+                ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            <MessageSquare className="h-4 w-4" />
+            General Communications
+          </button>
+          <button
+            onClick={() => setActiveTab('level-change')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'level-change'
+                ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Level Changes
+          </button>
+        </div>
+
+        {/* General Sub-Filters */}
+        {activeTab === 'general' && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setGeneralSubFilter('all')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                generalSubFilter === 'all'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <MessageSquare className="h-3 w-3" />
+              All General
+            </button>
+            <button
+              onClick={() => setGeneralSubFilter('fees')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                generalSubFilter === 'fees'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>💰</span>
+              Fees
+            </button>
+            <button
+              onClick={() => setGeneralSubFilter('attendance')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                generalSubFilter === 'attendance'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>📅</span>
+              Attendance
+            </button>
+            <button
+              onClick={() => setGeneralSubFilter('discipline')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                generalSubFilter === 'discipline'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>⚠️</span>
+              Discipline
+            </button>
+            <button
+              onClick={() => setGeneralSubFilter('results')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                generalSubFilter === 'results'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>📊</span>
+              Results
+            </button>
+            <button
+              onClick={() => setGeneralSubFilter('appreciation')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                generalSubFilter === 'appreciation'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>👏</span>
+              Appreciation
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Search and Employee Filter Section */}
       <div className="bg-white/60 backdrop-blur-2xl rounded-2xl shadow-lg border border-border p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Search Bar */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -784,6 +787,29 @@ const AdminCorrespondenceManagement = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+          </div>
+
+          {/* Communication Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Communication Type
+            </label>
+            <select
+              value={selectedAssignmentFilter}
+              onChange={(e) => {
+                setSelectedAssignmentFilter(e.target.value);
+                const dateRange = getDateRange(selectedTimeFilter);
+                applyAllFilters(selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, dateRange, e.target.value);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Types</option>
+              <option value="call">Phone Calls</option>
+              <option value="meeting">Meetings</option>
+              <option value="follow-up">Follow-ups</option>
+              <option value="student">Student Communications</option>
+              <option value="enquiry">Enquiries</option>
+            </select>
           </div>
 
           {/* Employee Filter */}
@@ -809,7 +835,7 @@ const AdminCorrespondenceManagement = () => {
         </div>
 
         {/* Active Filters Display */}
-        {(selectedLevel || selectedEmployee || searchTerm) && (
+        {(selectedLevel || selectedEmployee || searchTerm || selectedAssignmentFilter !== 'all' || activeTab !== 'general' || generalSubFilter !== 'all') && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-wrap">
@@ -833,6 +859,46 @@ const AdminCorrespondenceManagement = () => {
                     <button
                       onClick={() => handleEmployeeFilter(selectedEmployee)}
                       className="ml-1 text-green-600 hover:text-green-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+                
+                {activeTab !== 'general' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                    Level Changes
+                    <button
+                      onClick={() => setActiveTab('general')}
+                      className="ml-1 text-orange-600 hover:text-orange-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+
+                {activeTab === 'general' && generalSubFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    {generalSubFilter.charAt(0).toUpperCase() + generalSubFilter.slice(1)}
+                    <button
+                      onClick={() => setGeneralSubFilter('all')}
+                      className="ml-1 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+
+                {selectedAssignmentFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                    {selectedAssignmentFilter.charAt(0).toUpperCase() + selectedAssignmentFilter.slice(1)}
+                    <button
+                      onClick={() => {
+                        setSelectedAssignmentFilter('all');
+                        const dateRange = getDateRange(selectedTimeFilter);
+                        applyAllFilters(selectedLevel, selectedEmployee, searchTerm, selectedTimeFilter, dateRange, 'all');
+                      }}
+                      className="ml-1 text-purple-600 hover:text-purple-800"
                     >
                       ×
                     </button>
@@ -875,7 +941,7 @@ const AdminCorrespondenceManagement = () => {
                 {employeeStats[selectedEmployee].name}
               </h3>
               <p className="text-green-600">
-                {employeeStats[selectedEmployee].role} • Performance Overview {(selectedLevel || selectedTimeFilter !== 'all' || searchTerm) && '(Filtered)'}
+                {employeeStats[selectedEmployee].role} • Performance Overview {(selectedLevel || selectedTimeFilter !== 'all' || searchTerm || selectedAssignmentFilter !== 'all' || activeTab !== 'general' || generalSubFilter !== 'all') && '(Filtered)'}
               </p>
             </div>
           </div>
@@ -922,7 +988,7 @@ const AdminCorrespondenceManagement = () => {
       )}
 
       {/* Results Summary */}
-      {(selectedLevel || selectedEmployee || searchTerm) && (
+      {(selectedLevel || selectedEmployee || searchTerm || selectedAssignmentFilter !== 'all' || activeTab !== 'general' || generalSubFilter !== 'all') && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -965,7 +1031,7 @@ const AdminCorrespondenceManagement = () => {
           <div className="text-center py-8">
             <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No correspondence records found</p>
-            {(selectedLevel || selectedEmployee || searchTerm) && (
+            {(selectedLevel || selectedEmployee || searchTerm || selectedAssignmentFilter !== 'all' || activeTab !== 'general' || generalSubFilter !== 'all') && (
               <p className="text-sm text-gray-500 mt-2">
                 Try adjusting your filters to see more results
               </p>
@@ -1274,276 +1340,25 @@ const AdminCorrespondenceManagement = () => {
         </div>
       )}
 
-      {/* Floating Glimpse Pill */}
+      {/* Floating Stats Button */}
       <div className="fixed bottom-6 right-6 z-50">
         <button
-          onClick={() => setShowGlimpseModal(true)}
+          onClick={() => setShowStatsModal(true)}
           className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"
           title="View Statistics Overview"
         >
-          <svg 
-            className="w-5 h-5" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
-            />
-          </svg>
-          <span className="text-sm font-medium">Glimpse</span>
+          <TrendingUp className="w-5 h-5" />
+          <span className="text-sm font-medium">Stats</span>
         </button>
       </div>
 
-      {/* Glimpse Modal */}
-      {showGlimpseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Correspondence Statistics Overview
-              </h3>
-              <button
-                onClick={() => setShowGlimpseModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Content with Scroll */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Overview Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-blue-600 text-sm font-medium">Total Communications</div>
-                  <div className="text-2xl font-bold text-blue-700">
-                    {overallStats.total}
-                  </div>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-green-600 text-sm font-medium">Employee Count</div>
-                  <div className="text-2xl font-bold text-green-700">
-                    {overallStats.employeeCount}
-                  </div>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <div className="text-purple-600 text-sm font-medium">Unique Students</div>
-                  <div className="text-2xl font-bold text-purple-700">
-                    {overallStats.uniqueStudents}
-                  </div>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <div className="text-orange-600 text-sm font-medium">Level Changes</div>
-                  <div className="text-2xl font-bold text-orange-700">
-                    {overallStats.levelChanges}
-                  </div>
-                </div>
-              </div>
-
-              {/* Employee Monthly Performance Matrix */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-lg font-semibold">Monthly Performance Matrix</h4>
-                  {/* Year Filter Dropdown */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700">Year:</label>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {availableYears.map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                {displayMonths.length === 0 ? (
-                  <div className="bg-gray-50 rounded-lg p-8 text-center">
-                    <div className="text-gray-500">No monthly data available for {selectedYear}</div>
-                    <div className="text-sm text-gray-400 mt-2">
-                      Try selecting a different year or add correspondence records
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg p-4 overflow-auto">
-                    <div className="min-w-full">
-                      {/* Table Header - Employee Names */}
-                      <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `120px repeat(${overallStats.employeeStats.length}, minmax(140px, 1fr))` }}>
-                        <div className="px-2 py-3 font-semibold text-sm text-gray-700 border-b-2 border-gray-300">
-                          Month
-                        </div>
-                        {overallStats.employeeStats.map((emp, index) => (
-                          <div key={index} className="px-2 py-3 font-semibold text-sm text-gray-700 border-b-2 border-gray-300 text-center">
-                            <div className="truncate" title={emp.name}>
-                              {emp.name}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Total: {emp.totalCount}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Table Rows - Months */}
-                      <div className="space-y-1">
-                        {displayMonths.map((month) => (
-                          <div key={month} className="grid gap-1" style={{ gridTemplateColumns: `120px repeat(${overallStats.employeeStats.length}, minmax(140px, 1fr))` }}>
-                            {/* Month Label */}
-                            <div className="px-2 py-3 font-medium text-sm bg-gray-100 rounded-l border-r border-gray-300 flex items-center">
-                              {formatMonthDisplay(month)}
-                            </div>
-                            
-                            {/* Employee Data for this Month */}
-                            {overallStats.employeeStats.map((emp, empIndex) => {
-                              const monthData = emp.monthlyData.find(m => m.month === month);
-                              return (
-                                <div key={empIndex} className="px-1 py-1">
-                                  {monthData ? (
-                                    <button
-                                      onClick={() => handleMonthClick(emp.name, monthData)}
-                                      className="w-full bg-white rounded border hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer p-2 h-full"
-                                    >
-                                      <div className="text-xs space-y-1">
-                                        <div className="font-bold text-gray-900 text-base">
-                                          {monthData.total}
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-orange-600 font-medium">
-                                            L: {monthData.levelChanges}
-                                          </span>
-                                          <span className="text-green-600 font-medium">
-                                            G: {monthData.general}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </button>
-                                  ) : (
-                                    <div className="w-full bg-gray-50 rounded border p-2 h-full flex items-center justify-center">
-                                      <div className="text-xs text-gray-400">-</div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Legend */}
-                      <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-600 bg-white p-3 rounded border">
-                        <div className="flex items-center gap-1">
-                          <div className="w-3 h-3 bg-gray-900 rounded"></div>
-                          <span>Total Communications</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-3 h-3 bg-orange-600 rounded"></div>
-                          <span>L: Level Changes</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-3 h-3 bg-green-600 rounded"></div>
-                          <span>G: General Communications</span>
-                        </div>
-                        <div className="text-blue-600 font-medium">
-                          💡 Click on any cell to view daily breakdown
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Communication Types */}
-              <div className="mb-6">
-                <h4 className="text-lg font-semibold mb-3">Communication Types</h4>
-                <div className="space-y-3">
-                  {/* Since the data structure doesn't have communicationType, show available types */}
-                  {(() => {
-                    // Get unique types from the data
-                    const typeField = 'type'; // From debug log, we see "type": "enquiry"
-                    const uniqueTypes = [...new Set(allCorrespondences.map(c => c[typeField]).filter(Boolean))];
-                    
-                    if (uniqueTypes.length === 0) {
-                      return (
-                        <div className="text-gray-500 text-sm">No communication type data available</div>
-                      );
-                    }
-                    
-                    return uniqueTypes.map(type => {
-                      const count = allCorrespondences.filter(c => c[typeField] === type).length;
-                      const percentage = allCorrespondences.length > 0 ? ((count / allCorrespondences.length) * 100).toFixed(1) : 0;
-                      return (
-                        <div key={type} className="flex items-center justify-between">
-                          <span className="text-sm font-medium capitalize">{type}</span>
-                          <div className="flex items-center gap-2 flex-1 ml-4">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full" 
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-
-              {/* Recent Activity Summary */}
-              <div>
-                <h4 className="text-lg font-semibold mb-3">Recent Activity</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-3 rounded-lg text-center">
-                    <div className="text-sm text-gray-600">Today</div>
-                    <div className="text-lg font-bold">
-                      {allCorrespondences.filter(c => {
-                        const dateField = c.timestamp || c.communicationDate;
-                        return dateField && new Date(dateField).toDateString() === new Date().toDateString();
-                      }).length}
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg text-center">
-                    <div className="text-sm text-gray-600">This Week</div>
-                    <div className="text-lg font-bold">
-                      {allCorrespondences.filter(c => {
-                        const dateField = c.timestamp || c.communicationDate;
-                        if (!dateField) return false;
-                        const commDate = new Date(dateField);
-                        const weekAgo = new Date();
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        return commDate >= weekAgo;
-                      }).length}
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg text-center">
-                    <div className="text-sm text-gray-600">This Month</div>
-                    <div className="text-lg font-bold">
-                      {allCorrespondences.filter(c => {
-                        const dateField = c.timestamp || c.communicationDate;
-                        if (!dateField) return false;
-                        const commDate = new Date(dateField);
-                        const monthAgo = new Date();
-                        monthAgo.setDate(monthAgo.getDate() - 30);
-                        return commDate >= monthAgo;
-                      }).length}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Stats Modal */}
+      <CorrespondenceStatsModal
+        isOpen={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        correspondences={correspondences}
+        allCorrespondences={allCorrespondences}
+      />
 
       {/* Month Detail Modal */}
       {showMonthDetailModal && selectedMonthData && (
