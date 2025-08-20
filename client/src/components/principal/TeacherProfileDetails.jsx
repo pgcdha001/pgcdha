@@ -80,6 +80,15 @@ const TeacherProfileDetails = ({ teacherId, onBack }) => {
 
   // Prepare attendance chart data
   const attendanceChartData = (() => {
+    // Create a map of attendance records by date for quick lookup
+    const attendanceByDate = new Map();
+    attendanceRecords.forEach(record => {
+      const dateKey = new Date(record.date).toDateString();
+      attendanceByDate.set(dateKey, record);
+    });
+
+
+
     // Ensure at least a zero baseline if no data
     if (!weeklyTimetable || weeklyTimetable.length === 0) {
       return [
@@ -91,17 +100,40 @@ const TeacherProfileDetails = ({ teacherId, onBack }) => {
         { day: 'Sat', present: 0, late: 0, absent: 0 }
       ];
     }
-    return weeklyTimetable.map((slot) => {
-      const attendance = attendanceRecords.find(record => 
-        new Date(record.date).toDateString() === new Date(slot.date).toDateString()
-      );
-      return {
-        day: new Date(slot.date).toLocaleDateString('en-US', { weekday: 'short' }),
+
+    // Group timetable slots by day of week to avoid duplicates
+    const slotsByDay = new Map();
+    weeklyTimetable.forEach(slot => {
+      const dayKey = new Date(slot.date).getDay(); // 0 = Sunday, 1 = Monday, etc.
+      if (!slotsByDay.has(dayKey)) {
+        slotsByDay.set(dayKey, slot);
+      }
+    });
+
+    // Create chart data for each day of the week (Monday = 1 to Saturday = 6)
+    const chartData = [];
+    for (let day = 1; day <= 6; day++) { // Monday to Saturday
+      const slot = slotsByDay.get(day);
+      let attendance = null;
+      
+      if (slot) {
+        const dateKey = new Date(slot.date).toDateString();
+        attendance = attendanceByDate.get(dateKey);
+      }
+      
+      const dataPoint = {
+        day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day - 1],
         present: attendance && (attendance.status === 'On Time' || attendance.status === 'Present') ? 1 : 0,
         late: attendance && (attendance.status === 'Late' || (attendance.lateMinutes && attendance.lateMinutes > 10)) ? 1 : 0,
         absent: !attendance || attendance.status === 'Absent' ? 1 : 0
       };
-    });
+      
+
+      chartData.push(dataPoint);
+    }
+
+
+    return chartData;
   })();
 
   if (selectedTest) {
