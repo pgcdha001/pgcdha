@@ -120,21 +120,23 @@ const PrincipalDashboard = () => {
       />
       
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Notifications Section */}
-        <div className="space-y-6 mb-6">
-          {/* Late Teacher Notifications */}
-          <LateTeacherNotifications />
-          
-          {/* Late Marksheet Notifications */}
-          <LateMarksheetNotifications />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main content */}
+          <div className="lg:col-span-8 xl:col-span-9">
+            <DashboardGrid
+              cards={visibleCards}
+              loading={loading}
+              data={dashboardData}
+              slidingItems={{}} // No sliding items for Principal
+            />
+          </div>
+
+          {/* Right sidebar notifications */}
+          <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+            <LateTeacherNotifications compact />
+            <LateMarksheetNotifications compact />
+          </div>
         </div>
-        
-        <DashboardGrid
-          cards={visibleCards}
-          loading={loading}
-          data={dashboardData}
-          slidingItems={{}} // No sliding items for Principal
-        />
         
         {/* Debug info - remove in production */}
         {process.env.NODE_ENV === 'development' && (
