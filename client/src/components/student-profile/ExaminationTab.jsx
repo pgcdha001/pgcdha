@@ -19,6 +19,8 @@ const ExaminationTab = ({ studentId }) => {
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [subjectPerformance, setSubjectPerformance] = useState([]);
+  const [performanceMatrix, setPerformanceMatrix] = useState(null);
+  const [studentData, setStudentData] = useState(null);
 
   const { showToast } = useToast();
 
@@ -62,6 +64,20 @@ const ExaminationTab = ({ studentId }) => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch student analytics matrix and data
+  const fetchStudentMatrix = async () => {
+    try {
+      // Fetch student analytics matrix
+      const matrixResponse = await api.get(`/analytics/student/${studentId}/matrix`);
+      if (matrixResponse.data.success) {
+        setPerformanceMatrix(matrixResponse.data.data.performanceMatrix);
+        setStudentData(matrixResponse.data.data.studentInfo);
+      }
+    } catch (error) {
+      console.error('Error fetching student matrix:', error);
     }
   };
 
@@ -156,6 +172,7 @@ const ExaminationTab = ({ studentId }) => {
   useEffect(() => {
     if (studentId) {
       fetchExaminationData();
+      fetchStudentMatrix();
     }
   }, [studentId]);
 
@@ -345,6 +362,151 @@ const ExaminationTab = ({ studentId }) => {
           </div>
         )}
       </div>
+
+      {/* Performance Matrix Table */}
+      {performanceMatrix && (
+        <div className="bg-white border rounded-lg p-6">
+          <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <PieChart className="h-5 w-5 text-blue-500" />
+            Test Performance Matrix
+          </h4>
+          <p className="text-sm text-gray-600 mb-6">
+            Each cell shows: <strong>Test Result %</strong> / <strong>Matric Subject %</strong>
+          </p>
+          
+          {performanceMatrix.classTestResults && performanceMatrix.classTestResults.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-gray-200 px-3 py-2 text-left font-medium text-gray-900">
+                      Test
+                    </th>
+                    {Object.keys(performanceMatrix.currentAverages.subjects || {}).map(subject => (
+                      <th key={subject} className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-900">
+                        {subject}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {performanceMatrix.classTestResults.map((test, testIndex) => (
+                    <tr key={testIndex} className={testIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="border border-gray-200 px-3 py-2 font-medium text-gray-900">
+                        <div>
+                          <div className="text-sm">{test.testName}</div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(test.testDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </td>
+                      {Object.keys(performanceMatrix.currentAverages.subjects || {}).map(subject => {
+                        const testResult = test.subjects[subject];
+                        const matricSubject = performanceMatrix.matriculationBaseline?.subjects?.[subject];
+                        
+                        return (
+                          <td key={subject} className="border border-gray-200 px-3 py-2 text-center">
+                            {testResult ? (
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium">
+                                  {Math.round(testResult.percentage)}%
+                                  {matricSubject ? (
+                                    <>
+                                      <span className="text-gray-400 mx-1">/</span>
+                                      <span className="text-blue-600">{Math.round(matricSubject)}%</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400 mx-1">/ N/A</span>
+                                  )}
+                                </div>
+                                <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                  testResult.percentage >= 80 ? 'bg-green-100 text-green-800' :
+                                  testResult.percentage >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {testResult.zone || 'N/A'}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-sm">-</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  
+                  {/* Current Average Row */}
+                  <tr className="bg-blue-50 border-t-2 border-blue-200">
+                    <td className="border border-gray-200 px-3 py-2 font-bold text-blue-900">
+                      Current Average
+                    </td>
+                    {Object.entries(performanceMatrix.currentAverages.subjects || {}).map(([subject, data]) => {
+                      const matricSubject = performanceMatrix.matriculationBaseline?.subjects?.[subject];
+                      
+                      return (
+                        <td key={subject} className="border border-gray-200 px-3 py-2 text-center">
+                          <div className="space-y-1">
+                            <div className="text-sm font-bold text-blue-900">
+                              {data.percentage ? Math.round(data.percentage) : 0}%
+                              {matricSubject ? (
+                                <>
+                                  <span className="text-gray-400 mx-1">/</span>
+                                  <span className="text-blue-600">{Math.round(matricSubject)}%</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-400 mx-1">/ N/A</span>
+                              )}
+                            </div>
+                            <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                              data.zone === 'green' ? 'bg-green-100 text-green-800' :
+                              data.zone === 'blue' ? 'bg-blue-100 text-blue-800' :
+                              data.zone === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                              data.zone === 'red' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {data.zone || 'N/A'}
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <PieChart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Test Matrix Data</h3>
+              <p className="text-gray-600">No test results available for matrix analysis.</p>
+            </div>
+          )}
+          
+          {/* Matrix Legend */}
+          <div className="mt-6 border-t pt-4">
+            <h5 className="font-medium text-gray-900 mb-3">Zone Legend</h5>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-500 rounded"></div>
+                <span className="text-sm text-gray-700">Green Zone (Excellent)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                <span className="text-sm text-gray-700">Blue Zone (Good)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+                <span className="text-sm text-gray-700">Yellow Zone (Needs Focus)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-red-500 rounded"></div>
+                <span className="text-sm text-gray-700">Red Zone (Critical)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Areas Needing Improvement */}
       {stats.improvementNeeded.length > 0 && (

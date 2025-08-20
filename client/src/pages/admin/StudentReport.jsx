@@ -63,6 +63,27 @@ const StudentReport = () => {
 
   const debouncedSearchTerm = useDebounce(nameFilter, 400);
 
+  // Non-progression filter handlers
+  const handleNonProgressionToggle = () => {
+    const newShowNonProgression = !showNonProgression;
+    setShowNonProgression(newShowNonProgression);
+    
+    if (newShowNonProgression) {
+      // When enabling non-progression filter, reset stage filter to avoid confusion
+      setStageFilter('');
+      if (!progressionLevel) {
+        setProgressionLevel('2'); // Default to Level 2
+      }
+    } else {
+      // When disabling non-progression filter, reset stage filter to show cumulative data clearly
+      setStageFilter('');
+    }
+  };
+
+  const handleProgressionLevelChange = (level) => {
+    setProgressionLevel(level);
+  };
+
   const dateFilters = [
     { value: 'all', label: 'All Time' },
     { value: 'today', label: 'Today' },
@@ -408,36 +429,44 @@ const StudentReport = () => {
               />
             )}
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-3">
               <input
                 type="checkbox"
                 id="nonProgression"
                 checked={showNonProgression}
-                onChange={(e) => setShowNonProgression(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                onChange={handleNonProgressionToggle}
+                className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
               />
-              <label htmlFor="nonProgression" className="text-sm text-gray-700">
-                Show Non-Progression Only
+              <label htmlFor="nonProgression" className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <AlertTriangle className="w-4 h-4 text-orange-500" />
+                <span>Show Non-Progressed Students</span>
               </label>
             </div>
 
             {showNonProgression && (
-              <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">From Level:</span>
                 <select
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={progressionLevel}
-                  onChange={(e) => setProgressionLevel(e.target.value)}
+                  onChange={(e) => handleProgressionLevelChange(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >
                   <option value="">Select Level</option>
-                  <option value="1">Level 1</option>
-                  <option value="2">Level 2</option>
-                  <option value="3">Level 3</option>
-                  <option value="4">Level 4</option>
-                  <option value="5">Level 5</option>
+                  <option value="2">Level 2 (didn't progress from Level 1)</option>
+                  <option value="3">Level 3 (didn't progress from Level 2)</option>
+                  <option value="4">Level 4 (didn't progress from Level 3)</option>
+                  <option value="5">Level 5 (didn't progress from Level 4)</option>
                 </select>
               </div>
             )}
           </div>
+          
+          {showNonProgression && progressionLevel && (
+            <div className="mt-2 text-sm text-orange-600 bg-orange-50 p-2 rounded-lg">
+              <AlertTriangle className="w-4 h-4 inline mr-1" />
+              Showing students who did not progress to Level {progressionLevel}
+            </div>
+          )}
         </Card>
 
         {/* Summary Statistics */}
