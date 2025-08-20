@@ -14,11 +14,12 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 
-const LateTeacherNotifications = () => {
+const LateTeacherNotifications = ({ compact = false }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(!compact);
 
   useEffect(() => {
     fetchNotifications();
@@ -91,28 +92,134 @@ const LateTeacherNotifications = () => {
     }
   };
 
-  if (loading) {
+  // Compact mode: show a collapsible card with count-only summary by default
+  if (compact) {
     return (
+      <>
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="animate-spin">
-            <RefreshCw className="w-6 h-6 text-gray-400" />
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="flex items-center gap-3 group"
+              title="Toggle details"
+            >
+              <Bell className="w-6 h-6 text-red-600" />
+              <h3 className="text-lg font-semibold text-gray-800">
+                {notifications.length} {notifications.length === 1 ? 'teacher late' : 'teachers late'}
+              </h3>
+            </button>
+            <button
+              onClick={fetchNotifications}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
           </div>
-          <h3 className="text-lg font-semibold text-gray-800">Loading Teacher Alerts...</h3>
+          {isExpanded && (
+            <div className="mt-4">
+              {loading ? (
+                <div className="flex items-center gap-3">
+          <div className="animate-spin">
+                    <RefreshCw className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <span className="text-sm text-gray-600">Loading Teacher Alerts...</span>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-sm text-gray-600">All teachers are on time for their classes today.</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`border-l-4 rounded-lg p-4 ${getSeverityColor(notification.severity)}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`text-sm font-medium px-2 py-1 rounded-full ${getSeverityBadgeColor(notification.severity)}`}>
+                              {notification.severity.charAt(0).toUpperCase() + notification.severity.slice(1)}
+                            </span>
+                            <span className={`font-semibold ${getSeverityTextColor(notification.severity)}`}>
+                              {notification.teacherName}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4" />
+                              <span>Teacher: {notification.teacherUserName}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Building className="w-4 h-4" />
+                              <span>Class: {notification.className}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="w-4 h-4" />
+                              <span>Subject: {notification.subject}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4" />
+                              <span>Class Time: {notification.classStartTime} - {notification.classEndTime}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4" />
+                              <span className="font-medium text-red-600">
+                                {notification.lateDurationText}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Building className="w-4 h-4" />
+                              <span>Floor: {notification.floor}</span>
+                            </div>
+                          </div>
+                          {notification.remarks && (
+                            <div className="text-sm text-gray-600 mb-3">
+                              <strong>Remarks:</strong> {notification.remarks}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => {
+                              setSelectedNotification(notification);
+                              setShowModal(true);
+                            }}
+                            className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Take Action
+                          </button>
+                          <button
+                            onClick={() => handleDismiss(notification.id)}
+                            className="px-3 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                          >
+                            Dismiss
+                          </button>
+          </div>
         </div>
       </div>
-    );
-  }
+                  ))}
+                </div>
+              )}
+        </div>
+          )}
+      </div>
 
-  if (notifications.length === 0) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Check className="w-6 h-6 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-800">No Late Teachers</h3>
-        </div>
-        <p className="text-gray-600">All teachers are on time for their classes today!</p>
-      </div>
+        {/* Action Modal */}
+        {showModal && selectedNotification && (
+          <ActionModal
+            notification={selectedNotification}
+            onAction={handleAction}
+            onDismiss={handleDismiss}
+            onClose={() => {
+              setShowModal(false);
+              setSelectedNotification(null);
+            }}
+          />
+        )}
+      </>
     );
   }
 

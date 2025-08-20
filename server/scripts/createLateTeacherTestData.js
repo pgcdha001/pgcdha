@@ -39,14 +39,19 @@ async function createLateTeacherTestData() {
       const classDoc = classes[i % classes.length];
       
       // Create morning class (9:00 AM)
+      const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const dayName = dayNames[today.getDay()];
+      const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
       const morningTimetable = {
+        title: `${classDoc.name} - ${teacher.fullName.firstName} (${dayName} 09:00)` ,
         teacherId: teacher._id,
         classId: classDoc._id,
         subject: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'][i % 5],
         startTime: '09:00',
         endTime: '10:00',
-        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][today.getDay() - 1] || 'Monday',
-        date: today,
+        dayOfWeek: dayName === 'Sunday' ? 'Monday' : dayName,
+        academicYear,
         lectureType: 'Theory',
         createdBy: teacher._id,
         isActive: true
@@ -54,13 +59,14 @@ async function createLateTeacherTestData() {
 
       // Create afternoon class (2:00 PM)
       const afternoonTimetable = {
+        title: `${classDoc.name} - ${teacher.fullName.firstName} (${dayName} 14:00)` ,
         teacherId: teacher._id,
         classId: classDoc._id,
         subject: ['Computer Science', 'Urdu', 'Islamiat', 'Pakistan Studies', 'Economics'][i % 5],
         startTime: '14:00',
         endTime: '15:00',
-        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][today.getDay() - 1] || 'Monday',
-        date: today,
+        dayOfWeek: dayName === 'Sunday' ? 'Monday' : dayName,
+        academicYear,
         lectureType: 'Theory',
         createdBy: teacher._id,
         isActive: true

@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Clock, AlertTriangle, User, Calendar, FileText, X, Check, Plus } from 'lucide-react';
 import api from '../../services/api';
 
-const LateMarksheetNotifications = () => {
+const LateMarksheetNotifications = ({ compact = false }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!compact);
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -107,18 +108,137 @@ const LateMarksheetNotifications = () => {
     }
   };
 
-  if (loading) {
+  if (compact) {
     return (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Bell className="w-6 h-6 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-800">Late Marksheet Alerts</h3>
+      <>
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="flex items-center gap-3 group"
+              title="Toggle details"
+            >
+              <Bell className="w-6 h-6 text-red-600" />
+              <h3 className="text-lg font-semibold text-gray-800">
+                {notifications.length} {notifications.length === 1 ? 'late marksheet' : 'late marksheets'}
+              </h3>
+            </button>
+            <button
+              onClick={fetchNotifications}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Refresh"
+            >
+              <Clock className="w-5 h-5" />
+            </button>
+          </div>
+          {isExpanded && (
+            <div className="mt-4">
+              {loading ? (
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ) : error ? (
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <span className="text-sm text-red-600">{error}</span>
+                  </div>
+                  <button onClick={fetchNotifications} className="mt-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg">Retry</button>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-sm text-gray-600">All teachers have submitted marksheets on time.</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 rounded-lg border-l-4 ${getSeverityColor(notification.severity)}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          {getSeverityIcon(notification.severity)}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold text-gray-900">
+                                {notification.testTitle}
+                              </h4>
+                              <span className="text-sm text-gray-500">
+                                ({notification.subject})
+                              </span>
+                            </div>
+                            <div className="space-y-1 text-sm text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <User className="w-4 h-4" />
+                                <span>Teacher: {notification.teacher?.name || 'Not assigned'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                <span>Class: {notification.class?.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4" />
+                                <span>
+                                  Deadline: {new Date(notification.marksEntryDeadline).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4" />
+                                <span className="font-medium text-red-600">
+                                  {notification.lateDurationText}
+                                </span>
+                              </div>
+                              {notification.marksUploaded && (
+                                <div className="text-xs text-gray-500">
+                                  Marks were uploaded, but this alert persists until action is taken.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => {
+                              setSelectedNotification(notification);
+                              setShowModal(true);
+                            }}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Take Action
+                          </button>
+                          <button
+                            onClick={() => handleDismiss(notification.id, 'Dismissed by principal')}
+                            disabled={actionLoading}
+                            className="px-3 py-1.5 bg-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-400 transition-colors disabled:opacity-50"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      </div>
+
+        {showModal && selectedNotification && (
+          <ActionModal
+            notification={selectedNotification}
+            onAction={handleAction}
+            onDismiss={handleDismiss}
+            onClose={() => {
+              setShowModal(false);
+              setSelectedNotification(null);
+            }}
+            loading={actionLoading}
+          />
+        )}
+      </>
     );
   }
 

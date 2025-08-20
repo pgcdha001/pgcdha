@@ -234,7 +234,7 @@ router.post('/late-teacher-notifications/:attendanceId/action', authenticate, as
  * Shows tests where:
  * 1. marksEntryDeadline has passed
  * 2. Teacher is 10+ minutes late
- * 3. No marks have been uploaded yet
+ * 3. Persist until an action is taken (even if marks are later uploaded)
  */
 router.get('/late-marksheet-notifications', authenticate, async (req, res) => {
   try {
@@ -264,42 +264,41 @@ router.get('/late-marksheet-notifications', authenticate, async (req, res) => {
     .populate('assignedTeacher', 'name email')
     .lean();
 
-    // Filter tests that have no marks uploaded
+    // Build notifications regardless of whether marks were uploaded later
     const notificationsPromises = lateTests.map(async (test) => {
-      // Check if any marks have been uploaded for this test
+      // Check if any marks have been uploaded for this test (for context only)
       const marksCount = await TestResult.countDocuments({ testId: test._id });
-      
-      if (marksCount === 0) {
-        // Calculate how late the teacher is
-        const lateDurationMs = now.getTime() - test.marksEntryDeadline.getTime();
-        const lateDurationMinutes = Math.floor(lateDurationMs / (60 * 1000));
-        const lateDurationHours = Math.floor(lateDurationMinutes / 60);
-        const remainingMinutes = lateDurationMinutes % 60;
+      const marksUploaded = marksCount > 0;
 
-        let lateDurationText;
-        if (lateDurationHours > 0) {
-          lateDurationText = `${lateDurationHours}h ${remainingMinutes}m late`;
-        } else {
-          lateDurationText = `${lateDurationMinutes}m late`;
-        }
+      // Calculate how late the teacher is
+      const lateDurationMs = now.getTime() - test.marksEntryDeadline.getTime();
+      const lateDurationMinutes = Math.floor(lateDurationMs / (60 * 1000));
+      const lateDurationHours = Math.floor(lateDurationMinutes / 60);
+      const remainingMinutes = lateDurationMinutes % 60;
 
-        return {
-          id: test._id,
-          testTitle: test.title,
-          subject: test.subject,
-          testDate: test.testDate,
-          marksEntryDeadline: test.marksEntryDeadline,
-          class: test.classId,
-          teacher: test.assignedTeacher,
-          lateDurationMinutes,
-          lateDurationText,
-          severity: lateDurationHours >= 24 ? 'critical' : lateDurationHours >= 2 ? 'high' : 'medium'
-        };
+      let lateDurationText;
+      if (lateDurationHours > 0) {
+        lateDurationText = `${lateDurationHours}h ${remainingMinutes}m late`;
+      } else {
+        lateDurationText = `${lateDurationMinutes}m late`;
       }
-      return null;
+
+      return {
+        id: test._id,
+        testTitle: test.title,
+        subject: test.subject,
+        testDate: test.testDate,
+        marksEntryDeadline: test.marksEntryDeadline,
+        class: test.classId,
+        teacher: test.assignedTeacher,
+        lateDurationMinutes,
+        lateDurationText,
+        severity: lateDurationHours >= 24 ? 'critical' : lateDurationHours >= 2 ? 'high' : 'medium',
+        marksUploaded
+      };
     });
 
-    const notifications = (await Promise.all(notificationsPromises)).filter(Boolean);
+    const notifications = await Promise.all(notificationsPromises);
 
     // Sort by how late they are (most late first)
     notifications.sort((a, b) => b.lateDurationMinutes - a.lateDurationMinutes);
@@ -450,9 +449,19 @@ router.post('/late-marksheet-notifications/:testId/dismiss', authenticate, async
     const { testId } = req.params;
     const { reason } = req.body;
 
-    // In a real implementation, you might want to track dismissed notifications
-    // For now, we'll just return success
-    
+    // Mark action taken so the notification no longer appears
+    const test = await Test.findById(testId);
+    if (!test) {
+      return res.status(404).json({
+        success: false,
+        message: 'Test not found'
+      });
+    }
+
+    test.notificationActionTaken = true;
+    test.lastNotificationActionDate = new Date();
+    await test.save();
+
     res.json({
       success: true,
       data: {
