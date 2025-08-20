@@ -208,7 +208,9 @@ router.get('/class/:classId/:date', authenticate, async (req, res) => {
         total: attendanceList.length,
         present: attendanceList.filter(a => a.status === 'Present').length,
         absent: attendanceList.filter(a => a.status === 'Absent').length,
-        late: attendanceList.filter(a => a.status === 'Late').length
+        late: attendanceList.filter(a => a.status === 'Late').length,
+        halfLeave: attendanceList.filter(a => a.status === 'Half Leave').length,
+        fullLeave: attendanceList.filter(a => a.status === 'Full Leave').length
       }
     });
 
@@ -245,8 +247,10 @@ router.get('/student/:studentId', authenticate, async (req, res) => {
       if (record.status === 'Present') acc.present++;
       else if (record.status === 'Absent') acc.absent++;
       else if (record.status === 'Late') acc.late++;
+      else if (record.status === 'Half Leave') acc.halfLeave++;
+      else if (record.status === 'Full Leave') acc.fullLeave++;
       return acc;
-    }, { total: 0, present: 0, absent: 0, late: 0 });
+    }, { total: 0, present: 0, absent: 0, late: 0, halfLeave: 0, fullLeave: 0 });
 
     summary.percentage = summary.total > 0 ? 
       Math.round(((summary.present + summary.late) / summary.total) * 100) : 0;
@@ -317,14 +321,16 @@ router.get('/stats/class/:classId', authenticate, async (req, res) => {
     const formattedStats = {
       Present: 0,
       Absent: 0,
-      Late: 0
+      Late: 0,
+      'Half Leave': 0,
+      'Full Leave': 0
     };
 
     stats.forEach(stat => {
       formattedStats[stat._id] = stat.count;
     });
 
-    const total = formattedStats.Present + formattedStats.Absent + formattedStats.Late;
+    const total = formattedStats.Present + formattedStats.Absent + formattedStats.Late + formattedStats['Half Leave'] + formattedStats['Full Leave'];
     const percentage = total > 0 ? 
       Math.round(((formattedStats.Present + formattedStats.Late) / total) * 100) : 0;
 
@@ -656,6 +662,8 @@ router.get('/student/:studentId/summary', authenticate, async (req, res) => {
     let totalDays = 0;
     let presentDays = 0;
     let absentDays = 0;
+    let halfLeaveDays = 0;
+    let fullLeaveDays = 0;
     
     attendanceRecords.forEach(record => {
       totalDays++;
@@ -665,12 +673,16 @@ router.get('/student/:studentId/summary', authenticate, async (req, res) => {
         presentDays++;
       } else if (status === 'absent') {
         absentDays++;
+      } else if (status === 'half leave') {
+        halfLeaveDays++;
+      } else if (status === 'full leave') {
+        fullLeaveDays++;
       }
       // Note: Any other status (like 'late', 'excused', etc.) will be counted as neither present nor absent
     });
     
-    // Calculate absent days as total minus present (in case some records don't have explicit 'absent' status)
-    const calculatedAbsentDays = totalDays - presentDays;
+    // Calculate absent days as total minus present and leaves (in case some records don't have explicit 'absent' status)
+    const calculatedAbsentDays = totalDays - presentDays - halfLeaveDays - fullLeaveDays;
     
     // Use the calculated absent days for consistency
     const finalAbsentDays = calculatedAbsentDays;
@@ -681,6 +693,8 @@ router.get('/student/:studentId/summary', authenticate, async (req, res) => {
       totalDays,
       presentDays,
       absentDays: finalAbsentDays,
+      halfLeaveDays,
+      fullLeaveDays,
       attendancePercentage
     };
     
@@ -796,6 +810,12 @@ router.get('/monthly-stats/:year', authenticate, async (req, res) => {
           lateCount: {
             $sum: { $cond: [{ $eq: ['$status', 'Late'] }, 1, 0] }
           },
+          halfLeaveCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'Half Leave'] }, 1, 0] }
+          },
+          fullLeaveCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'Full Leave'] }, 1, 0] }
+          },
           totalRecords: { $sum: 1 },
           uniqueStudents: { $addToSet: '$studentId' }
         }
@@ -813,6 +833,8 @@ router.get('/monthly-stats/:year', authenticate, async (req, res) => {
           presentCount: 1,
           absentCount: 1,
           lateCount: 1,
+          halfLeaveCount: 1,
+          fullLeaveCount: 1,
           totalRecords: 1,
           totalStudents: 1
         }
@@ -907,6 +929,12 @@ router.get('/day-wise-report/:year/:month', authenticate, async (req, res) => {
           late: {
             $sum: { $cond: [{ $eq: ['$status', 'Late'] }, 1, 0] }
           },
+          halfLeave: {
+            $sum: { $cond: [{ $eq: ['$status', 'Half Leave'] }, 1, 0] }
+          },
+          fullLeave: {
+            $sum: { $cond: [{ $eq: ['$status', 'Full Leave'] }, 1, 0] }
+          },
           totalRecords: { $sum: 1 },
           uniqueStudents: { $addToSet: '$studentId' }
         }
@@ -924,6 +952,8 @@ router.get('/day-wise-report/:year/:month', authenticate, async (req, res) => {
           present: 1,
           absent: 1,
           late: 1,
+          halfLeave: 1,
+          fullLeave: 1,
           totalRecords: 1,
           totalStudents: 1
         }

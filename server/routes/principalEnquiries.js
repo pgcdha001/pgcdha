@@ -1289,8 +1289,17 @@ router.get('/level-history-students', async (req, res) => {
       const sinceDate = new Date();
       sinceDate.setMonth(sinceDate.getMonth() - 1); // 1 month ago
       
-      matchCondition.prospectusStage = { $lte: levelNum };
-      matchCondition.createdOn = { $lte: sinceDate };
+      // Students who are currently at this level
+      matchCondition.prospectusStage = levelNum;
+      
+      // Use levelHistory to find students who achieved this level more than 1 month ago
+      // and haven't progressed further
+      matchCondition.levelHistory = {
+        $elemMatch: {
+          level: levelNum,
+          achievedOn: { $lte: sinceDate }
+        }
+      };
     } else {
       // Apply level filters when not in non-progression mode
       if (exactLevel) {

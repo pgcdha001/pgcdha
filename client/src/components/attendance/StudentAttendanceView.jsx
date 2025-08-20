@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../services/api';
 import { 
   Users, 
@@ -10,7 +10,9 @@ import {
   Search,
   Filter,
   Download,
-  RefreshCw
+  RefreshCw,
+  UserX,
+  ChevronDown
 } from 'lucide-react';
 
 const StudentAttendanceView = ({ user }) => {
@@ -21,6 +23,8 @@ const StudentAttendanceView = ({ user }) => {
   const [attendance, setAttendance] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [leaveDropdownOpen, setLeaveDropdownOpen] = useState(null);
+  const dropdownRef = useRef(null);
 
   // Helper functions for time validation
   const isToday = (dateString) => {
@@ -211,9 +215,25 @@ const StudentAttendanceView = ({ user }) => {
     const marked = Object.keys(attendance).length;
     const present = Object.values(attendance).filter(a => a.status === 'present').length;
     const absent = Object.values(attendance).filter(a => a.status === 'absent').length;
+    const halfLeave = Object.values(attendance).filter(a => a.status === 'half leave').length;
+    const fullLeave = Object.values(attendance).filter(a => a.status === 'full leave').length;
     
-    return { total, marked, present, absent, unmarked: total - marked };
+    return { total, marked, present, absent, halfLeave, fullLeave, unmarked: total - marked };
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setLeaveDropdownOpen(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const stats = getAttendanceStats();
 
@@ -324,7 +344,7 @@ const StudentAttendanceView = ({ user }) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-blue-600" />
@@ -347,6 +367,22 @@ const StudentAttendanceView = ({ user }) => {
             <span className="text-sm font-medium text-red-900">Absent</span>
           </div>
           <p className="text-2xl font-bold text-red-900 mt-1">{stats.absent}</p>
+        </div>
+        
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-purple-600" />
+            <span className="text-sm font-medium text-purple-900">Half Leave</span>
+          </div>
+          <p className="text-2xl font-bold text-purple-900 mt-1">{stats.halfLeave}</p>
+        </div>
+        
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <UserX className="h-5 w-5 text-indigo-600" />
+            <span className="text-sm font-medium text-indigo-900">Full Leave</span>
+          </div>
+          <p className="text-2xl font-bold text-indigo-900 mt-1">{stats.fullLeave}</p>
         </div>
         
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -384,6 +420,9 @@ const StudentAttendanceView = ({ user }) => {
             const studentAttendance = attendance[student._id];
             const isMarked = !!studentAttendance;
             const isPresent = studentAttendance?.status === 'present';
+            const isOnHalfLeave = studentAttendance?.status === 'half leave';
+            const isOnFullLeave = studentAttendance?.status === 'full leave';
+            const isOnLeave = isOnHalfLeave || isOnFullLeave;
             
             return (
               <div key={student._id} className="p-4 hover:bg-gray-50">
@@ -402,6 +441,11 @@ const StudentAttendanceView = ({ user }) => {
                         }
                       </p>
                       <p className="text-sm text-gray-600">Roll: {student.rollNumber || 'N/A'}</p>
+                      {isOnLeave && (
+                        <p className="text-xs text-purple-600">
+                          {isOnHalfLeave ? 'Half Leave' : 'Full Leave'}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
@@ -433,13 +477,56 @@ const StudentAttendanceView = ({ user }) => {
                         className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                           !canMarkAttendance()
                             ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
-                            : isMarked && !isPresent
+                            : isMarked && !isPresent && !isOnLeave
                               ? 'bg-red-100 text-red-800 border border-red-200'
                               : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-red-50 hover:text-red-700'
                         }`}
                       >
                         <XCircle className="h-4 w-4" />
                       </button>
+                      
+                      <div className="relative" ref={leaveDropdownOpen === student._id ? dropdownRef : null}>
+                        <button
+                          onClick={() => {
+                            if (!canMarkAttendance() || saving) return;
+                            setLeaveDropdownOpen(leaveDropdownOpen === student._id ? null : student._id);
+                          }}
+                          disabled={saving || !canMarkAttendance()}
+                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                            !canMarkAttendance()
+                              ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                              : isOnLeave
+                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-purple-50 hover:text-purple-700'
+                          }`}
+                        >
+                          <UserX className="h-4 w-4" />
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                        
+                        {leaveDropdownOpen === student._id && canMarkAttendance() && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                            <button
+                              onClick={() => {
+                                markAttendance(student._id, 'half leave');
+                                setLeaveDropdownOpen(null);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 first:rounded-t-lg"
+                            >
+                              Half Leave
+                            </button>
+                            <button
+                              onClick={() => {
+                                markAttendance(student._id, 'full leave');
+                                setLeaveDropdownOpen(null);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 last:rounded-b-lg border-t border-gray-100"
+                            >
+                              Full Leave
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

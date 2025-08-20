@@ -151,12 +151,10 @@ const TodaysStats = ({
           </div>
           
           <div className="text-right">
-            <div className="text-3xl font-bold">{todayTotal.toLocaleString()}</div>
-            <div className="text-blue-100 text-sm">Today's Total</div>
             <button
               onClick={onRefresh}
               disabled={isLoading}
-              className="mt-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors duration-200 disabled:opacity-50"
+              className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors duration-200 disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 inline mr-1 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh

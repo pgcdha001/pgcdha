@@ -106,9 +106,20 @@ router.get('/',
       const level = parseInt(progressionLevel);
       
       // For non-progression filtering, we need to find students who:
-      // Are currently at (level - 1) and should have progressed to level but didn't
-      if (level > 1 && level <= 5) {
-        filter.prospectusStage = level - 1;
+      // Are currently at this exact level and achieved it more than 1 month ago
+      if (level >= 1 && level <= 5) {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        
+        filter.prospectusStage = level; // Students currently at this level
+        
+        // Use levelHistory to find when they achieved this level
+        filter.levelHistory = {
+          $elemMatch: {
+            level: level,
+            achievedOn: { $lte: oneMonthAgo }
+          }
+        };
       }
     }
 

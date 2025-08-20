@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, TrendingUp, TrendingDown, BarChart3, CheckCircle, XCircle, AlertCircle, Users } from 'lucide-react';
+import { Calendar, Clock, TrendingUp, TrendingDown, BarChart3, CheckCircle, XCircle, AlertCircle, Users, UserX } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -11,6 +11,8 @@ const AttendanceTab = ({ studentId }) => {
     presentDays: 0,
     absentDays: 0,
     lateDays: 0,
+    halfLeaveDays: 0,
+    fullLeaveDays: 0,
     attendancePercentage: 0
   });
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,8 @@ const AttendanceTab = ({ studentId }) => {
     const presentDays = data.filter(record => record.status === 'Present').length;
     const absentDays = data.filter(record => record.status === 'Absent').length;
     const lateDays = data.filter(record => record.status === 'Late').length;
+    const halfLeaveDays = data.filter(record => record.status === 'Half Leave').length;
+    const fullLeaveDays = data.filter(record => record.status === 'Full Leave').length;
     
     const attendancePercentage = totalClasses > 0 
       ? Math.round(((presentDays + lateDays) / totalClasses) * 100)
@@ -76,6 +80,8 @@ const AttendanceTab = ({ studentId }) => {
       presentDays,
       absentDays,
       lateDays,
+      halfLeaveDays,
+      fullLeaveDays,
       attendancePercentage
     });
   };
@@ -94,6 +100,10 @@ const AttendanceTab = ({ studentId }) => {
         return <XCircle className="h-4 w-4 text-red-500" />;
       case 'Late':
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      case 'Half Leave':
+        return <UserX className="h-4 w-4 text-purple-500" />;
+      case 'Full Leave':
+        return <UserX className="h-4 w-4 text-indigo-500" />;
       default:
         return <Clock className="h-4 w-4 text-gray-400" />;
     }
@@ -107,6 +117,10 @@ const AttendanceTab = ({ studentId }) => {
         return 'bg-red-100 text-red-800 border-red-200';
       case 'Late':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Half Leave':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Full Leave':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -172,7 +186,7 @@ const AttendanceTab = ({ studentId }) => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -190,6 +204,36 @@ const AttendanceTab = ({ studentId }) => {
               <p className="text-2xl font-bold text-red-600">{stats.absentDays}</p>
             </div>
             <XCircle className="h-8 w-8 text-red-500" />
+          </div>
+        </div>
+
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Late Days</p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.lateDays}</p>
+            </div>
+            <AlertCircle className="h-8 w-8 text-yellow-500" />
+          </div>
+        </div>
+
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Half Leave</p>
+              <p className="text-2xl font-bold text-purple-600">{stats.halfLeaveDays}</p>
+            </div>
+            <UserX className="h-8 w-8 text-purple-500" />
+          </div>
+        </div>
+
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Full Leave</p>
+              <p className="text-2xl font-bold text-indigo-600">{stats.fullLeaveDays}</p>
+            </div>
+            <UserX className="h-8 w-8 text-indigo-500" />
           </div>
         </div>
       </div>
@@ -286,7 +330,7 @@ const AttendanceTab = ({ studentId }) => {
       {/* Attendance Summary */}
       <div className="bg-white border rounded-lg p-6">
         <h4 className="font-medium text-gray-900 mb-4">Quick Summary</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-green-500" />
             <span className="text-gray-600">
@@ -303,6 +347,18 @@ const AttendanceTab = ({ studentId }) => {
             <AlertCircle className="h-4 w-4 text-yellow-500" />
             <span className="text-gray-600">
               Late: <span className="font-medium text-gray-900">{stats.lateDays} days</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <UserX className="h-4 w-4 text-purple-500" />
+            <span className="text-gray-600">
+              Half Leave: <span className="font-medium text-gray-900">{stats.halfLeaveDays} days</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <UserX className="h-4 w-4 text-indigo-500" />
+            <span className="text-gray-600">
+              Full Leave: <span className="font-medium text-gray-900">{stats.fullLeaveDays} days</span>
             </span>
           </div>
         </div>
