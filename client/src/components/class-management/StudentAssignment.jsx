@@ -12,7 +12,8 @@ import {
   Download,
   AlertCircle,
   GraduationCap,
-  Settings
+  Settings,
+  Edit
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import PermissionGuard from '../PermissionGuard';
@@ -366,6 +367,24 @@ const StudentAssignment = () => {
     return nameA.localeCompare(nameB);
   });
 
+  // Group students by class when "assigned" filter is selected
+  const groupedStudents = filterClassStatus === 'assigned' ? 
+    filteredStudents.reduce((groups, student) => {
+      const classId = student.classId || 'unassigned';
+      const className = classId === 'unassigned' ? 'Unassigned' : getClassName(classId);
+      const classInfo = classId === 'unassigned' ? '' : getClassInfo(classId);
+      
+      if (!groups[classId]) {
+        groups[classId] = {
+          className,
+          classInfo,
+          students: []
+        };
+      }
+      groups[classId].students.push(student);
+      return groups;
+    }, {}) : null;
+
   const getAvailableClasses = (student) => {
     if (!Array.isArray(classes)) return [];
     return classes.filter(cls => 
@@ -569,7 +588,148 @@ const StudentAssignment = () => {
                 <p className="text-gray-500">Try adjusting your search or filter criteria</p>
               )}
             </div>
+          ) : filterClassStatus === 'assigned' && groupedStudents ? (
+            /* Grouped View by Classes */
+            <div className="space-y-6 p-6">
+              {Object.entries(groupedStudents).map(([classId, classGroup]) => (
+                <div key={classId} className="border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Class Header */}
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{classGroup.className}</h3>
+                        {classGroup.classInfo && (
+                          <p className="text-sm text-gray-600">{classGroup.classInfo}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-600">
+                          {classGroup.students.length} student{classGroup.students.length !== 1 ? 's' : ''}
+                        </span>
+                        {/* Class-level bulk selection */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={classGroup.students.every(student => selectedStudents.includes(student._id))}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                const classStudentIds = classGroup.students.map(s => s._id);
+                                setSelectedStudents(prev => [...new Set([...prev, ...classStudentIds])]);
+                              } else {
+                                const classStudentIds = classGroup.students.map(s => s._id);
+                                setSelectedStudents(prev => prev.filter(id => !classStudentIds.includes(id)));
+                              }
+                            }}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm text-gray-600">Select All</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Students in this class */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-25">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Select</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Student Details</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Academic Info</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Roll Number</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {classGroup.students.map((student) => (
+                          <tr key={student._id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedStudents.includes(student._id)}
+                                onChange={() => toggleStudentSelection(student._id)}
+                                className="rounded border-gray-300"
+                              />
+                            </td>
+                            
+                            <td className="px-4 py-4">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {`${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim()}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  Father: {student.fatherName || 'N/A'}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {student.phoneNumber || 'No contact'}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    Level {student.prospectusStage || student.enquiryLevel || 5}
+                                  </span>
+                                  <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                    Admitted
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            
+                            <td className="px-4 py-4">
+                              <div className="text-sm">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <GraduationCap className="h-4 w-4 text-gray-400" />
+                                  <span>{student.admissionInfo?.currentGrade || 'N/A'} {student.admissionInfo?.program || ''}</span>
+                                </div>
+                                <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                  student.campus === 'Boys' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                                }`}>
+                                  {student.campus}
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              {student.rollNumber ? (
+                                <span className="inline-flex px-2 py-1 rounded text-sm font-medium bg-blue-100 text-blue-800">
+                                  {student.rollNumber}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-gray-500">Not assigned</span>
+                              )}
+                            </td>
+                            
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => openEditClassModal(student)}
+                                  className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Change class"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  Edit
+                                </button>
+                                <PermissionGuard permission={PERMISSIONS.CLASS_MANAGEMENT.ASSIGN_STUDENTS}>
+                                  <button
+                                    onClick={() => handleUnassignStudent(student._id)}
+                                    className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Unassign from class"
+                                  >
+                                    <UserMinus className="h-4 w-4" />
+                                    Unassign
+                                  </button>
+                                </PermissionGuard>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
+            /* Regular Table View */
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
