@@ -535,6 +535,7 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
     console.log('FIXED LOGIC: Now filtering by levelHistory.achievedOn dates for proper daily level tracking');
     
     // FIXED PIPELINE: Use levelHistory.achievedOn dates for proper daily level tracking
+    // KEY FIX: For daily stats, only count levels achieved on specific dates, not cumulative
     const pipeline = [
       {
         $match: {
@@ -592,6 +593,16 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
               default: 'allTime'
             }
           }
+        }
+      },
+      // FIXED: Filter to only include levels achieved in specific time periods for date-based stats
+      // This ensures that for "today" stats, we only count levels achieved today
+      {
+        $match: {
+          $or: [
+            { timePeriod: 'allTime' }, // Always include for all-time stats
+            { timePeriod: { $ne: 'allTime' } } // Include date-specific achievements
+          ]
         }
       },
       // Group by user, time period, and level to get unique user-level combinations for each time period
