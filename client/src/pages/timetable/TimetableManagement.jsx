@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { hasPermission, PERMISSIONS } from '../../utils/rolePermissions';
 import api from '../../services/api';
 import EnhancedTimetableForm from '../../components/timetable/EnhancedTimetableForm';
+import TimetableForm from '../../components/timetable/TimetableForm';
 import TimetableBlockView from '../../components/timetable/TimetableBlockView';
 import TimetableFilters from '../../components/timetable/TimetableFilters';
 
@@ -320,6 +321,60 @@ const TimetableManagement = () => {
       } else {
         console.error('addToast function not available:', message);
         alert(message); // Fallback to alert
+      }
+    }
+  };
+
+  const handleIndividualEntrySubmit = async (formData) => {
+    try {
+      const lectureData = {
+        title: formData.title,
+        classId: formData.classId,
+        dayOfWeek: formData.dayOfWeek,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        teacherId: formData.teacherId,
+        subject: formData.subject,
+        lectureType: formData.lectureType,
+        academicYear: formData.academicYear
+      };
+
+      if (editingTimetable && editingTimetable._id) {
+        // Update existing entry
+        await api.put(`/timetable/${editingTimetable._id}`, lectureData);
+        if (typeof addToast === 'function') {
+          addToast({ type: 'success', message: 'Timetable entry updated successfully' });
+        }
+      } else {
+        // Create new entry
+        await api.post('/timetable', lectureData);
+        if (typeof addToast === 'function') {
+          addToast({ type: 'success', message: 'Timetable entry created successfully' });
+        }
+      }
+      
+      setShowForm(false);
+      setEditingTimetable(null);
+      // Refresh data
+      await fetchInitialData();
+    } catch (error) {
+      console.error('Error saving timetable entry:', error);
+      const message = error.response?.data?.message || 'Failed to save timetable entry';
+      
+      if (typeof addToast === 'function') {
+        addToast({ type: 'error', message });
+        
+        // If there are conflicts, show them
+        if (error.response?.data?.conflicts) {
+          const conflicts = error.response.data.conflicts;
+          const conflictMessages = conflicts.map(c => 
+            `${c.type === 'teacher' ? 'Teacher' : 'Class'} conflict: ${c.teacher || c.class} at ${c.time}`
+          );
+          addToast({ 
+            type: 'error', 
+            message: `Conflicts detected: ${conflictMessages.join(', ')}` 
+          });
+        }
       }
     }
   };
@@ -665,7 +720,7 @@ const TimetableManagement = () => {
       )}
 
       {/* Timetable Form Modal */}
-      {showForm && (
+      {showForm && !editingTimetable && (
         <EnhancedTimetableForm
           classes={classes}
           teachers={teachers}
@@ -675,6 +730,20 @@ const TimetableManagement = () => {
             setEditingTimetable(null);
           }}
           editingTimetable={editingTimetable}
+        />
+      )}
+
+      {/* Individual Entry Edit Form */}
+      {showForm && editingTimetable && (
+        <TimetableForm
+          timetable={editingTimetable}
+          classes={classes}
+          teachers={teachers}
+          onSubmit={handleIndividualEntrySubmit}
+          onClose={() => {
+            setShowForm(false);
+            setEditingTimetable(null);
+          }}
         />
       )}
     </div>

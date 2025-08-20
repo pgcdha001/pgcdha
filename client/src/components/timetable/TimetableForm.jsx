@@ -335,7 +335,7 @@ const TimetableForm = ({ timetable, classes, teachers, onSubmit, onClose }) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time *</nLabel>
+                <Label htmlFor="startTime">Start Time *</Label>
                 <Input
                   id="startTime"
                   type="time"
@@ -348,7 +348,7 @@ const TimetableForm = ({ timetable, classes, teachers, onSubmit, onClose }) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="endTime">End Time *</nLabel>
+                <Label htmlFor="endTime">End Time *</Label>
                 <Input
                   id="endTime"
                   type="time"
