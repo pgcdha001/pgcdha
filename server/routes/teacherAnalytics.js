@@ -11,6 +11,31 @@ const { authenticate } = require('../middleware/auth');
 // Get all teachers with basic stats
 router.get('/teachers-overview', authenticate, async (req, res) => {
   try {
+    const range = (req.query.range || 'week').toLowerCase();
+
+    const getRangeDates = (range) => {
+      const now = new Date();
+      let startOfRange = null;
+      let endOfRange = null;
+
+      if (range === 'week') {
+        startOfRange = new Date(now);
+        startOfRange.setDate(now.getDate() - now.getDay());
+        startOfRange.setHours(0, 0, 0, 0);
+        endOfRange = new Date(startOfRange);
+        endOfRange.setDate(startOfRange.getDate() + 6);
+        endOfRange.setHours(23, 59, 59, 999);
+      } else if (range === 'month') {
+        startOfRange = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        endOfRange = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      } else if (range === 'year') {
+        startOfRange = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        endOfRange = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      }
+      return { startOfRange, endOfRange };
+    };
+
+    const { startOfRange, endOfRange } = getRangeDates(range);
     const teachers = await User.find(
       { role: 'Teacher', status: 1 },
       { 
@@ -22,36 +47,28 @@ router.get('/teachers-overview', authenticate, async (req, res) => {
       }
     );
 
-    // Get current week date range
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Start of current week (Sunday)
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6); // End of current week (Saturday)
-    endOfWeek.setHours(23, 59, 59, 999);
+    const hasRange = !!startOfRange && !!endOfRange;
 
     const teachersWithStats = await Promise.all(teachers.map(async (teacher) => {
       // Get weekly timetable count (total lectures assigned)
       const weeklyLectures = await Timetable.countDocuments({
         teacherId: teacher._id,
-        date: { $gte: startOfWeek, $lte: endOfWeek }
+        ...(hasRange ? { date: { $gte: startOfRange, $lte: endOfRange } } : {})
       });
 
       // Get attended lectures this week
       const attendedLectures = await TeacherAttendance.countDocuments({
         teacherId: teacher._id,
-        date: { $gte: startOfWeek, $lte: endOfWeek },
-        status: 'Present'
+        ...(hasRange ? { date: { $gte: startOfRange, $lte: endOfRange } } : {}),
+        status: 'On Time'
       });
 
       // Get late attendance count (more than 10 minutes late)
       const lateCount = await TeacherAttendance.countDocuments({
         teacherId: teacher._id,
-        date: { $gte: startOfWeek, $lte: endOfWeek },
+        ...(hasRange ? { date: { $gte: startOfRange, $lte: endOfRange } } : {}),
         $or: [
-          { minutesLate: { $gt: 10 } },
+          { lateMinutes: { $gt: 10 } },
           { status: 'Late' }
         ]
       });
@@ -114,13 +131,38 @@ router.get('/teacher-profile/:teacherId', authenticate, async (req, res) => {
 
     // Calculate late instances
     const lateInstances = attendanceRecords.filter(record => 
-      record.minutesLate > 10 || record.status === 'Late'
+      (record.lateMinutes && record.lateMinutes > 10) || record.status === 'Late'
     );
 
     // Get tests created by this teacher with class details
     const tests = await Test.find({
       createdBy: teacherId
     }).populate('classId', 'name').sort({ createdAt: -1 });
+
+    // Build per-class and overall zone summaries with safe zero defaults
+    const classSummaries = {};
+    for (const t of tests) {
+      const clsId = t.classId?._id?.toString() || 'unknown';
+      if (!classSummaries[clsId]) {
+        classSummaries[clsId] = { classId: clsId, className: t.classId?.name || 'Unknown Class', totalStudents: 0, zones: { green: 0, average: 0, red: 0 } };
+      }
+      // Get results for this test to compute zone counts
+      const results = await TestResult.find({ testId: t._id }).lean();
+      results.forEach(r => {
+        classSummaries[clsId].totalStudents += 1;
+        const pct = typeof r.percentage === 'number' ? r.percentage : 0;
+        if (pct >= 70) classSummaries[clsId].zones.green += 1;
+        else if (pct >= 40) classSummaries[clsId].zones.average += 1;
+        else classSummaries[clsId].zones.red += 1;
+      });
+    }
+    const overallSummary = Object.values(classSummaries).reduce((acc, cls) => {
+      acc.totalStudents += cls.totalStudents;
+      acc.zones.green += cls.zones.green;
+      acc.zones.average += cls.zones.average;
+      acc.zones.red += cls.zones.red;
+      return acc;
+    }, { totalStudents: 0, zones: { green: 0, average: 0, red: 0 } });
 
     res.json({
       teacher: {
@@ -131,7 +173,7 @@ router.get('/teacher-profile/:teacherId', authenticate, async (req, res) => {
         phoneNumber: teacher.phoneNumber
       },
       weeklyStats: {
-        attendedLectures: attendanceRecords.filter(r => r.status === 'Present').length,
+        attendedLectures: attendanceRecords.filter(r => r.status === 'On Time' || r.status === 'Present').length,
         totalLectures: weeklyTimetable.length,
         lateCount: lateInstances.length,
         totalTests: tests.length
@@ -139,7 +181,11 @@ router.get('/teacher-profile/:teacherId', authenticate, async (req, res) => {
       attendanceRecords,
       weeklyTimetable,
       lateInstances,
-      tests
+      tests,
+      summaries: {
+        perClass: classSummaries,
+        overall: overallSummary
+      }
     });
   } catch (error) {
     console.error('Error fetching teacher profile:', error);

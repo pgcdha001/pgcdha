@@ -35,7 +35,7 @@ const TeacherProfileCard = ({ teacher, onViewDetails }) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onViewDetails(teacher._id)}>
+    <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -94,6 +94,11 @@ const TeacherProfileCard = ({ teacher, onViewDetails }) => {
               <span>{teacher.phoneNumber}</span>
             </div>
           )}
+          <div className="mt-3 text-right">
+            <Button size="sm" onClick={() => onViewDetails(teacher._id)}>
+              View Details
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
