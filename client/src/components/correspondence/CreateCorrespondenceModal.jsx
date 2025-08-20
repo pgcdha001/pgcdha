@@ -101,11 +101,33 @@ const CreateCorrespondenceModal = ({ isOpen, onClose, onCorrespondenceCreated })
         });
       }
       
-      if (response.data.success && response.data.data) {
-        let allStudents = Array.isArray(response.data.data) ? response.data.data : [];
+      if (response.data?.success) {
+        // Server returns { success, data: { users, pagination, statistics } }
+        const payload = response.data;
+        let allStudents = [];
+        if (Array.isArray(payload?.data?.users)) {
+          allStudents = payload.data.users;
+        } else if (Array.isArray(payload?.users)) {
+          allStudents = payload.users;
+        } else if (Array.isArray(payload?.data)) {
+          allStudents = payload.data;
+        }
+        
+        // If still empty, fallback to all-students endpoint
+        if (!allStudents.length) {
+          try {
+            const fallbackRes = await api.get('/users/all-students');
+            const fbPayload = fallbackRes.data;
+            if (Array.isArray(fbPayload?.data?.students)) {
+              allStudents = fbPayload.data.students;
+            }
+          } catch (fbErr) {
+            console.error('Fallback fetch /users/all-students failed:', fbErr);
+          }
+        }
         
         // Sort students by name
-        const sortedStudents = allStudents.sort((a, b) => {
+        const sortedStudents = (allStudents || []).sort((a, b) => {
           const aName = `${a.fullName?.firstName || ''} ${a.fullName?.lastName || ''}`;
           const bName = `${b.fullName?.firstName || ''} ${b.fullName?.lastName || ''}`;
           return aName.localeCompare(bName);

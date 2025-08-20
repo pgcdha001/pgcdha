@@ -39,6 +39,7 @@ import StudentProfile from './pages/principal/StudentProfile';
 import AttendanceManagement from './components/attendance/AttendanceManagement';
 import AttendanceDashboard from './components/attendance/AttendanceDashboard';
 import TeacherAttendanceManagement from './components/coordinator/TeacherAttendanceManagement';
+import CoordinatorTimetablePage from './pages/coordinator/CoordinatorTimetablePage';
 import TeacherDashboard from './components/dashboard/TeacherDashboard';
 
 // Reports
@@ -274,6 +275,19 @@ const App = () => {
                       allowedRoles={['Coordinator']}
                     >
                       <TeacherAttendanceManagement />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
+
+              {/* Coordinator Timetable Management */}
+              <Route path="/coordinator/timetable" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      allowedRoles={['Coordinator']}
+                    >
+                      <CoordinatorTimetablePage />
                     </ProtectedRoute>
                   </Layout>
                 </AuthenticatedRoute>
