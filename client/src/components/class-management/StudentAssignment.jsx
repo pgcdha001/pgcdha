@@ -84,17 +84,27 @@ const StudentAssignment = () => {
 
   const fetchClasses = async () => {
     try {
+      console.log('Fetching classes from API...');
       const response = await api.get('/classes');
+      console.log('Classes API response:', response);
+      
       // API returns { success: true, classes: [...] }
       const classesData = response.data?.classes || [];
-      console.log('Fetched classes:', classesData);
+      console.log('Fetched classes data:', classesData);
       console.log('Number of classes:', classesData.length);
-      classesData.forEach(cls => {
-        console.log(`Class: ${cls.name}, Campus: ${cls.campus}, Grade: ${cls.grade}, Program: ${cls.program}`);
-      });
+      
+      if (classesData.length > 0) {
+        console.log('Sample class:', classesData[0]);
+      }
+      
       setClasses(classesData);
     } catch (error) {
       console.error('Error fetching classes:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       setClasses([]); // Ensure classes is always an array
     }
   };
