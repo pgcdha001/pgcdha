@@ -1133,8 +1133,14 @@ router.post('/bulk-assign', authenticate, async (req, res) => {
       console.log('Student validation errors:', errors);
       return res.status(400).json({
         success: false,
-        message: 'Student validation errors',
-        errors: errors
+        message: 'Some students do not match the class criteria',
+        errors: errors,
+        classRequirements: {
+          campus: classDoc.campus,
+          grade: classDoc.grade,
+          program: classDoc.program
+        },
+        details: 'Students must have matching campus, grade, and program to be assigned to this class.'
       });
     }
 
