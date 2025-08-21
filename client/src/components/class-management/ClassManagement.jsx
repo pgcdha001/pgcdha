@@ -12,8 +12,11 @@ import {
   UserCheck,
   GraduationCap,
   MapPin,
-  X
+  X,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { Button } from '../ui/button';
 import PermissionGuard from '../PermissionGuard';
 import api from '../../services/api';
@@ -258,6 +261,73 @@ const ClassManagement = () => {
     }
     
     return 'Not Assigned';
+  };
+
+  // Excel export function
+  const exportStudentsToExcel = () => {
+    if (!selectedClass || !classStudents || classStudents.length === 0) {
+      alert('No students to export for this class.');
+      return;
+    }
+
+    // Prepare data for Excel
+    const excelData = classStudents.map((student, index) => ({
+      'S.No': index + 1,
+      'Roll Number': student.rollNumber || 'Not Assigned',
+      'Student Name': `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+      'Father Name': student.fatherName || 'N/A',
+      'Contact Number': student.contactInfo?.phoneNumber || 'N/A',
+      'Email': student.email || 'N/A',
+      'Campus': student.campus || 'N/A',
+      'Grade': student.admissionInfo?.grade || 'N/A',
+      'Program': student.admissionInfo?.program || 'N/A',
+      'Admission Date': student.admissionInfo?.admissionDate ? 
+        new Date(student.admissionInfo.admissionDate).toLocaleDateString() : 'N/A',
+      'Status': student.status === 1 ? 'Active' : 
+               student.status === 2 ? 'Inactive' : 
+               student.status === 3 ? 'Deleted' : 'Unknown'
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+
+    // Add class information as a header
+    const classInfo = [
+      ['Class Name', selectedClass.name],
+      ['Grade', selectedClass.grade],
+      ['Program', selectedClass.program],
+      ['Campus', selectedClass.campus],
+      ['Class Incharge', getTeacherName(selectedClass.classIncharge)],
+      ['Floor Coordinator', getCoordinatorName(selectedClass.floorIncharge)],
+      ['Total Students', classStudents.length],
+      ['Max Capacity', selectedClass.maxStudents],
+      ['Export Date', new Date().toLocaleString()],
+      [''], // Empty row for spacing
+    ];
+
+    // Create a new worksheet with class info
+    const headerWorksheet = XLSX.utils.aoa_to_sheet(classInfo.concat([
+      // Add column headers
+      ['S.No', 'Roll Number', 'Student Name', 'Father Name', 'Contact Number', 'Email', 'Campus', 'Grade', 'Program', 'Admission Date', 'Status'],
+      // Add student data
+      ...excelData.map(student => Object.values(student))
+    ]));
+
+    // Replace the first worksheet
+    workbook.Sheets['Students'] = headerWorksheet;
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    
+    // Create blob and download
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const fileName = `${selectedClass.name}_Students_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    saveAs(blob, fileName);
   };
 
   if (loading) {
@@ -717,7 +787,19 @@ const ClassManagement = () => {
 
                 {/* Students List */}
                 <div>
-                  <h4 className="text-lg font-semibold mb-4">Students in Class</h4>
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-semibold">Students in Class</h4>
+                    {classStudents.length > 0 && (
+                      <Button
+                        onClick={exportStudentsToExcel}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Excel
+                      </Button>
+                    )}
+                  </div>
 
                   {classStudents.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">

@@ -84,17 +84,27 @@ const StudentAssignment = () => {
 
   const fetchClasses = async () => {
     try {
+      console.log('Fetching classes from API...');
       const response = await api.get('/classes');
+      console.log('Classes API response:', response);
+      
       // API returns { success: true, classes: [...] }
       const classesData = response.data?.classes || [];
-      console.log('Fetched classes:', classesData);
+      console.log('Fetched classes data:', classesData);
       console.log('Number of classes:', classesData.length);
-      classesData.forEach(cls => {
-        console.log(`Class: ${cls.name}, Campus: ${cls.campus}, Grade: ${cls.grade}, Program: ${cls.program}`);
-      });
+      
+      if (classesData.length > 0) {
+        console.log('Sample class:', classesData[0]);
+      }
+      
       setClasses(classesData);
     } catch (error) {
       console.error('Error fetching classes:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
       setClasses([]); // Ensure classes is always an array
     }
   };
@@ -318,7 +328,21 @@ const StudentAssignment = () => {
       }
     } catch (error) {
       console.error('Error in bulk assignment:', error);
-      alert('Failed to assign students. Please try again.');
+      
+      // Handle validation errors with detailed messages
+      if (error.response?.data?.errors && error.response?.data?.classRequirements) {
+        const { errors, classRequirements, details } = error.response.data;
+        let errorMessage = `Assignment failed: ${details}\n\n`;
+        errorMessage += `Class Requirements: ${classRequirements.grade} ${classRequirements.program} - ${classRequirements.campus}\n\n`;
+        errorMessage += 'Issues found:\n';
+        errors.slice(0, 10).forEach(err => errorMessage += `• ${err}\n`);
+        if (errors.length > 10) {
+          errorMessage += `... and ${errors.length - 10} more issues`;
+        }
+        alert(errorMessage);
+      } else {
+        alert('Failed to assign students. Please try again.');
+      }
     }
   };
 
@@ -342,15 +366,26 @@ const StudentAssignment = () => {
     return classData ? `${classData.grade} ${classData.program} - ${classData.campus}` : '';
   };
 
+  // Get selected class data for filtering
+  const selectedClassData = selectedClass ? classes.find(cls => cls._id === selectedClass) : null;
+
   // Filter students based on search and filters and sort by assignment status
   const filteredStudents = (students || []).filter(student => {
     const nameMatch = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     const fatherNameMatch = (student.fatherName || '').toLowerCase().includes(searchTerm.toLowerCase());
     const searchMatch = nameMatch || fatherNameMatch;
     
-    const gradeMatch = !filterGrade || student.admissionInfo?.grade === filterGrade;
-    const programMatch = !filterProgram || student.admissionInfo?.program === filterProgram;
-    const campusMatch = !filterCampus || student.campus === filterCampus;
+    // Apply manual filters if no class is selected, or if they're more restrictive than class criteria
+    let gradeMatch = !filterGrade || student.admissionInfo?.grade === filterGrade;
+    let programMatch = !filterProgram || student.admissionInfo?.program === filterProgram;
+    let campusMatch = !filterCampus || student.campus === filterCampus;
+    
+    // If a class is selected, automatically filter by class criteria to prevent validation errors
+    if (selectedClassData) {
+      gradeMatch = gradeMatch && student.admissionInfo?.grade === selectedClassData.grade;
+      programMatch = programMatch && student.admissionInfo?.program === selectedClassData.program;
+      campusMatch = campusMatch && student.campus === selectedClassData.campus;
+    }
     
     const classStatusMatch = filterClassStatus === 'all' || 
       (filterClassStatus === 'assigned' && student.classId) ||
@@ -910,6 +945,11 @@ const StudentAssignment = () => {
                       </option>
                     ))}
                   </select>
+                  {selectedClassData && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                      <strong>Auto-filtering enabled:</strong> Only showing students matching {selectedClassData.grade} {selectedClassData.program} - {selectedClassData.campus}
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-blue-50 rounded-lg p-4 mb-6">

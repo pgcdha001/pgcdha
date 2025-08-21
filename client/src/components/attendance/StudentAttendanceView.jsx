@@ -201,7 +201,7 @@ const StudentAttendanceView = ({ user }) => {
       const unmarkedStudents = students.filter(student => !attendance[student._id]);
       
       for (const student of unmarkedStudents) {
-        await markAttendance(student._id, 'present');
+        await markAttendance(student._id, 'Present');
       }
     } catch (error) {
       console.error('Error marking all present:', error);
@@ -213,10 +213,10 @@ const StudentAttendanceView = ({ user }) => {
   const getAttendanceStats = () => {
     const total = students.length;
     const marked = Object.keys(attendance).length;
-    const present = Object.values(attendance).filter(a => a.status === 'present').length;
-    const absent = Object.values(attendance).filter(a => a.status === 'absent').length;
-    const halfLeave = Object.values(attendance).filter(a => a.status === 'half leave').length;
-    const fullLeave = Object.values(attendance).filter(a => a.status === 'full leave').length;
+    const present = Object.values(attendance).filter(a => a.status === 'Present').length;
+    const absent = Object.values(attendance).filter(a => a.status === 'Absent').length;
+    const halfLeave = Object.values(attendance).filter(a => a.status === 'Half Leave').length;
+    const fullLeave = Object.values(attendance).filter(a => a.status === 'Full Leave').length;
     
     return { total, marked, present, absent, halfLeave, fullLeave, unmarked: total - marked };
   };
@@ -419,9 +419,9 @@ const StudentAttendanceView = ({ user }) => {
           {Array.isArray(students) && students.map((student) => {
             const studentAttendance = attendance[student._id];
             const isMarked = !!studentAttendance;
-            const isPresent = studentAttendance?.status === 'present';
-            const isOnHalfLeave = studentAttendance?.status === 'half leave';
-            const isOnFullLeave = studentAttendance?.status === 'full leave';
+            const isPresent = studentAttendance?.status === 'Present';
+            const isOnHalfLeave = studentAttendance?.status === 'Half Leave';
+            const isOnFullLeave = studentAttendance?.status === 'Full Leave';
             const isOnLeave = isOnHalfLeave || isOnFullLeave;
             
             return (
@@ -458,7 +458,7 @@ const StudentAttendanceView = ({ user }) => {
                     
                     <div className="flex gap-2">
                       <button
-                        onClick={() => markAttendance(student._id, 'present')}
+                        onClick={() => markAttendance(student._id, 'Present')}
                         disabled={saving || !canMarkAttendance()}
                         className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                           !canMarkAttendance() 
@@ -472,7 +472,7 @@ const StudentAttendanceView = ({ user }) => {
                       </button>
                       
                       <button
-                        onClick={() => markAttendance(student._id, 'absent')}
+                        onClick={() => markAttendance(student._id, 'Absent')}
                         disabled={saving || !canMarkAttendance()}
                         className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                           !canMarkAttendance()
@@ -508,7 +508,7 @@ const StudentAttendanceView = ({ user }) => {
                           <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
                             <button
                               onClick={() => {
-                                markAttendance(student._id, 'half leave');
+                                markAttendance(student._id, 'Half Leave');
                                 setLeaveDropdownOpen(null);
                               }}
                               className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 first:rounded-t-lg"
@@ -517,7 +517,7 @@ const StudentAttendanceView = ({ user }) => {
                             </button>
                             <button
                               onClick={() => {
-                                markAttendance(student._id, 'full leave');
+                                markAttendance(student._id, 'Full Leave');
                                 setLeaveDropdownOpen(null);
                               }}
                               className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 last:rounded-b-lg border-t border-gray-100"
