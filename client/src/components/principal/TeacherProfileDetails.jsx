@@ -43,7 +43,7 @@ const TeacherProfileDetails = ({ teacherId, onBack }) => {
     try {
       setLoading(true);
       const { data } = await api.get(`/teacher-analytics/teacher-profile/${teacherId}`);
-      setProfileData(data);
+        setProfileData(data);
     } catch (error) {
       console.error('Error fetching teacher profile:', error);
     } finally {
@@ -125,8 +125,8 @@ const TeacherProfileDetails = ({ teacherId, onBack }) => {
         day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day - 1],
         present: attendance && (attendance.status === 'On Time' || attendance.status === 'Present') ? 1 : 0,
         late: attendance && (attendance.status === 'Late' || (attendance.lateMinutes && attendance.lateMinutes > 10)) ? 1 : 0,
-        absent: !attendance || attendance.status === 'Absent' ? 1 : 0
-      };
+      absent: !attendance || attendance.status === 'Absent' ? 1 : 0
+    };
       
 
       chartData.push(dataPoint);
@@ -320,11 +320,11 @@ const TeacherProfileDetails = ({ teacherId, onBack }) => {
 
                 {/* Overall summary (placeholders for now) */}
                 <TabsContent value="overall" className="space-y-4">
-                  <Card>
-                    <CardHeader>
+          <Card>
+            <CardHeader>
                       <CardTitle>Overall Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+            </CardHeader>
+            <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <Card><CardContent className="p-4"><div className="text-sm text-gray-500">Total Students</div><div className="text-2xl font-bold">{overall.totalStudents || 0}</div></CardContent></Card>
                         <Card><CardContent className="p-4"><div className="text-sm text-green-600">Green Zone</div><div className="text-2xl font-bold">{overall.zones?.green || 0}</div></CardContent></Card>
@@ -332,18 +332,18 @@ const TeacherProfileDetails = ({ teacherId, onBack }) => {
                         <Card><CardContent className="p-4"><div className="text-sm text-red-600">Needs Attention</div><div className="text-2xl font-bold">{overall.zones?.red || 0}</div></CardContent></Card>
                       </div>
                       <p className="text-xs text-gray-500 mt-3">Click a class tab to view its breakdown. You can wire real counts here.</p>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
                 {classList.map(cls => (
                   <TabsContent key={cls.id} value={cls.id} className="space-y-4">
                     {(() => { const cs = summaries?.perClass?.[cls.id] || { totalStudents: 0, zones: { green: 0, average: 0, red: 0 } }; return (
-                    <Card>
-                      <CardHeader>
+          <Card>
+            <CardHeader>
                         <CardTitle>{cls.name} — Summary</CardTitle>
-                      </CardHeader>
-                      <CardContent>
+            </CardHeader>
+            <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <Card><CardContent className="p-4"><div className="text-sm text-gray-500">Total Students</div><div className="text-2xl font-bold">{cs.totalStudents || 0}</div></CardContent></Card>
                           <Card><CardContent className="p-4"><div className="text-sm text-green-600">Green Zone</div><div className="text-2xl font-bold">{cs.zones?.green || 0}</div></CardContent></Card>
@@ -356,17 +356,17 @@ const TeacherProfileDetails = ({ teacherId, onBack }) => {
                             {cls.tests.map(test => (
                               <div key={test._id} className="p-3 border rounded hover:bg-gray-50 cursor-pointer" onClick={() => handleTestClick(test._id)}>
                                 <div className="flex items-center justify-between">
-                                  <div>
+                      <div>
                                     <div className="font-medium">{test.title}</div>
                                     <div className="text-xs text-gray-500">{test.subject} • {test.totalMarks} marks • {new Date(test.createdAt).toLocaleDateString()}</div>
-                                  </div>
+                      </div>
                                   <Badge variant="outline">{test.testType}</Badge>
-                                </div>
-                              </div>
+                      </div>
+                    </div>
                             ))}
                           </div>
-                        </div>
-                      </CardContent>
+              </div>
+            </CardContent>
                     </Card> );})()}
                   </TabsContent>
                 ))}
