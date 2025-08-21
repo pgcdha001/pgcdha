@@ -269,13 +269,13 @@ const AttendanceDetails = ({
             <div className="text-center">
               <p className="text-sm text-gray-600">Present</p>
               <p className="text-2xl font-bold text-green-600">
-                {filteredRecords.filter(r => r.status === 'present').length}
+                {filteredRecords.filter(r => r.status === 'Present').length}
               </p>
             </div>
             <div className="text-center">
               <p className="text-sm text-gray-600">Absent</p>
               <p className="text-2xl font-bold text-red-600">
-                {filteredRecords.filter(r => r.status === 'absent').length}
+                {filteredRecords.filter(r => r.status === 'Absent').length}
               </p>
             </div>
           </div>
