@@ -36,7 +36,10 @@ router.get('/', authenticate, async (req, res) => {
     } = req.query;
     
     // Build query for students
-    let query = { role: 'Student' };
+    let query = { 
+      role: 'Student',
+      status: { $ne: 3 } // Exclude deleted users
+    };
     
     // Handle specific class filtering
     if (classId) {
@@ -287,7 +290,7 @@ router.post('/register', authenticate, requireIT, async (req, res) => {
       cnic,
       role: 'Student',
       prospectusStage: 1,
-      status: 3, // Pending/Inactive by default
+      status: 1, // Active by default (1=Active, 2=Paused, 3=Deleted)
       isActive: false,
       isApproved: false,
       isPassedOut: false,
@@ -756,7 +759,10 @@ router.patch('/:id/academic-records', authenticate, async (req, res) => {
 // Add endpoint to check for and clean up duplicate students
 router.get('/duplicates', authenticate, async (req, res) => {
   try {
-    const students = await User.find({ role: 'Student' }).select('fullName email cnic prospectusStage createdOn');
+    const students = await User.find({ 
+      role: 'Student',
+      status: { $ne: 3 } // Exclude deleted users
+    }).select('fullName email cnic prospectusStage createdOn');
     
     // Group by name and email to find duplicates
     const groups = {};
@@ -793,6 +799,7 @@ router.post('/migrate-levels', authenticate, async (req, res) => {
   try {
     const studentsToUpdate = await User.find({ 
       role: 'Student',
+      status: { $ne: 3 }, // Exclude deleted users
       $or: [
         { prospectusStage: { $exists: false } },
         { prospectusStage: null },
@@ -827,6 +834,7 @@ router.get('/class/:classId', authenticate, async (req, res) => {
     const students = await User.find({
       classId: classId,
       role: 'Student',
+      status: { $ne: 3 }, // Exclude deleted users
       $or: [
         { prospectusStage: 5 },
         { enquiryLevel: 5 }

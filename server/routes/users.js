@@ -41,10 +41,11 @@ router.get('/',
     } = req.query;
 
     // Build filter object
-    const filter = {
-      // By default, exclude deleted users
-      status: { $ne: 3 }
-    };
+    const filter = {};
+    
+    // ALWAYS exclude deleted users unless explicitly requested by admin
+    // This ensures deleted users never show up in regular enquiry management
+    filter.status = { $ne: 3 };
 
     // Apply date filter
     if (dateFilter && dateFilter !== 'all') {
@@ -159,7 +160,15 @@ router.get('/',
         filter.isApproved = true;
       } else if (status === 'pending') {
         filter.isApproved = false;
+      } else if (status === 'all') {
+        // If explicitly requesting all users, remove the default status filter
+        // BUT this should be restricted to admin users only
+        if (req.user && ['SystemAdmin', 'ITAdmin'].includes(req.user.role)) {
+          delete filter.status;
+        }
+        // For non-admin users, keep the default filter (exclude deleted)
       }
+      // For any other status values, keep the default filter (exclude deleted)
     }
 
     // Enquiry Level filter (for students)
