@@ -8,6 +8,25 @@ const { authenticate } = require('../middleware/auth');
 const AttendanceService = require('../services/attendanceService');
 const CacheService = require('../services/cacheService');
 
+// Helper function to normalize status values
+function normalizeStatus(status) {
+  const statusMap = {
+    'present': 'Present',
+    'absent': 'Absent',
+    'late': 'Late',
+    'half leave': 'Half Leave',
+    'full leave': 'Full Leave',
+    // Also handle already normalized values
+    'Present': 'Present',
+    'Absent': 'Absent',
+    'Late': 'Late',
+    'Half Leave': 'Half Leave',
+    'Full Leave': 'Full Leave'
+  };
+  
+  return statusMap[status] || status;
+}
+
 // Mark attendance for a class (for teachers/admin)
 router.post('/mark', authenticate, async (req, res) => {
   try {
@@ -42,12 +61,15 @@ router.post('/mark', authenticate, async (req, res) => {
     const attendanceDate = new Date(date);
     attendanceDate.setHours(0, 0, 0, 0);
 
+    // Normalize status value
+    const normalizedStatus = normalizeStatus(status);
+
     // Update existing or create new attendance record
     const attendance = await Attendance.findOneAndUpdate(
       { studentId, date: attendanceDate },
       {
         classId,
-        status,
+        status: normalizedStatus,
         markedBy: markedBy || req.user._id,
         markedByRole: 'Floor Incharge'
       },
@@ -63,7 +85,7 @@ router.post('/mark', authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Student marked as ${status}`,
+      message: `Student marked as ${normalizedStatus}`,
       data: attendance
     });
 
@@ -103,12 +125,15 @@ router.post('/mark-bulk', authenticate, async (req, res) => {
       const { studentId, status, remarks } = record;
 
       try {
+        // Normalize status value
+        const normalizedStatus = normalizeStatus(status);
+
         // Update existing or create new attendance record
         const attendance = await Attendance.findOneAndUpdate(
           { studentId, date: attendanceDate },
           {
             classId,
-            status,
+            status: normalizedStatus,
             remarks: remarks || '',
             markedBy,
             markedByRole: authCheck.role,

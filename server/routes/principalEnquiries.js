@@ -33,7 +33,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
   // Build query for students (Level 1-5 only, as requested)
   let query = {
     role: 'Student',
-    prospectusStage: { $gte: 1, $lte: 5 } // Only levels 1-5
+    prospectusStage: { $gte: 1, $lte: 5 }, // Only levels 1-5
+    status: { $ne: 3 } // Exclude deleted users (status 3)
   };
   
   console.log('Base query:', query);
@@ -151,7 +152,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       // Build base query for level calculations (same date filter)
       let levelQuery = {
         role: 'Student',
-        prospectusStage: { $gte: i }
+        prospectusStage: { $gte: i },
+        status: { $ne: 3 } // Exclude deleted users
       };
       
       // Apply same date filter to level calculations
@@ -162,7 +164,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       // Get boys count for current level (exact level only)
       const boysCurrentLevel = await User.countDocuments({
         ...levelQuery,
-        gender: { $in: ['Male', 'male', 'M'] }
+        gender: { $in: ['Male', 'male', 'M'] },
+        status: { $ne: 3 } // Exclude deleted users
       });
       
       // Get boys count for previous level
@@ -171,7 +174,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
         let prevLevelQuery = {
           role: 'Student',
           prospectusStage: i - 1, // Exact previous level
-          gender: { $in: ['Male', 'male', 'M'] }
+          gender: { $in: ['Male', 'male', 'M'] },
+          status: { $ne: 3 } // Exclude deleted users
         };
         if (query.createdOn) {
           prevLevelQuery.createdOn = query.createdOn;
@@ -185,7 +189,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       // Get girls count for current level (exact level only)
       const girlsCurrentLevel = await User.countDocuments({
         ...levelQuery,
-        gender: { $in: ['Female', 'female', 'F'] }
+        gender: { $in: ['Female', 'female', 'F'] },
+        status: { $ne: 3 } // Exclude deleted users
       });
       
       // Get girls count for previous level
@@ -194,7 +199,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
         let prevLevelQuery = {
           role: 'Student',
           prospectusStage: i - 1, // Exact previous level
-          gender: { $in: ['Female', 'female', 'F'] }
+          gender: { $in: ['Female', 'female', 'F'] },
+          status: { $ne: 3 } // Exclude deleted users
         };
         if (query.createdOn) {
           prevLevelQuery.createdOn = query.createdOn;
@@ -228,7 +234,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       // Build base query for level calculations (same date filter)
       let levelQuery = {
         role: 'Student',
-        prospectusStage: i // Exact level only
+        prospectusStage: i, // Exact level only
+        status: { $ne: 3 } // Exclude deleted users
       };
       
       // Apply same date filter to level calculations
@@ -244,7 +251,8 @@ router.get('/principal-stats', asyncHandler(async (req, res) => {
       if (i > 1) {
         let prevLevelQuery = {
           role: 'Student',
-          prospectusStage: i - 1 // Exact previous level
+          prospectusStage: i - 1, // Exact previous level
+          status: { $ne: 3 } // Exclude deleted users
         };
         if (query.createdOn) {
           prevLevelQuery.createdOn = query.createdOn;
@@ -420,6 +428,7 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
       const levelQuery = {
         role: 'Student',
         prospectusStage: level, // Exact level, not cumulative
+        status: { $ne: 3 }, // Exclude deleted users
         ...dateQuery
       };
       levelBreakdown[level] = await User.countDocuments(levelQuery);
@@ -430,6 +439,7 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
     const totalEnquiries = await User.countDocuments({
       role: 'Student',
       prospectusStage: { $gte: 1 },
+      status: { $ne: 3 }, // Exclude deleted users
       ...dateQuery
     });
 
@@ -437,6 +447,7 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
     const admittedStudents = await User.countDocuments({
       role: 'Student',
       prospectusStage: 5,
+      status: { $ne: 3 }, // Exclude deleted users
       ...dateQuery
     });
     
@@ -448,6 +459,7 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
       const currentLevelCount = await User.countDocuments({
         role: 'Student',
         prospectusStage: { $gte: i },
+        status: { $ne: 3 }, // Exclude deleted users
         ...dateQuery
       });
       
@@ -458,6 +470,7 @@ router.get('/principal-overview', asyncHandler(async (req, res) => {
         previousLevelCount = await User.countDocuments({
           role: 'Student',
           prospectusStage: { $gte: i - 1 },
+          status: { $ne: 3 }, // Exclude deleted users
           ...dateQuery
         });
       } else {
@@ -542,7 +555,8 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
           role: 'Student',
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
-          levelHistory: { $exists: true, $ne: [] }
+          levelHistory: { $exists: true, $ne: [] },
+          status: { $ne: 3 } // Exclude deleted users
         }
       },
       // Unwind levelHistory first to work with individual level achievements
@@ -643,7 +657,8 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
       role: 'Student',
       prospectusStage: { $gte: 1, $lte: 5 },
       classId: { $exists: false },
-      levelHistory: { $exists: true, $ne: [] }
+      levelHistory: { $exists: true, $ne: [] },
+      status: { $ne: 3 } // Exclude deleted users
     });
     console.log(`Found ${studentsWithLevelHistory} students with levelHistory data`);
     
@@ -654,7 +669,8 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
           role: 'Student',
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
-          levelHistory: { $exists: true, $ne: [] }
+          levelHistory: { $exists: true, $ne: [] },
+          status: { $ne: 3 } // Exclude deleted users
         }
       },
       { $unwind: '$levelHistory' },
@@ -705,7 +721,8 @@ router.get('/comprehensive-data', asyncHandler(async (req, res) => {
           $match: {
             role: 'Student',
             prospectusStage: { $gte: 1, $lte: 5 },
-            classId: { $exists: false }
+            classId: { $exists: false },
+            status: { $ne: 3 } // Exclude deleted users
           }
         },
         {
@@ -1051,7 +1068,8 @@ router.get('/level-history-data', asyncHandler(async (req, res) => {
     // Build aggregation pipeline for level history filtering
     let levelHistoryMatch = {
       role: 'Student',
-      levelHistory: { $exists: true, $ne: [] }
+      levelHistory: { $exists: true, $ne: [] },
+      status: { $ne: 3 } // Exclude deleted users
     };
 
     // FIXED: Apply date filter to USER CREATION (not level achievements)
@@ -1223,7 +1241,8 @@ router.get('/level-history-students', async (req, res) => {
     } = req.query;
     
     let matchCondition = {
-      role: 'Student'
+      role: 'Student',
+      status: { $ne: 3 } // Exclude deleted users
     };
     
     // Add date filtering based on level history
@@ -1480,6 +1499,7 @@ router.get('/monthly-breakdown/:year', asyncHandler(async (req, res) => {
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
           levelHistory: { $exists: true, $ne: [] },
+          status: { $ne: 3 }, // Exclude deleted users
           // FIXED: Filter by user creation date in the requested year
           createdOn: { $gte: yearStart, $lte: yearEnd }
         }
@@ -1735,25 +1755,34 @@ router.get('/debug-data', asyncHandler(async (req, res) => {
     // Check students with levelHistory
     const studentsWithLevelHistory = await User.countDocuments({ 
       role: 'Student',
-      levelHistory: { $exists: true, $ne: [] }
+      levelHistory: { $exists: true, $ne: [] },
+      status: { $ne: 3 } // Exclude deleted users
     });
     
     // Check students with prospectusStage 1-5 and no classId
     const enquiryStudents = await User.countDocuments({
       role: 'Student',
       prospectusStage: { $gte: 1, $lte: 5 },
-      classId: { $exists: false }
+      classId: { $exists: false },
+      status: { $ne: 3 } // Exclude deleted users
     });
     
     // Sample of students with levelHistory
     const sampleStudents = await User.find({ 
       role: 'Student',
-      levelHistory: { $exists: true, $ne: [] }
+      levelHistory: { $exists: true, $ne: [] },
+      status: { $ne: 3 } // Exclude deleted users
     }).select('name email prospectusStage levelHistory createdAt').limit(5);
     
     // Check recent levelHistory entries
     const recentLevelHistory = await User.aggregate([
-      { $match: { role: 'Student', levelHistory: { $exists: true, $ne: [] } } },
+      { 
+        $match: { 
+          role: 'Student', 
+          levelHistory: { $exists: true, $ne: [] },
+          status: { $ne: 3 } // Exclude deleted users
+        } 
+      },
       { $unwind: '$levelHistory' },
       { $sort: { 'levelHistory.achievedOn': -1 } },
       { $limit: 10 },
@@ -1828,6 +1857,7 @@ router.get('/daily-breakdown/:year/:month', asyncHandler(async (req, res) => {
           prospectusStage: { $gte: 1, $lte: 5 },
           classId: { $exists: false },
           levelHistory: { $exists: true, $ne: [] },
+          status: { $ne: 3 }, // Exclude deleted users
           // FIXED: Filter by user creation date in the requested month
           createdOn: { $gte: monthStart, $lte: monthEnd }
         }

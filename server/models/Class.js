@@ -268,13 +268,17 @@ ClassSchema.methods.canMarkAttendance = function(userId) {
 ClassSchema.methods.updateStudentCount = async function() {
   const User = mongoose.model('User');
   
-  // Simplified count query - just check for students assigned to this class
+  // More comprehensive query to find students - use any one of the valid conditions
   const count = await User.countDocuments({ 
     classId: this._id,
     role: 'Student',
+    // Look for active students (not deleted) - status !== 3 means not deleted
+    status: { $ne: 3 },
+    // Students should be at level 5 (admitted) OR have been approved/active
     $or: [
-      { prospectusStage: 5 },
-      { enquiryLevel: 5 }
+      { prospectusStage: { $gte: 5 } },  // Changed from exact 5 to >= 5
+      { enquiryLevel: { $gte: 5 } },     // Changed from exact 5 to >= 5
+      { isActive: true, isApproved: true } // Alternative: active & approved
     ]
   });
   
