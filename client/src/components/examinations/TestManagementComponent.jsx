@@ -56,7 +56,7 @@ const TestManagementComponent = () => {
     title: '',
     subject: '',
     classId: '',
-    testType: 'Assessment',
+    testType: 'Quiz',
     testDate: '',
     duration: 120,
     totalMarks: 100,
@@ -77,7 +77,7 @@ const TestManagementComponent = () => {
     'English', 'Urdu', 'Islamiat', 'Pakistan Studies', 'Economics'
   ];
 
-  const testTypes = ['Assessment', 'Quiz', 'Mid-term', 'Final', 'Assignment'];
+  const testTypes = ['Quiz', 'Monthly', 'Mid Term', 'Final Term'];
   const difficulties = ['Easy', 'Medium', 'Hard'];
 
   useEffect(() => {
@@ -242,7 +242,7 @@ const TestManagementComponent = () => {
       title: '',
       subject: '',
       classId: '',
-      testType: 'Assessment',
+      testType: 'Quiz',
       testDate: '',
       duration: 120,
       totalMarks: 100,

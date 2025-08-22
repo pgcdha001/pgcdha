@@ -42,7 +42,7 @@ const TestSchema = new mongoose.Schema({
   testType: {
     type: String,
     required: true,
-    enum: ['Quiz', 'Monthly Test', 'Mid Term', 'Final Term', 'Assignment', 'Class Test', 'Surprise Test'],
+    enum: ['Quiz', 'Monthly', 'Mid Term', 'Final Term'],
     index: true
   },
   
