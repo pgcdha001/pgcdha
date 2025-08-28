@@ -64,7 +64,7 @@ const PrincipalDashboard = () => {
     {
       id: 'student-examination-report',
       title: 'Student Examination Report', 
-      href: '/analytics', 
+  href: '/principal/student-examination-report',
       icon: 'FileText', 
       bgGradient: 'from-purple-500 to-purple-600',
       type: 'normal',

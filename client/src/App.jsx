@@ -1,4 +1,6 @@
 import React from 'react';
+import StudentExaminationReportPage from './pages/principal/StudentExaminationReportPage';
+import NotFound from './pages/NotFound';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -155,6 +157,9 @@ const App = () => {
                   </Layout>
                 </AuthenticatedRoute>
               } />
+
+              {/* Principal Student Examination Report (public route) */}
+              <Route path="/principal/student-examination-report" element={<StudentExaminationReportPage />} />
 
               {/* Institute Admin routes with permission-based protection */}
               <Route path="/institute-admin/enquiries" element={
@@ -530,7 +535,7 @@ const App = () => {
 
               {/* Default redirects */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
             <ToastContainer />
           </DashboardProvider>

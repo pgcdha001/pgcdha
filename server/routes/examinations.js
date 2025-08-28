@@ -71,46 +71,115 @@ router.get('/tests', authenticate, async (req, res) => {
       // For teachers, show tests where they are either:
       // 1. Assigned as the main teacher, OR
       // 2. Listed in the class teachers array for that subject
-
-      // First, get classes where this teacher can teach
-      const teacherClasses = await Class.find({
-        $or: [
-          { classIncharge: req.user._id },
-          { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
-        ]
-      }).select('_id teachers');
-
-      // Build a more specific query that checks both class and subject authorization
-      const classSubjectPairs = [];
-
-      teacherClasses.forEach(cls => {
-        // If teacher is class incharge, they can access all subjects in that class
-        if (cls.classIncharge && cls.classIncharge.toString() === req.user._id.toString()) {
-          classSubjectPairs.push({ classId: cls._id });
-        } else {
-          // If teacher is in teachers array, only include subjects they're assigned to
-          const teacherAssignments = cls.teachers.filter(t =>
-            t.teacherId.toString() === req.user._id.toString() && t.isActive
-          );
-
-          teacherAssignments.forEach(assignment => {
-            if (assignment.subject) {
-              // Teacher is assigned to specific subject
-              classSubjectPairs.push({
-                classId: cls._id,
-                subject: { $regex: new RegExp(`^${assignment.subject}$`, 'i') }
-              });
-            } else {
-              // Teacher has no specific subject restriction in this class
-              classSubjectPairs.push({ classId: cls._id });
+      
+      if (req.query.forMarksEntry === 'true') {
+        // For marks entry, we need more complex authorization
+        const now = new Date();
+        
+        // First, get classes where this teacher can teach
+        const teacherClasses = await Class.find({
+          $or: [
+            { classIncharge: req.user._id },
+            { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
+          ]
+        }).select('_id teachers');
+        
+        // Build a more specific query that checks both class and subject authorization
+        const classSubjectPairs = [];
+        
+        teacherClasses.forEach(cls => {
+          // If teacher is class incharge, they can access all subjects in that class
+          if (cls.classIncharge && cls.classIncharge.toString() === req.user._id.toString()) {
+            classSubjectPairs.push({ classId: cls._id });
+          } else {
+            // If teacher is in teachers array, only include subjects they're assigned to
+            const teacherAssignments = cls.teachers.filter(t => 
+              t.teacherId.toString() === req.user._id.toString() && t.isActive
+            );
+            
+            teacherAssignments.forEach(assignment => {
+              if (assignment.subject) {
+                // Teacher is assigned to specific subject
+                classSubjectPairs.push({ 
+                  classId: cls._id, 
+                  subject: { $regex: new RegExp(`^${assignment.subject}$`, 'i') }
+                });
+              } else {
+                // Teacher has no specific subject restriction in this class
+                classSubjectPairs.push({ classId: cls._id });
+              }
+            });
+          }
+        });
+        
+        // Find tests where teacher is either directly assigned OR authorized by class/subject
+        query = {
+          isActive: true,
+          testDate: { $lte: now },
+          $or: [
+            { marksEntryDeadline: { $exists: false } },
+            { marksEntryDeadline: null },
+            { marksEntryDeadline: { $gte: now } }
+          ],
+          $and: [
+            {
+              $or: [
+                // Teacher is directly assigned to the test
+                { assignedTeacher: req.user._id },
+                // OR teacher is authorized for this class/subject combination
+                ...classSubjectPairs.map(pair => ({
+                  classId: pair.classId,
+                  ...(pair.subject && { subject: pair.subject })
+                }))
+              ]
             }
-          });
-        }
-      });
-
-      // Find tests where teacher is either directly assigned OR authorized by class/subject
-      const teacherFilter = {
-        $or: [
+          ]
+        };
+        
+        console.log('Enhanced teacher marks entry filter:', {
+          teacherId: req.user._id,
+          classSubjectPairs: classSubjectPairs,
+          queryOr: query.$and[0].$or
+        });
+      } else {
+        // Regular test viewing - show tests where teacher is assigned OR authorized by class/subject
+        const teacherClasses = await Class.find({
+          $or: [
+            { classIncharge: req.user._id },
+            { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
+          ]
+        }).select('_id teachers');
+        
+        // Build class/subject authorization pairs
+        const classSubjectPairs = [];
+        
+        teacherClasses.forEach(cls => {
+          // If teacher is class incharge, they can access all subjects in that class
+          if (cls.classIncharge && cls.classIncharge.toString() === req.user._id.toString()) {
+            classSubjectPairs.push({ classId: cls._id });
+          } else {
+            // If teacher is in teachers array, only include subjects they're assigned to
+            const teacherAssignments = cls.teachers.filter(t => 
+              t.teacherId.toString() === req.user._id.toString() && t.isActive
+            );
+            
+            teacherAssignments.forEach(assignment => {
+              if (assignment.subject) {
+                // Teacher is assigned to specific subject
+                classSubjectPairs.push({ 
+                  classId: cls._id, 
+                  subject: { $regex: new RegExp(`^${assignment.subject}$`, 'i') }
+                });
+              } else {
+                // Teacher has no specific subject restriction in this class
+                classSubjectPairs.push({ classId: cls._id });
+              }
+            });
+          }
+        });
+        
+        // Show tests where teacher is either directly assigned OR authorized by class/subject
+        query.$or = [
           // Teacher is directly assigned to the test
           { assignedTeacher: req.user._id },
           // OR teacher is authorized for this class/subject combination
@@ -118,34 +187,14 @@ router.get('/tests', authenticate, async (req, res) => {
             classId: pair.classId,
             ...(pair.subject && { subject: pair.subject })
           }))
-        ]
-      };
-
-      // Apply additional filters for marks entry
-      if (req.query.forMarksEntry === 'true') {
-        query = {
-          isActive: true,
-          testDate: { $lte: new Date() },
-          $or: [
-            { marksEntryDeadline: { $exists: false } },
-            { marksEntryDeadline: null },
-            { marksEntryDeadline: { $gte: new Date() } }
-          ],
-          $and: [
-            teacherFilter
-          ]
-        };
-      } else {
-        // For regular test viewing, just apply the teacher filter
-        query.$or = teacherFilter.$or;
+        ];
+        
+        console.log('Enhanced teacher test viewing filter:', {
+          teacherId: req.user._id,
+          classSubjectPairs: classSubjectPairs,
+          queryOr: query.$or
+        });
       }
-
-      console.log('Enhanced teacher test filter:', {
-        teacherId: req.user._id,
-        classSubjectPairs: classSubjectPairs,
-        queryOr: query.$or || query.$and[0].$or,
-        forMarksEntry: req.query.forMarksEntry
-      });
     }
     
     // Execute query with pagination
@@ -689,69 +738,7 @@ router.get('/tests/difficulty/:difficulty', authenticate, async (req, res) => {
     const { difficulty } = req.params;
     const { academicYear } = req.query;
     
-    let query = { difficulty, isActive: true };
-    if (academicYear) query.academicYear = academicYear;
-    
-    // Apply teacher filtering if user is a teacher
-    if (req.user.role === 'Teacher') {
-      // First, get classes where this teacher can teach
-      const teacherClasses = await Class.find({
-        $or: [
-          { classIncharge: req.user._id },
-          { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
-        ]
-      }).select('_id teachers');
-      
-      // Build class/subject authorization pairs
-      const classSubjectPairs = [];
-      
-      teacherClasses.forEach(cls => {
-        // If teacher is class incharge, they can access all subjects in that class
-        if (cls.classIncharge && cls.classIncharge.toString() === req.user._id.toString()) {
-          classSubjectPairs.push({ classId: cls._id });
-        } else {
-          // If teacher is in teachers array, only include subjects they're assigned to
-          const teacherAssignments = cls.teachers.filter(t => 
-            t.teacherId.toString() === req.user._id.toString() && t.isActive
-          );
-          
-          teacherAssignments.forEach(assignment => {
-            if (assignment.subject) {
-              // Teacher is assigned to specific subject
-              classSubjectPairs.push({ 
-                classId: cls._id, 
-                subject: { $regex: new RegExp(`^${assignment.subject}$`, 'i') }
-              });
-            } else {
-              // Teacher has no specific subject restriction in this class
-              classSubjectPairs.push({ classId: cls._id });
-            }
-          });
-        }
-      });
-      
-      // Apply teacher filter
-      query.$or = [
-        // Teacher is directly assigned to the test
-        { assignedTeacher: req.user._id },
-        // OR teacher is authorized for this class/subject combination
-        ...classSubjectPairs.map(pair => ({
-          classId: pair.classId,
-          ...(pair.subject && { subject: pair.subject })
-        }))
-      ];
-      
-      console.log('Difficulty filter teacher filter applied:', {
-        teacherId: req.user._id,
-        classSubjectPairs: classSubjectPairs,
-        queryOr: query.$or
-      });
-    }
-    
-    const tests = await Test.find(query)
-      .populate('classId', 'name grade program')
-      .populate('assignedTeacher', 'fullName')
-      .sort({ testDate: -1 });
+    const tests = await Test.getTestsByDifficulty(difficulty, academicYear);
     
     res.json({
       success: true,
@@ -773,83 +760,7 @@ router.get('/tests/marks-entry-required', authenticate, requireExaminationAccess
   try {
     const { teacherId } = req.query;
     
-    let query = {
-      isActive: true,
-      testDate: { $lt: new Date() }, // Test has occurred
-      $or: [
-        { marksEntryDeadline: { $exists: false } },
-        { marksEntryDeadline: null },
-        { marksEntryDeadline: { $gte: new Date() } }
-      ]
-    };
-    
-    // Apply teacher filtering if user is a teacher
-    if (req.user.role === 'Teacher') {
-      // First, get classes where this teacher can teach
-      const teacherClasses = await Class.find({
-        $or: [
-          { classIncharge: req.user._id },
-          { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
-        ]
-      }).select('_id teachers');
-      
-      // Build class/subject authorization pairs
-      const classSubjectPairs = [];
-      
-      teacherClasses.forEach(cls => {
-        // If teacher is class incharge, they can access all subjects in that class
-        if (cls.classIncharge && cls.classIncharge.toString() === req.user._id.toString()) {
-          classSubjectPairs.push({ classId: cls._id });
-        } else {
-          // If teacher is in teachers array, only include subjects they're assigned to
-          const teacherAssignments = cls.teachers.filter(t => 
-            t.teacherId.toString() === req.user._id.toString() && t.isActive
-          );
-          
-          teacherAssignments.forEach(assignment => {
-            if (assignment.subject) {
-              // Teacher is assigned to specific subject
-              classSubjectPairs.push({ 
-                classId: cls._id, 
-                subject: { $regex: new RegExp(`^${assignment.subject}$`, 'i') }
-              });
-            } else {
-              // Teacher has no specific subject restriction in this class
-              classSubjectPairs.push({ classId: cls._id });
-            }
-          });
-        }
-      });
-      
-      // Apply teacher filter
-      query.$and = [
-        {
-          $or: [
-            // Teacher is directly assigned to the test
-            { assignedTeacher: req.user._id },
-            // OR teacher is authorized for this class/subject combination
-            ...classSubjectPairs.map(pair => ({
-              classId: pair.classId,
-              ...(pair.subject && { subject: pair.subject })
-            }))
-          ]
-        }
-      ];
-      
-      console.log('Marks entry required teacher filter applied:', {
-        teacherId: req.user._id,
-        classSubjectPairs: classSubjectPairs,
-        queryAnd: query.$and
-      });
-    } else {
-      // For non-teachers, use the teacherId parameter if provided
-      if (teacherId) query.assignedTeacher = teacherId;
-    }
-    
-    const tests = await Test.find(query)
-      .populate('classId', 'name grade program')
-      .populate('assignedTeacher', 'fullName userName')
-      .sort({ marksEntryDeadline: 1 });
+    const tests = await Test.getTestsRequiringMarksEntry(teacherId);
     
     res.json({
       success: true,
@@ -907,69 +818,7 @@ router.get('/calendar', authenticate, async (req, res) => {
     };
     
     if (classId) query.classId = classId;
-    
-    // Apply teacher filtering if user is a teacher
-    if (req.user.role === 'Teacher') {
-      // For teachers, show tests where they are either:
-      // 1. Assigned as the main teacher, OR
-      // 2. Listed in the class teachers array for that subject
-      
-      // First, get classes where this teacher can teach
-      const teacherClasses = await Class.find({
-        $or: [
-          { classIncharge: req.user._id },
-          { 'teachers.teacherId': req.user._id, 'teachers.isActive': true }
-        ]
-      }).select('_id teachers');
-      
-      // Build class/subject authorization pairs
-      const classSubjectPairs = [];
-      
-      teacherClasses.forEach(cls => {
-        // If teacher is class incharge, they can access all subjects in that class
-        if (cls.classIncharge && cls.classIncharge.toString() === req.user._id.toString()) {
-          classSubjectPairs.push({ classId: cls._id });
-        } else {
-          // If teacher is in teachers array, only include subjects they're assigned to
-          const teacherAssignments = cls.teachers.filter(t => 
-            t.teacherId.toString() === req.user._id.toString() && t.isActive
-          );
-          
-          teacherAssignments.forEach(assignment => {
-            if (assignment.subject) {
-              // Teacher is assigned to specific subject
-              classSubjectPairs.push({ 
-                classId: cls._id, 
-                subject: { $regex: new RegExp(`^${assignment.subject}$`, 'i') }
-              });
-            } else {
-              // Teacher has no specific subject restriction in this class
-              classSubjectPairs.push({ classId: cls._id });
-            }
-          });
-        }
-      });
-      
-      // Apply teacher filter to calendar query
-      query.$or = [
-        // Teacher is directly assigned to the test
-        { assignedTeacher: req.user._id },
-        // OR teacher is authorized for this class/subject combination
-        ...classSubjectPairs.map(pair => ({
-          classId: pair.classId,
-          ...(pair.subject && { subject: pair.subject })
-        }))
-      ];
-      
-      console.log('Calendar teacher filter applied:', {
-        teacherId: req.user._id,
-        classSubjectPairs: classSubjectPairs,
-        queryOr: query.$or
-      });
-    } else {
-      // For non-teachers, use the teacherId parameter if provided
-      if (teacherId) query.assignedTeacher = teacherId;
-    }
+    if (teacherId) query.assignedTeacher = teacherId;
     
     const tests = await Test.find(query)
       .populate('classId', 'name grade program')

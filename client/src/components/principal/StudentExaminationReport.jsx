@@ -155,6 +155,8 @@ const StudentExaminationReport = () => {
   const [selectedGrade, setSelectedGrade] = useState('all');
   const [showPerformanceModal, setShowPerformanceModal] = useState(false);
   const [selectedStudentForGraph, setSelectedStudentForGraph] = useState(null);
+  const [zoneCounts, setZoneCounts] = useState({});
+  const [summaryData, setSummaryData] = useState(null);
   
   const { toast } = useToast();
 
@@ -175,19 +177,29 @@ const StudentExaminationReport = () => {
   const fetchStudentData = async () => {
     setLoading(true);
     try {
-      console.log('Fetching student examination data...');
-      
-      // Single API call to get all processed student examination data
+      // Fetch real data from backend
       const response = await api.get('/examinations/student-examination-report');
-      const { data, summary } = response.data;
-      
-      console.log(`Loaded ${summary.totalStudents} students with ${summary.totalTestResults} test results`);
-      
-      setStudents(data || []);
+      const { data, summary } = response.data || {};
+      const studentsFromServer = data || [];
+      setStudents(studentsFromServer);
+      setSummaryData(summary || null);
+
+      // Derive zone counts either from summary (preferred) or compute from students
+      if (summary && summary.zoneCounts) {
+        setZoneCounts(summary.zoneCounts);
+      } else {
+        const counts = studentsFromServer.reduce((acc, s) => {
+          const c = s.cardColor || (s.zone || 'gray');
+          acc[c] = (acc[c] || 0) + 1;
+          return acc;
+        }, {});
+        setZoneCounts(counts);
+      }
     } catch (error) {
-      console.error('Failed to load examination data:', error.message);
-      toast.error('Failed to fetch student examination data');
+      console.error('Failed to fetch student examination report', error);
+      toast.error('Failed to load examination data from server');
       setStudents([]);
+      setZoneCounts({});
     } finally {
       setLoading(false);
     }
@@ -356,7 +368,24 @@ const StudentExaminationReport = () => {
         </div>
       </div>
 
-      {/* Filters */}
+          {/* Zone Stats (compact) */}
+          <div className="mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {['green','blue','yellow','red','gray'].map(zoneKey => (
+                <div key={zoneKey} className="flex items-center gap-3 p-3 bg-white rounded border">
+                  <div className={`h-3 w-3 rounded-full ${
+                    zoneKey === 'green' ? 'bg-green-500' : zoneKey === 'blue' ? 'bg-blue-500' : zoneKey === 'yellow' ? 'bg-yellow-500' : zoneKey === 'red' ? 'bg-red-500' : 'bg-gray-400'
+                  }`} />
+                  <div>
+                    <div className="text-sm text-gray-600 capitalize">{zoneKey}</div>
+                    <div className="text-lg font-semibold text-gray-900">{zoneCounts[zoneKey] || 0}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Filters */}
       <Card className="mb-6">
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
