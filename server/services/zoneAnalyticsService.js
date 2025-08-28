@@ -10,11 +10,77 @@ class ZoneAnalyticsService {
    * @param {number} percentage - The percentage to classify
    * @returns {string} Zone classification (green, blue, yellow, red)
    */
-  static calculateZone(percentage) {
-    if (percentage >= 76) return 'green';  // 76% and above (high performance)
-    if (percentage >= 71 && percentage <= 75) return 'blue';
-    if (percentage >= 66 && percentage <= 70) return 'yellow';
-    return 'red'; // Below 66%
+  /**
+   * Calculate zone based on percentage and optional matriculation baseline.
+   * If a matriculation percentage is provided, thresholds are shifted by
+   * (matriculationPercentage - 80). This keeps the original behavior when
+   * no matriculation baseline is supplied.
+   *
+   * Examples:
+   *  - matric=90 => shift = +10 => green threshold = 76 + 10 = 86
+   *  - matric=70 => shift = -10 => green threshold = 76 - 10 = 66
+   *
+   * @param {number} percentage - student's current percentage
+   * @param {number} [matriculationPercentage] - optional matriculation baseline
+   * @returns {string} Zone: 'green'|'blue'|'yellow'|'red'
+   */
+  static calculateZone(percentage, matriculationPercentage) {
+    // Ensure numeric values
+    const pct = Number(percentage) || 0;
+
+    // Default thresholds (base) matching legacy behavior
+    const base = {
+      green: 76,
+      blue: 71,
+      yellow: 66
+    };
+
+    // If no matriculation baseline is provided, do not calculate a zone
+    if (matriculationPercentage === undefined || matriculationPercentage === null || isNaN(Number(matriculationPercentage))) {
+      return 'unassigned';
+    }
+
+    // If matriculation baseline is provided and is a number, shift thresholds
+    let shift = 0;
+    // Use difference from 80 as the shift (so matric 80 → no change)
+    shift = Math.round(Number(matriculationPercentage) - 80);
+    // Cap shift to avoid extreme thresholds
+    if (shift > 20) shift = 20;
+    if (shift < -20) shift = -20;
+
+  // Compute exact zone boundaries based on matriculation baseline
+  const mp = Number(matriculationPercentage);
+  const greenMin = Math.max(Math.min(mp - 5, 100), 0);
+  const blueMin = Math.max(Math.min(mp - 10, 100), 0);
+  const yellowMin = Math.max(Math.min(mp - 20, 100), 0);
+
+  if (pct >= greenMin) return 'green';
+  if (pct >= blueMin && pct < greenMin) return 'blue';
+  if (pct >= yellowMin && pct < blueMin) return 'yellow';
+  return 'red';
+  }
+
+  /**
+   * Return numeric thresholds used for zones given an optional matriculation baseline.
+   * Useful for UI display and consistent evaluation.
+   * @param {number} [matriculationPercentage]
+   * @returns {{green:number, blue:number, yellow:number}}
+   */
+  static calculateThresholds(matriculationPercentage) {
+    if (matriculationPercentage === undefined || matriculationPercentage === null || isNaN(Number(matriculationPercentage))) {
+      return null;
+    }
+
+    const mp = Number(matriculationPercentage);
+    const greenMin = Math.max(Math.min(mp - 5, 100), 0);
+    const blueMin = Math.max(Math.min(mp - 10, 100), 0);
+    const yellowMin = Math.max(Math.min(mp - 20, 100), 0);
+
+    return {
+      greenMin,
+      blueMin,
+      yellowMin
+    };
   }
 
   /**

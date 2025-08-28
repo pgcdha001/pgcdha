@@ -157,6 +157,9 @@ const StudentExaminationReport = () => {
   const [selectedStudentForGraph, setSelectedStudentForGraph] = useState(null);
   const [zoneCounts, setZoneCounts] = useState({});
   const [summaryData, setSummaryData] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(20);
   
   const { toast } = useToast();
 
@@ -170,40 +173,98 @@ const StudentExaminationReport = () => {
     'default': ['English', 'Math', 'Urdu', 'Pak Study', 'T.Quran', 'Physics']
   };
 
-  useEffect(() => {
-    fetchStudentData();
-  }, []);
-
-  const fetchStudentData = async () => {
+  // Fetch summary analytics (fast) by default to avoid timeouts when loading full student lists
+  const fetchStudentData = React.useCallback(async (options = { loadStudents: false }) => {
     setLoading(true);
     try {
-      // Fetch real data from backend
-      const response = await api.get('/examinations/student-examination-report');
-      const { data, summary } = response.data || {};
-      const studentsFromServer = data || [];
-      setStudents(studentsFromServer);
-      setSummaryData(summary || null);
-
-      // Derive zone counts either from summary (preferred) or compute from students
-      if (summary && summary.zoneCounts) {
-        setZoneCounts(summary.zoneCounts);
+      if (!options.loadStudents) {
+        // Load analytics overview which contains zone counts and campus breakdown
+        const response = await api.get('/analytics/overview');
+        if (response.data && response.data.success) {
+          const analytics = response.data.data || {};
+          const collegeStats = analytics.collegeWideStats || { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
+          setZoneCounts({
+            green: collegeStats.green || 0,
+            blue: collegeStats.blue || 0,
+            yellow: collegeStats.yellow || 0,
+            red: collegeStats.red || 0,
+            gray: collegeStats.unassigned || 0
+          });
+          setSummaryData({
+            lastUpdated: analytics.lastUpdated,
+            studentsProcessed: analytics.studentsProcessed,
+            calculationDuration: analytics.calculationDuration
+          });
+          // Keep students empty to avoid rendering huge lists; allow manual load below
+          setStudents([]);
+          // If analytics appear empty (no students processed), fallback to compute counts from student report
+          if ((collegeStats.total || 0) === 0) {
+            try {
+              const fallback = await api.get('/examinations/student-examination-report');
+              const respStudents = fallback.data?.data || [];
+              if (respStudents.length > 0) {
+                const counts = respStudents.reduce((acc, s) => {
+                  const c = s.cardColor || (s.zone || 'gray');
+                  acc[c] = (acc[c] || 0) + 1;
+                  return acc;
+                }, {});
+                setZoneCounts(counts);
+                setSummaryData(fallback.data?.summary || null);
+              }
+            } catch (e) {
+              // ignore fallback errors
+              console.warn('Fallback student report for counts failed', e?.message || e);
+            }
+          }
+        } else {
+          throw new Error(response.data?.message || 'Failed to load analytics overview');
+        }
       } else {
-        const counts = studentsFromServer.reduce((acc, s) => {
-          const c = s.cardColor || (s.zone || 'gray');
-          acc[c] = (acc[c] || 0) + 1;
-          return acc;
-        }, {});
-        setZoneCounts(counts);
+        // Load paginated student list using analytics/students (respects role-based access and is paginated)
+        const params = {
+          page: options.page || 1,
+          limit: options.limit || pageSize
+        };
+
+        const response = await api.get('/analytics/students', { params });
+        if (response.data && response.data.success) {
+          const payload = response.data.data || {};
+          const studentsPage = payload.students || [];
+          setStudents(studentsPage);
+          // Pagination info
+          const pagination = payload.pagination || {};
+          setPage(pagination.currentPage || params.page);
+          setTotalPages(pagination.totalPages || 1);
+          setSummaryData({
+            totalStudents: pagination.totalStudents || studentsPage.length
+          });
+          // Ensure zone counts are present (overview already attempted); if missing, derive from page
+          if (!Object.keys(zoneCounts).length && studentsPage.length > 0) {
+            const counts = studentsPage.reduce((acc, s) => {
+              const c = s.overallZone || 'gray';
+              acc[c] = (acc[c] || 0) + 1;
+              return acc;
+            }, {});
+            setZoneCounts(counts);
+          }
+        } else {
+          throw new Error(response.data?.message || 'Failed to load paginated students');
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch student examination report', error);
+      console.error('Failed to fetch student examination report or analytics overview', error);
       toast.error('Failed to load examination data from server');
       setStudents([]);
       setZoneCounts({});
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast, pageSize, zoneCounts]);
+
+  useEffect(() => {
+    // Default to loading summary analytics for principal (faster).
+    fetchStudentData();
+  }, [fetchStudentData]);
 
   const getCardColor = (student) => {
     const colorMap = {
@@ -358,12 +419,27 @@ const StudentExaminationReport = () => {
             <p className="text-gray-600 mt-2">
               Comprehensive examination performance tracking with matriculation comparison
             </p>
+            {summaryData?.lastUpdated && (
+              <p className="text-sm text-gray-500 mt-1">Last analytics update: {new Date(summaryData.lastUpdated).toLocaleString()}</p>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-gray-600">
               <Users className="inline h-4 w-4 mr-1" />
               {filteredStudents.length} Students
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async (e) => {
+                e.stopPropagation();
+                // Load full student list (may be large)
+                await fetchStudentData({ loadStudents: true });
+              }}
+              className="ml-2"
+            >
+              Load Student List
+            </Button>
           </div>
         </div>
       </div>
@@ -439,7 +515,35 @@ const StudentExaminationReport = () => {
             <p className="text-gray-600">No students match the current filter criteria.</p>
           </Card>
         ) : (
-          filteredStudents.map((student) => {
+          <>
+            {/* Pagination controls for loaded students */}
+            <div className="flex items-center justify-end gap-2 mb-2">
+              <div className="text-sm text-gray-600">Page {page} / {totalPages}</div>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  if (page > 1) {
+                    await fetchStudentData({ loadStudents: true, page: page - 1, limit: pageSize });
+                  }
+                }}
+                disabled={page <= 1}
+              >
+                Prev
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  if (page < totalPages) {
+                    await fetchStudentData({ loadStudents: true, page: page + 1, limit: pageSize });
+                  }
+                }}
+                disabled={page >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+
+          {filteredStudents.map((student) => {
             const isExpanded = expandedCards[student._id];
             const program = student.admissionInfo?.program || student.program || 'default';
             const subjects = PROGRAM_SUBJECTS[program] || PROGRAM_SUBJECTS.default;
@@ -484,7 +588,7 @@ const StudentExaminationReport = () => {
                           </span>
                         </div>
                       )}
-                      
+
                       {/* Matriculation Percentage */}
                       {student.academicRecords?.matriculation?.percentage && (
                         <div className="text-sm">
@@ -638,7 +742,8 @@ const StudentExaminationReport = () => {
                 )}
               </Card>
             );
-          })
+          })}
+          </>
         )}
       </div>
     </div>

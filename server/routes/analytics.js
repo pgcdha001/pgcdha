@@ -92,7 +92,9 @@ async function applyRoleBasedFiltering(req, res, next) {
 // GET /api/analytics/overview - College-wide analytics overview
 router.get('/overview', authenticate, requireAnalyticsAccess('view'), applyRoleBasedFiltering, async (req, res) => {
   try {
-    const { academicYear = '2024-2025', statisticType = 'overall', subjectName } = req.query;
+  // Debug log requester
+  console.log('Analytics overview requested by:', { id: req.user?._id?.toString?.(), role: req.user?.role, email: req.user?.email, accessScope: req.accessScope });
+  const { academicYear = '2024-2025', statisticType = 'overall', subjectName } = req.query;
     
     // Apply filtering based on user role
     let filter = { academicYear, statisticType };
@@ -625,6 +627,7 @@ router.get('/student/:studentId/matrix', authenticate, requireAnalyticsAccess('v
 // GET /api/analytics/students - Get filtered student list with zone information
 router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleBasedFiltering, async (req, res) => {
   try {
+  console.log('Analytics students list requested by:', { id: req.user?._id?.toString?.(), role: req.user?.role, email: req.user?.email, accessScope: req.accessScope });
     const { 
       academicYear = '2024-2025', 
       zone, 

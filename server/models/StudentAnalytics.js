@@ -333,12 +333,26 @@ StudentAnalyticsSchema.methods.getGraphData = function() {
   return {
     overallTimeline: timelineData,
     subjectTimelines: subjectGraphData,
-    zoneThresholds: {
-      green: { min: 76, max: 84 },
-      blue: { min: 71, max: 75 },
-      yellow: { min: 66, max: 70 },
-      red: { min: 0, max: 65 }
-    }
+    zoneThresholds: (() => {
+      try {
+        const ZoneAnalyticsService = require('../services/zoneAnalyticsService');
+        const thresholds = ZoneAnalyticsService.calculateThresholds(this.overallAnalytics?.matriculationPercentage);
+        if (!thresholds) return null;
+        return {
+          green: { min: thresholds.greenMin, max: Math.min(100, thresholds.greenMin + 4) },
+          blue: { min: thresholds.blueMin, max: Math.max(thresholds.blueMin, thresholds.greenMin - 1) },
+          yellow: { min: thresholds.yellowMin, max: Math.max(thresholds.yellowMin, thresholds.blueMin - 1) },
+          red: { min: 0, max: Math.max(0, thresholds.yellowMin - 1) }
+        };
+      } catch (err) {
+        return {
+          green: { min: 76, max: 84 },
+          blue: { min: 71, max: 75 },
+          yellow: { min: 66, max: 70 },
+          red: { min: 0, max: 65 }
+        };
+      }
+    })()
   };
 };
 

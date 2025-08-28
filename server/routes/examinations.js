@@ -918,7 +918,17 @@ router.get('/student/:studentId/results', authenticate, async (req, res) => {
 // Get comprehensive student examination report (Principal dashboard)
 router.get('/student-examination-report', authenticate, async (req, res) => {
   try {
-    console.log('Fetching comprehensive student examination report...');
+    // Debug: log authenticated user info so we can verify role/scope when debugging
+    try {
+      console.log('Fetching comprehensive student examination report... Authenticated user:', {
+        id: req.user?._id ? req.user._id.toString() : null,
+        role: req.user?.role,
+        email: req.user?.email
+      });
+    } catch (e) {
+      // swallow logging errors
+      console.log('Fetching comprehensive student examination report... (user info unavailable)');
+    }
     
     // Fetch all admitted students (Level 5) with academic records
     const students = await User.find({
