@@ -20,6 +20,8 @@ const MarksEntryComponent = () => {
   const [assignedTests, setAssignedTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [marksData, setMarksData] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 20;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,8 +115,9 @@ const MarksEntryComponent = () => {
         };
       });
       
-      setMarksData(marksArray);
-      setShowMarksForm(true);
+  setMarksData(marksArray);
+  setCurrentPage(1);
+  setShowMarksForm(true);
     } catch (error) {
       console.error('Error fetching test data:', error);
       toast.error('Failed to fetch test data');
@@ -129,55 +132,6 @@ const MarksEntryComponent = () => {
         ? { ...entry, [field]: value }
         : entry
     ));
-  };
-
-  const handleSubmitMarks = async () => {
-    if (!selectedTest) return;
-    
-    setSaving(true);
-    try {
-      // Validate marks
-      const invalidEntries = marksData.filter(entry => 
-        !entry.isAbsent && (
-          entry.obtainedMarks === '' || 
-          entry.obtainedMarks < 0 || 
-          entry.obtainedMarks > selectedTest.totalMarks
-        )
-      );
-      
-      if (invalidEntries.length > 0) {
-        toast.error('Please enter valid marks for all students or mark them as absent');
-        setSaving(false);
-        return;
-      }
-      
-      // Prepare results data
-      const resultsToSubmit = marksData.map(entry => ({
-        testId: selectedTest._id,
-        studentId: entry.studentId,
-        obtainedMarks: entry.isAbsent ? 0 : parseFloat(entry.obtainedMarks),
-        percentage: entry.isAbsent ? 0 : ((parseFloat(entry.obtainedMarks) / selectedTest.totalMarks) * 100).toFixed(2),
-        isAbsent: entry.isAbsent,
-        remarks: entry.remarks,
-        grade: calculateGrade(entry.isAbsent ? 0 : parseFloat(entry.obtainedMarks), selectedTest.totalMarks)
-      }));
-      
-      const response = await api.post(`/examinations/tests/${selectedTest._id}/results`, {
-        results: resultsToSubmit
-      });
-      
-      if (response.data.success) {
-        toast.success('Marks entered successfully!');
-        setShowMarksForm(false);
-        setSelectedTest(null);
-        fetchAssignedTests(); // Refresh the list
-      }
-    } catch (error) {
-      console.error('Error submitting marks:', error);
-      toast.error('Failed to submit marks');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const calculateGrade = (obtainedMarks, totalMarks) => {
@@ -197,6 +151,10 @@ const MarksEntryComponent = () => {
     entry.student.fullName?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     entry.student.rollNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const paginatedStudents = filteredStudents.slice((currentPage - 1) * studentsPerPage, currentPage * studentsPerPage);
 
   if (loading) {
     return (
@@ -336,7 +294,7 @@ const MarksEntryComponent = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredStudents.map((entry, index) => (
+                  {paginatedStudents.map((entry, index) => (
                     <tr key={entry.studentId} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -402,10 +360,65 @@ const MarksEntryComponent = () => {
               </table>
             </div>
 
-            {/* Submit Button */}
+            {/* Pagination Controls */}
+            <div className="flex justify-between items-center mt-4">
+              <div>
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="space-x-2">
+                <Button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} variant="outline">Previous</Button>
+                <Button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} variant="outline">Next</Button>
+              </div>
+              <div>
+                Showing {paginatedStudents.length} of {filteredStudents.length} students
+              </div>
+            </div>
+
+            {/* Submit Button for current page */}
             <div className="mt-6 flex justify-end">
               <Button
-                onClick={handleSubmitMarks}
+                onClick={async () => {
+                  // Only submit marks for students on current page
+                  const pageMarks = paginatedStudents;
+                  if (!selectedTest) return;
+                  setSaving(true);
+                  try {
+                    const invalidEntries = pageMarks.filter(entry =>
+                      !entry.isAbsent && (
+                        entry.obtainedMarks === '' ||
+                        entry.obtainedMarks < 0 ||
+                        entry.obtainedMarks > selectedTest.totalMarks
+                      )
+                    );
+                    if (invalidEntries.length > 0) {
+                      toast.error('Please enter valid marks for all students or mark them as absent');
+                      setSaving(false);
+                      return;
+                    }
+                    const resultsToSubmit = pageMarks.map(entry => ({
+                      testId: selectedTest._id,
+                      studentId: entry.studentId,
+                      obtainedMarks: entry.isAbsent ? 0 : parseFloat(entry.obtainedMarks),
+                      percentage: entry.isAbsent ? 0 : ((parseFloat(entry.obtainedMarks) / selectedTest.totalMarks) * 100).toFixed(2),
+                      isAbsent: entry.isAbsent,
+                      remarks: entry.remarks,
+                      grade: calculateGrade(entry.isAbsent ? 0 : parseFloat(entry.obtainedMarks), selectedTest.totalMarks)
+                    }));
+                    const response = await api.post(`/examinations/tests/${selectedTest._id}/results`, {
+                      results: resultsToSubmit
+                    });
+                    if (response.data.success) {
+                      toast.success('Marks for this page entered successfully!');
+                      // Optionally, refresh marksData for this page
+                      // await handleTestSelect(selectedTest);
+                    }
+                  } catch (error) {
+                    console.error('Error submitting marks:', error);
+                    toast.error('Failed to submit marks');
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
                 disabled={saving}
                 className="flex items-center"
               >
@@ -417,7 +430,7 @@ const MarksEntryComponent = () => {
                 ) : (
                   <>
                     <Save className="h-4 w-4 mr-2" />
-                    Submit All Marks
+                    Submit Marks for This Page
                   </>
                 )}
               </Button>

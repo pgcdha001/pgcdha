@@ -484,25 +484,24 @@ router.post('/tests/:id/results', authenticate, requireExaminationAccess('enter_
     for (const result of results) {
       try {
         const { studentId, obtainedMarks, isAbsent, remarks } = result;
-        
+        // If isAbsent is not explicitly true, always set to false
+        const finalIsAbsent = isAbsent === true;
         // Validate student exists and is in the class
         const student = await User.findOne({ 
           _id: studentId, 
           classId: test.classId,
           role: 'Student'
         });
-        
         if (!student) {
           errors.push({ studentId, error: 'Student not found in this class' });
           continue;
         }
-        
         // Create or update result
         const testResult = await TestResult.findOneAndUpdate(
           { testId: req.params.id, studentId },
           {
-            obtainedMarks: isAbsent ? 0 : obtainedMarks,
-            isAbsent: Boolean(isAbsent),
+            obtainedMarks: finalIsAbsent ? 0 : obtainedMarks,
+            isAbsent: finalIsAbsent,
             remarks: remarks || '',
             enteredBy: req.user._id
           },
@@ -512,10 +511,8 @@ router.post('/tests/:id/results', authenticate, requireExaminationAccess('enter_
             runValidators: true
           }
         );
-        
         await testResult.populate('studentId', 'fullName userName');
         processedResults.push(testResult);
-        
       } catch (error) {
         errors.push({ 
           studentId: result.studentId, 
