@@ -103,6 +103,67 @@ router.get('/overview', authenticate, requireAnalyticsAccess('view'), applyRoleB
     const statistics = await ZoneStatistics.findOne(filter);
     
     if (!statistics) {
+      // If ZoneStatistics doc is not present, attempt a lightweight fallback by
+      // aggregating counts from StudentAnalytics. This is much faster than
+      // recalculating everything and ensures the UI shows student counts even
+      // when full statistics have not yet been generated.
+      try {
+        // Aggregate only students that are assigned a class (classId exists)
+        const agg = await StudentAnalytics.aggregate([
+          { $match: { academicYear, classId: { $exists: true, $ne: null } } },
+          { $group: { _id: '$overallAnalytics.overallZone', count: { $sum: 1 } } }
+        ]);
+
+        const zero = { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
+        if (agg && agg.length > 0) {
+          const collegeWide = { ...zero };
+          let total = 0;
+          agg.forEach(r => {
+            const zoneKey = r._id || 'unassigned';
+            if (!Object.prototype.hasOwnProperty.call(collegeWide, zoneKey)) {
+              // unexpected zone values go to unassigned
+              collegeWide.unassigned += r.count;
+            } else {
+              collegeWide[zoneKey] = r.count;
+            }
+            total += r.count;
+          });
+          collegeWide.total = total;
+
+          const responseData = {
+            collegeWideStats: collegeWide,
+            campusStats: [
+              {
+                campusName: 'Boys',
+                campusZoneDistribution: { ...zero },
+                gradeStats: [
+                  { gradeName: '11th', gradeZoneDistribution: { ...zero }, classStats: [] },
+                  { gradeName: '12th', gradeZoneDistribution: { ...zero }, classStats: [] }
+                ]
+              },
+              {
+                campusName: 'Girls',
+                campusZoneDistribution: { ...zero },
+                gradeStats: [
+                  { gradeName: '11th', gradeZoneDistribution: { ...zero }, classStats: [] },
+                  { gradeName: '12th', gradeZoneDistribution: { ...zero }, classStats: [] }
+                ]
+              }
+            ],
+            lastUpdated: new Date(),
+            academicYear,
+            statisticType,
+            calculationDuration: 0,
+            studentsProcessed: total
+          };
+
+          return res.json({ success: true, data: responseData });
+        }
+      } catch (aggErr) {
+        console.warn('Lightweight StudentAnalytics aggregation failed:', aggErr.message || aggErr);
+        // Fall through to zeroed response below
+      }
+
       // Return zeroed structure so UI can render hierarchy even without data
       const zero = { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
       const responseData = {
@@ -631,16 +692,26 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
     const { 
       academicYear = '2024-2025', 
       zone, 
+      gender,
       campus, 
       grade, 
       classId, 
       subject,
       page = 1, 
-      limit = 50 
+      limit = 50,
+      includeUnassigned = 'false'
     } = req.query;
+    const includeUnassignedBool = String(includeUnassigned).toLowerCase() === 'true';
+    // Parse and sanitize pagination params
+    const pageInt = Math.max(1, parseInt(page, 10) || 1);
+    const limitInt = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
     
     // Build filter based on query params and access scope
+    // By default exclude students without a class assignment (unassigned)
     let studentFilter = { role: 'Student', enquiryLevel: 5 };
+    if (!includeUnassignedBool) {
+      studentFilter.classId = { $exists: true, $ne: null };
+    }
     let analyticsFilter = { academicYear };
     
     // Apply zone filter
@@ -648,7 +719,7 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
       analyticsFilter['overallAnalytics.overallZone'] = zone;
     }
     
-    // Apply access scope filters
+  // Apply access scope filters
     if (req.accessScope.type === 'classes') {
       studentFilter.classId = { $in: req.accessScope.classIds };
     } else if (req.accessScope.type === 'coordinator') {
@@ -689,22 +760,67 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
     if (classId) {
       studentFilter.classId = classId;
     }
+
+    // Apply gender filter if provided
+    if (gender) {
+      // Accept common representations (male/female/M/F)
+      const genderNormalized = String(gender).toLowerCase();
+      if (['male', 'm'].includes(genderNormalized)) studentFilter.gender = { $in: ['Male', 'male', 'M'] };
+      else if (['female', 'f'].includes(genderNormalized)) studentFilter.gender = { $in: ['Female', 'female', 'F'] };
+      else studentFilter.gender = new RegExp(`^${String(gender)}$`, 'i');
+    }
     
-    // Get analytics data first
+    // Resolve matching student IDs first (apply studentFilter to Users) so pagination
+    // operates on students that actually match the requested filters. Populating with
+    // a `match` on `studentId` after limiting StudentAnalytics can produce fewer
+    // results than requested because the populate may filter documents out.
+    const matchingStudents = await User.find(studentFilter).select('_id').lean();
+    const matchingIds = matchingStudents.map(s => s._id);
+
+    if (!matchingIds || matchingIds.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          students: [],
+          pagination: {
+            currentPage: pageInt,
+            totalPages: 0,
+            totalStudents: 0,
+            limit: limitInt
+          },
+          filters: {
+            academicYear,
+            zone,
+            campus,
+            grade,
+            classId,
+            subject
+          }
+        }
+      });
+    }
+
+    // Constrain analytics query to only those studentIds so .limit() applies to
+    // matching students rather than raw analytics documents that may not match
+    analyticsFilter.studentId = { $in: matchingIds };
+
+    // Get analytics data
     const analytics = await StudentAnalytics.find(analyticsFilter)
+      .select('studentId overallAnalytics subjectAnalytics')
       .populate({
         path: 'studentId',
-        match: studentFilter,
+        select: 'fullName email rollNumber classId',
         populate: {
           path: 'classId',
           select: 'name campus grade program'
         }
       })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .sort({ 'overallAnalytics.currentOverallPercentage': -1 });
-    
-    // Filter out null students (those that didn't match the filter)
+      .skip((pageInt - 1) * limitInt)
+      .limit(limitInt)
+      .sort({ 'overallAnalytics.currentOverallPercentage': -1 })
+      .lean();
+
+    // All returned analytics should have a populated studentId (we constrained query)
     const validAnalytics = analytics.filter(a => a.studentId);
     
     // Apply subject filter if specified and user is teacher
@@ -733,6 +849,9 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
         overallZone: analytics.overallAnalytics?.overallZone,
         overallPercentage: analytics.overallAnalytics?.currentOverallPercentage,
         matriculationPercentage: analytics.overallAnalytics?.matriculationPercentage,
+        // Add fields the client expects
+        cardColor: analytics.overallAnalytics?.overallZone || 'gray',
+        currentAvgPercentage: analytics.overallAnalytics?.currentOverallPercentage,
         subjectAnalytics: subjectAnalytics.map(sub => ({
           subject: sub.subjectName,
           zone: sub.zone,
@@ -742,8 +861,9 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
     });
     
     // Get total count for pagination
-    const totalAnalytics = await StudentAnalytics.countDocuments(analyticsFilter);
-    const totalStudents = await User.countDocuments(studentFilter);
+  // Count documents (use filters) - these are relatively cheap compared to full population
+  const totalAnalytics = await StudentAnalytics.countDocuments(analyticsFilter);
+  const totalStudents = matchingIds.length;
     const actualTotal = Math.min(totalAnalytics, totalStudents);
     
     res.json({
@@ -751,10 +871,10 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
       data: {
         students: responseData,
         pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(actualTotal / limit),
+          currentPage: pageInt,
+          totalPages: Math.ceil(actualTotal / limitInt),
           totalStudents: actualTotal,
-          limit: parseInt(limit)
+          limit: limitInt
         },
         filters: {
           academicYear,

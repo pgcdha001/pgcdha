@@ -19,6 +19,7 @@ import { Button } from '../ui/button';
 import Card from '../ui/card';
 import { useToast } from '../../contexts/ToastContext';
 import { default as api } from '../../services/api';
+import ExaminationTab from '../../components/student-profile/ExaminationTab';
 
 // Performance Graph Modal Component
 const PerformanceGraphModal = ({ student, isOpen, onClose }) => {
@@ -57,6 +58,10 @@ const PerformanceGraphModal = ({ student, isOpen, onClose }) => {
             >
               <X className="h-6 w-6" />
             </button>
+            <div className="text-sm text-gray-600">
+              <div>Zone: {student?.overallZone || 'N/A'}</div>
+              <div>Gender: {student?.gender || student?.personalInfo?.gender || 'N/A'}</div>
+            </div>
           </div>
           <p className="text-sm text-gray-600 mt-1">
             Roll No: {student.rollNumber} | Program: {program}
@@ -65,7 +70,7 @@ const PerformanceGraphModal = ({ student, isOpen, onClose }) => {
         
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Object.entries(subjectData).map(([subject, data]) => {
+              {Object.entries(subjectData).map(([subject, data]) => {
               const matriculationMark = data.find(d => d.type === 'matriculation')?.marks;
               const currentMarks = data.filter(d => d.type === 'test');
               const avgCurrent = currentMarks.length > 0 
@@ -120,11 +125,11 @@ const PerformanceGraphModal = ({ student, isOpen, onClose }) => {
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Test Scores</p>
                       {currentMarks.map((test, index) => (
-                        <div key={index} className="flex justify-between text-sm text-gray-700">
-                          <span>{test.exam}</span>
-                          <span className="font-medium">{test.marks}</span>
-                        </div>
-                      ))}
+                          <div key={test.exam || index} className="flex justify-between text-sm text-gray-700">
+                            <span>{test.exam}</span>
+                            <span className="font-medium">{test.marks}</span>
+                          </div>
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -148,18 +153,21 @@ const StudentExaminationReport = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedCards, setExpandedCards] = useState({});
-  const [editingCell, setEditingCell] = useState(null);
-  const [editValue, setEditValue] = useState('');
+  // Inline editing removed in favor of embedded ExaminationTab
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProgram, setSelectedProgram] = useState('all');
   const [selectedGrade, setSelectedGrade] = useState('all');
+  const [selectedZone, setSelectedZone] = useState('all');
+  const [selectedGender, setSelectedGender] = useState('all');
   const [showPerformanceModal, setShowPerformanceModal] = useState(false);
   const [selectedStudentForGraph, setSelectedStudentForGraph] = useState(null);
   const [zoneCounts, setZoneCounts] = useState({});
+  const zoneCountsRef = React.useRef(zoneCounts);
   const [summaryData, setSummaryData] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize] = useState(20);
+  const [recomputing, setRecomputing] = useState(false);
   
   const { toast } = useToast();
 
@@ -197,25 +205,13 @@ const StudentExaminationReport = () => {
           });
           // Keep students empty to avoid rendering huge lists; allow manual load below
           setStudents([]);
-          // If analytics appear empty (no students processed), fallback to compute counts from student report
-          if ((collegeStats.total || 0) === 0) {
-            try {
-              const fallback = await api.get('/examinations/student-examination-report');
-              const respStudents = fallback.data?.data || [];
-              if (respStudents.length > 0) {
-                const counts = respStudents.reduce((acc, s) => {
-                  const c = s.cardColor || (s.zone || 'gray');
-                  acc[c] = (acc[c] || 0) + 1;
-                  return acc;
-                }, {});
-                setZoneCounts(counts);
-                setSummaryData(fallback.data?.summary || null);
-              }
-            } catch (e) {
-              // ignore fallback errors
-              console.warn('Fallback student report for counts failed', e?.message || e);
-            }
-          }
+          // If analytics appear empty (no students processed) we intentionally DO NOT
+          // call the heavy `/examinations/student-examination-report` endpoint here
+          // because it can be very slow and cause the UI to hit axios' 30s timeout.
+          // The principal can click "Load Student List" to fetch paginated students
+          // (via `/api/analytics/students`) which is paginated and respects access
+          // scope. To refresh overall counts properly, trigger server-side analytics
+          // recalculation (POST /api/analytics/calculate/all) when appropriate.
         } else {
           throw new Error(response.data?.message || 'Failed to load analytics overview');
         }
@@ -223,14 +219,26 @@ const StudentExaminationReport = () => {
         // Load paginated student list using analytics/students (respects role-based access and is paginated)
         const params = {
           page: options.page || 1,
-          limit: options.limit || pageSize
+          limit: options.limit || pageSize,
+          includeUnassigned: false,
+          zone: selectedZone !== 'all' ? selectedZone : undefined,
+          gender: selectedGender !== 'all' ? selectedGender : undefined,
         };
 
-        const response = await api.get('/analytics/students', { params });
-        if (response.data && response.data.success) {
+  // Use a larger timeout for paginated student fetch (may be slower on large datasets)
+  const axiosConfig = { params };
+  // Increase timeout to 2 minutes for this specific call
+  axiosConfig.timeout = 120000;
+  const response = await api.get('/analytics/students', axiosConfig);
+          if (response.data && response.data.success) {
           const payload = response.data.data || {};
-          const studentsPage = payload.students || [];
-          setStudents(studentsPage);
+          const studentsPage = (payload.students || []).filter(s => s.class); // remove students with no class assignment
+          // Normalize program field: treat 'default' as unspecified
+          const normalized = studentsPage.map(s => ({
+            ...s,
+            program: (s.program && s.program !== 'default') ? s.program : (s.program || 'Not specified')
+          }));
+          setStudents(normalized);
           // Pagination info
           const pagination = payload.pagination || {};
           setPage(pagination.currentPage || params.page);
@@ -239,7 +247,7 @@ const StudentExaminationReport = () => {
             totalStudents: pagination.totalStudents || studentsPage.length
           });
           // Ensure zone counts are present (overview already attempted); if missing, derive from page
-          if (!Object.keys(zoneCounts).length && studentsPage.length > 0) {
+          if (!Object.keys(zoneCountsRef.current || {}).length && studentsPage.length > 0) {
             const counts = studentsPage.reduce((acc, s) => {
               const c = s.overallZone || 'gray';
               acc[c] = (acc[c] || 0) + 1;
@@ -259,7 +267,12 @@ const StudentExaminationReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, pageSize, zoneCounts]);
+  }, [toast, pageSize, selectedZone, selectedGender]);
+
+  // keep ref in sync (separate effect so hooks are used at top-level)
+  React.useEffect(() => {
+    zoneCountsRef.current = zoneCounts;
+  }, [zoneCounts]);
 
   useEffect(() => {
     // Default to loading summary analytics for principal (faster).
@@ -279,8 +292,9 @@ const StudentExaminationReport = () => {
   };
 
   const getPerformanceTrend = (student) => {
-    const trend = student.performanceTrend;
-    
+    // Defensive: some student objects may not have performanceTrend
+  const trend = student.performanceTrend || { trend: 'no-data', color: 'gray', value: '-' };
+
     const iconMap = {
       'up': TrendingUp,
       'down': TrendingDown,
@@ -288,18 +302,21 @@ const StudentExaminationReport = () => {
       'no-data': AlertCircle,
       'no-baseline': AlertCircle
     };
-    
+
     const colorMap = {
       'green': 'text-green-600',
       'red': 'text-red-600',
       'gray': 'text-gray-500'
     };
-    
+
+    const trendKey = typeof trend.trend === 'string' ? trend.trend : 'no-data';
+    const colorKey = typeof trend.color === 'string' ? trend.color : 'gray';
+
     return {
-      trend: trend.trend,
-      icon: iconMap[trend.trend] || AlertCircle,
-      color: colorMap[trend.color] || 'text-gray-500',
-      value: trend.value
+      trend: trendKey,
+      icon: iconMap[trendKey] || AlertCircle,
+      color: colorMap[colorKey] || 'text-gray-500',
+  value: (trend.value !== undefined && trend.value !== null) ? trend.value : '-'
     };
   };
 
@@ -310,61 +327,7 @@ const StudentExaminationReport = () => {
     }));
   };
 
-  const handleCellDoubleClick = (studentId, examIndex, subject, currentValue) => {
-    const student = students.find(s => s._id === studentId);
-    const exam = student.examData[examIndex];
-    
-    if (exam.isEditable) {
-      setEditingCell({ studentId, examIndex, subject });
-      setEditValue(currentValue.toString());
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingCell) return;
-    
-    try {
-      const { studentId, examIndex, subject } = editingCell;
-      const student = students.find(s => s._id === studentId);
-      const exam = student.examData[examIndex];
-      
-      if (exam.testId) {
-        await api.put(`/examinations/tests/${exam.testId}/results/${studentId}`, {
-          obtainedMarks: parseFloat(editValue) || 0,
-          remarks: `Updated ${subject} marks via Principal report`
-        });
-        
-        toast.success('Marks updated successfully');
-        await fetchStudentData(); // Refresh all data
-      }
-    } catch (error) {
-      console.error('Failed to update marks:', error.message);
-      if (error.response?.status === 400) {
-        toast.error(error.response.data.message || 'Invalid marks value');
-      } else {
-        toast.error('Failed to update marks');
-      }
-    } finally {
-      setEditingCell(null);
-      setEditValue('');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingCell(null);
-    setEditValue('');
-  };
-
-  const calculateColumnAverage = (student, subject) => {
-    const values = student.examData
-      .filter(exam => exam.data[subject] && exam.data[subject] !== '-')
-      .map(exam => parseFloat(exam.data[subject]) || 0);
-    
-    if (values.length === 0) return '-';
-    
-    const average = values.reduce((sum, val) => sum + val, 0) / values.length;
-    return average.toFixed(1) + '%';
-  };
+  // Editing and inline table helpers removed: principal now embeds the student `ExaminationTab` for consistent UI
 
   const openPerformanceGraph = (student) => {
     setSelectedStudentForGraph(student);
@@ -440,6 +403,33 @@ const StudentExaminationReport = () => {
             >
               Load Student List
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (recomputing) return;
+                const confirm = window.confirm('Recompute analytics for all students? This may take several minutes.');
+                if (!confirm) return;
+                try {
+                  setRecomputing(true);
+                  toast.info('Triggering analytics recalculation...');
+                  await api.post('/analytics/calculate/all', { academicYear: '2024-2025' });
+                  await api.post('/analytics/refresh/statistics', { academicYear: '2024-2025' });
+                  toast.success('Analytics recalculation completed. Refreshing overview...');
+                  await fetchStudentData();
+                } catch (err) {
+                  console.error('Failed to recompute analytics:', err?.message || err);
+                  toast.error('Failed to trigger analytics recalculation');
+                } finally {
+                  setRecomputing(false);
+                }
+              }}
+              disabled={recomputing}
+              className="ml-2"
+            >
+              {recomputing ? 'Recomputing...' : 'Recompute Analytics'}
+            </Button>
           </div>
         </div>
       </div>
@@ -464,7 +454,7 @@ const StudentExaminationReport = () => {
           {/* Filters */}
       <Card className="mb-6">
         <div className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Search Students</label>
               <input
@@ -500,6 +490,33 @@ const StudentExaminationReport = () => {
                 <option value="all">All Grades</option>
                 <option value="11th">11th Grade</option>
                 <option value="12th">12th Grade</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Zone</label>
+              <select
+                value={selectedZone}
+                onChange={(e) => setSelectedZone(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Zones</option>
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+                <option value="yellow">Yellow</option>
+                <option value="red">Red</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+              <select
+                value={selectedGender}
+                onChange={(e) => setSelectedGender(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Genders</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
               </select>
             </div>
           </div>
@@ -545,8 +562,7 @@ const StudentExaminationReport = () => {
 
           {filteredStudents.map((student) => {
             const isExpanded = expandedCards[student._id];
-            const program = student.admissionInfo?.program || student.program || 'default';
-            const subjects = PROGRAM_SUBJECTS[program] || PROGRAM_SUBJECTS.default;
+            const program = student.admissionInfo?.program || student.program || 'Not specified';
             const performanceTrend = getPerformanceTrend(student);
             
             return (
@@ -625,121 +641,14 @@ const StudentExaminationReport = () => {
                 </div>
 
                 {/* Expanded Content */}
-                {isExpanded && (
-                  <div className="border-t border-gray-200">
-                    <div className="p-4">
-                      {/* Examination Table */}
-                      <div className="overflow-x-auto">
-                        {student.examData && student.examData.length > 0 ? (
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Exam Name
-                                </th>
-                                {subjects.map(subject => (
-                                  <th key={subject} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    {subject}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {student.examData.map((exam, examIndex) => (
-                                <tr key={examIndex} className={examIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      <div>
-                                        <div className="text-sm font-medium text-gray-900">
-                                          {exam.examName}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          {exam.type === 'matriculation' ? 'Baseline' : 'Test'}
-                                        </div>
-                                      </div>
-                                      {exam.type === 'matriculation' && (
-                                        <Award className="h-4 w-4 ml-2 text-yellow-500" />
-                                      )}
-                                    </div>
-                                  </td>
-                                  {subjects.map(subject => {
-                                    const cellValue = exam.data[subject] || '-';
-                                    const isEditing = editingCell?.studentId === student._id && 
-                                                     editingCell?.examIndex === examIndex && 
-                                                     editingCell?.subject === subject;
-                                    
-                                    return (
-                                      <td 
-                                        key={subject} 
-                                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group"
-                                        onDoubleClick={() => handleCellDoubleClick(student._id, examIndex, subject, cellValue)}
-                                      >
-                                        {isEditing ? (
-                                          <div className="flex items-center gap-2">
-                                            <input
-                                              type="number"
-                                              value={editValue}
-                                              onChange={(e) => setEditValue(e.target.value)}
-                                              className="w-20 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                              autoFocus
-                                              min="0"
-                                              max="100"
-                                            />
-                                            <button
-                                              onClick={handleSaveEdit}
-                                              className="text-green-600 hover:text-green-800"
-                                            >
-                                              <Save className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                              onClick={handleCancelEdit}
-                                              className="text-red-600 hover:text-red-800"
-                                            >
-                                              <X className="h-4 w-4" />
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <div className="flex items-center gap-1">
-                                            <span>{cellValue}</span>
-                                            {exam.isEditable && cellValue !== '-' && (
-                                              <Edit2 className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            )}
-                                          </div>
-                                        )}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              ))}
-                              
-                              {/* Average Row */}
-                              <tr className="bg-blue-50 font-medium">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-900">
-                                  Average %
-                                </td>
-                                {subjects.map(subject => (
-                                  <td key={subject} className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-900">
-                                    {calculateColumnAverage(student, subject)}
-                                  </td>
-                                ))}
-                              </tr>
-                            </tbody>
-                          </table>
-                        ) : (
-                          <div className="text-center py-8">
-                            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                            <p className="text-gray-600">No examination data available for this student</p>
+                      {isExpanded && (
+                        <div className="border-t border-gray-200">
+                          <div className="p-4">
+                            {/* Use the same ExaminationTab used in StudentProfile for consistent UI */}
+                            <ExaminationTab studentId={student.studentId} />
                           </div>
-                        )}
-                      </div>
-                      
-                      {/* Table Instructions */}
-                      <div className="mt-4 text-xs text-gray-500">
-                        <p>💡 Double-click on any test score cell to edit marks. Matriculation marks are read-only.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                        </div>
+                      )}
               </Card>
             );
           })}

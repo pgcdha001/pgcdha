@@ -463,36 +463,40 @@ StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults,
   });
   
   // Get all subjects (from results + program subjects)
-  const allSubjects = new Set([...Object.keys(subjectGroups), ...programSubjects]);
-  
+  const allSubjects = Array.from(new Set([...Object.keys(subjectGroups), ...programSubjects]));
+
   // Calculate analytics for each subject
   allSubjects.forEach(subjectName => {
     const results = subjectGroups[subjectName] || [];
-    
+
     if (results.length > 0) {
       // Subject has test results
-      const totalObtained = results.reduce((sum, result) => sum + result.obtainedMarks, 0);
-      const totalMaximum = results.reduce((sum, result) => sum + result.totalMarks, 0);
-      
-      const percentage = (totalObtained / totalMaximum) * 100;
-      
+      const totalObtained = results.reduce((sum, result) => sum + (Number(result.obtainedMarks) || 0), 0);
+      const totalMaximum = results.reduce((sum, result) => sum + (Number(result.totalMarks) || 0), 0);
+
+      // Guard against division by zero / invalid numbers
+      let percentage = null;
+      if (totalMaximum > 0) {
+        percentage = (totalObtained / totalMaximum) * 100;
+        percentage = Math.round(percentage * 100) / 100;
+      }
+
       // Try to get subject-specific matriculation baseline
-      // For now, use overall matriculation as baseline since subject-specific data structure needs to be implemented
       const subjectMatricBaseline = this.overallAnalytics.matriculationPercentage;
-      const zone = this.calculateOverallZone(percentage, subjectMatricBaseline);
-      
+      const zone = percentage !== null ? this.calculateOverallZone(percentage, subjectMatricBaseline) : 'unassigned';
+
       this.subjectAnalytics.push({
         subjectName,
-        currentPercentage: Math.round(percentage * 100) / 100,
+        currentPercentage: percentage !== null ? percentage : null,
         zone,
         totalCTsIncluded: results.length,
-        totalMarksObtained: totalObtained,
-        totalMaxMarks: totalMaximum,
+        totalMarksObtained: totalObtained || 0,
+        totalMaxMarks: totalMaximum || 0,
         testResults: results.map(result => ({
           testId: result.testId,
-          obtainedMarks: result.obtainedMarks,
-          totalMarks: result.totalMarks,
-          percentage: result.percentage,
+          obtainedMarks: Number(result.obtainedMarks) || 0,
+          totalMarks: Number(result.totalMarks) || 0,
+          percentage: isFinite(Number(result.percentage)) ? Number(result.percentage) : null,
           testDate: result.testDate,
           testType: result.testType
         })),
@@ -571,14 +575,18 @@ StudentAnalyticsSchema.statics.calculateForStudent = async function(studentId, a
       throw new Error('Student not found');
     }
     
-    // Get all test results for the student (Class Tests only)
+    // Get all test results for the student (exclude absent). We populate testId
+    // without filtering by testType because tests in this system use types
+    // like 'Quiz', 'Monthly', 'Mid Term', 'Final Term' rather than 'Class Test'.
+    // Filtering by a non-existent testType caused valid results to be dropped,
+    // producing 'unassigned' zones. Populate testId and later filter out any
+    // results where the test document is missing.
     const testResults = await TestResult.find({
       studentId: studentId,
       isAbsent: false
     }).populate({
       path: 'testId',
-      match: { testType: 'Class Test' },
-      select: 'subject totalMarks testDate testType'
+      select: 'subject totalMarks testDate testType classId'
     });
     
     // Filter out results where test was not found (non-CT tests)
@@ -597,15 +605,15 @@ StudentAnalyticsSchema.statics.calculateForStudent = async function(studentId, a
       });
     }
     
-    // Prepare data for calculations
+    // Prepare data for calculations (ensure a normalized shape expected by analytics helpers)
     const resultsForCalculation = validResults.map(result => ({
       testId: result.testId._id,
-      obtainedMarks: result.obtainedMarks,
-      totalMarks: result.testId.totalMarks,
-      percentage: result.percentage,
-      testDate: result.testId.testDate,
-      testType: result.testId.testType,
-      subject: result.testId.subject
+      obtainedMarks: Number(result.obtainedMarks) || 0,
+      totalMarks: Number(result.testId?.totalMarks) || 0,
+      percentage: isFinite(Number(result.percentage)) ? Number(result.percentage) : null,
+      testDate: result.testId?.testDate || result.testDate,
+      testType: result.testId?.testType || result.testType,
+      subject: result.testId?.subject || result.subject
     }));
     
     // Calculate matriculation percentage if available (multiple sources)
@@ -635,8 +643,13 @@ StudentAnalyticsSchema.statics.calculateForStudent = async function(studentId, a
     }
     
     if (matriculationPercentage !== null && !isNaN(matriculationPercentage)) {
-      analytics.overallAnalytics.matriculationPercentage = matriculationPercentage;
-      console.log(`✅ Set matriculation percentage for ${student.fullName?.firstName} ${student.fullName?.lastName}: ${matriculationPercentage}%`);
+      // Clamp to valid range [0,100] to prevent accidental NaN/invalid values from being saved
+      const clamped = Math.max(0, Math.min(100, Number(matriculationPercentage)));
+      if (clamped !== matriculationPercentage) {
+        console.warn(`⚠️  Matriculation percentage out of range for ${student.fullName?.firstName} ${student.fullName?.lastName}: ${matriculationPercentage} -> clamped to ${clamped}`);
+      }
+      analytics.overallAnalytics.matriculationPercentage = clamped;
+      console.log(`✅ Set matriculation percentage for ${student.fullName?.firstName} ${student.fullName?.lastName}: ${clamped}%`);
     } else {
       console.warn(`⚠️  No valid matriculation data found for student: ${student.fullName?.firstName} ${student.fullName?.lastName}`);
     }
@@ -644,9 +657,9 @@ StudentAnalyticsSchema.statics.calculateForStudent = async function(studentId, a
     // Create subject placeholders based on student's program/class subjects
     const programSubjects = await this.getProgramSubjects(student);
     
-    // Update analytics (even if no test results available)
-    analytics.updateOverallAnalytics(validResults);
-    analytics.updateSubjectAnalytics(validResults, programSubjects);
+  // Update analytics using normalized results
+  analytics.updateOverallAnalytics(resultsForCalculation);
+  analytics.updateSubjectAnalytics(resultsForCalculation, programSubjects);
     
     // Add to calculation history
     analytics.calculationHistory.push({

@@ -50,8 +50,12 @@ class AnalyticsPrerequisiteChecker {
         issues.push('NOT_ADMITTED');
       }
 
-      // Check if student has matriculation marks for baseline
-      if (!student.matricMarks || !student.matricTotal) {
+      // Check if student has matriculation marks for baseline from any supported source
+      const hasLegacyMatric = (student.matricMarks && student.matricTotal);
+      const hasAcademicPercentage = (student.academicRecords && student.academicRecords.matriculation && student.academicRecords.matriculation.percentage !== undefined && student.academicRecords.matriculation.percentage !== null);
+      const hasAcademicSubjects = Array.isArray(student.academicRecords?.matriculation?.subjects) && student.academicRecords.matriculation.subjects.length > 0 && student.academicRecords.matriculation.subjects.some(sub => (sub.obtainedMarks || sub.totalMarks));
+
+      if (!hasLegacyMatric && !hasAcademicPercentage && !hasAcademicSubjects) {
         issues.push('NO_MATRICULATION_DATA');
       }
 
