@@ -55,10 +55,6 @@ const MarksEntryComponent = () => {
       }
       
       // Filter tests that are past their test date but within marks entry deadline
-      // For now, let's show all assigned tests for debugging
-      const testsRequiringMarks = tests; // Remove date filtering temporarily
-      
-      /*
       const testsRequiringMarks = tests.filter(test => {
         const testDate = new Date(test.testDate);
         const marksDeadline = new Date(test.marksEntryDeadline || testDate.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -77,13 +73,16 @@ const MarksEntryComponent = () => {
         
         return isPastTestDate && isWithinDeadline;
       });
-      */
       
       console.log('Tests requiring marks entry:', testsRequiringMarks.length);
       setAssignedTests(testsRequiringMarks);
     } catch (error) {
       console.error('Error fetching assigned tests:', error);
-      toast.error('Failed to fetch assigned tests');
+      if (error.response?.status === 403) {
+        toast.error('Access denied: You are not authorized to view tests');
+      } else {
+        toast.error('Failed to fetch assigned tests');
+      }
     } finally {
       setLoading(false);
     }
@@ -120,7 +119,11 @@ const MarksEntryComponent = () => {
   setShowMarksForm(true);
     } catch (error) {
       console.error('Error fetching test data:', error);
-      toast.error('Failed to fetch test data');
+      if (error.response?.status === 403) {
+        toast.error('Access denied: You are not authorized to access this test');
+      } else {
+        toast.error('Failed to fetch test data');
+      }
     } finally {
       setLoading(false);
     }
