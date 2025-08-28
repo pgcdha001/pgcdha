@@ -168,8 +168,36 @@ const StudentExaminationReport = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize] = useState(20);
   const [recomputing, setRecomputing] = useState(false);
+  const [showStatsPanel, setShowStatsPanel] = useState(true);
+  const [selectedCampus, setSelectedCampus] = useState(null); // 'boys' | 'girls'
+  const [floorCounts, setFloorCounts] = useState({}); // { '11th': n, '12th': n }
+  const [selectedFloor, setSelectedFloor] = useState(null); // '11th' | '12th'
+  const [classCounts, setClassCounts] = useState([]); // array of { className, count, classId }
+  const [campusStats, setCampusStats] = useState([]);
+  const [campusZoneCounts, setCampusZoneCounts] = useState({});
   
   const { toast } = useToast();
+
+  // Helper: fetch a sample of students for given filters and compute zone counts
+  const computeZoneBreakdown = async (params = {}) => {
+    try {
+      const sampleParams = { ...params, page: 1, limit: 200 };
+      const resp = await api.get('/analytics/students', { params: sampleParams });
+      const sample = resp?.data?.data?.students || [];
+      const zoneAgg = sample.reduce((acc, s) => { const z = s.overallZone || 'gray'; acc[z] = (acc[z] || 0) + 1; return acc; }, {});
+      // remove gray/unassigned for drill display
+      const zoneReduced = {
+        green: zoneAgg.green || 0,
+        blue: zoneAgg.blue || 0,
+        yellow: zoneAgg.yellow || 0,
+        red: zoneAgg.red || 0
+      };
+      return zoneReduced;
+    } catch (err) {
+      console.warn('Failed to compute zone breakdown sample', err?.message || err);
+      return { green: 0, blue: 0, yellow: 0, red: 0 };
+    }
+  };
 
   // Subject configurations based on program
   const PROGRAM_SUBJECTS = {
@@ -186,10 +214,45 @@ const StudentExaminationReport = () => {
     setLoading(true);
     try {
       if (!options.loadStudents) {
+        setShowStatsPanel(true);
         // Load analytics overview which contains zone counts and campus breakdown
         const response = await api.get('/analytics/overview');
         if (response.data && response.data.success) {
           const analytics = response.data.data || {};
+          let cs = analytics.campusStats || [];
+          // If server returned empty campusStats (zeros), compute a lightweight fallback
+          const zeroTotals = (arr) => !arr || arr.length === 0 || arr.every(c => {
+            const total = Object.values(c.campusZoneDistribution || {}).reduce((s,v)=>s+(v||0),0);
+            return total === 0;
+          });
+          if (zeroTotals(cs)) {
+            try {
+              const fallback = [];
+              for (const campusName of ['Boys','Girls']) {
+                // Count total students for campus
+                const campusResp = await api.get('/analytics/students', { params: { campus: campusName, page: 1, limit: 1 } });
+                const campusTotal = campusResp?.data?.data?.pagination?.totalStudents || 0;
+                // Count per grade
+                const grades = ['11th','12th'];
+                const gradeStats = [];
+                for (const grade of grades) {
+                  const gradeResp = await api.get('/analytics/students', { params: { campus: campusName, grade, page: 1, limit: 1 } });
+                  const gradeTotal = gradeResp?.data?.data?.pagination?.totalStudents || 0;
+                  // For classes, we will attempt to read class names from the students page (first page) to approximate counts per class
+                  const classMap = {};
+                  const sampleResp = await api.get('/analytics/students', { params: { campus: campusName, grade, page: 1, limit: 50 } });
+                  const sampleStudents = sampleResp?.data?.data?.students || [];
+                  sampleStudents.forEach(s => { if (s.class) classMap[s.class] = (classMap[s.class] || 0) + 1; });
+                  gradeStats.push({ gradeName: grade, gradeZoneDistribution: { total: gradeTotal }, classStats: Object.entries(classMap).map(([name, cnt]) => ({ className: name, classZoneDistribution: { total: cnt } })) });
+                }
+                fallback.push({ campusName, campusZoneDistribution: { total: campusTotal }, gradeStats });
+              }
+              cs = fallback;
+            } catch (err) {
+              console.warn('Fallback campus stats computation failed', err?.message || err);
+            }
+          }
+          setCampusStats(cs);
           const collegeStats = analytics.collegeWideStats || { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
           setZoneCounts({
             green: collegeStats.green || 0,
@@ -216,14 +279,20 @@ const StudentExaminationReport = () => {
           throw new Error(response.data?.message || 'Failed to load analytics overview');
         }
       } else {
+  setShowStatsPanel(false);
         // Load paginated student list using analytics/students (respects role-based access and is paginated)
         const params = {
           page: options.page || 1,
           limit: options.limit || pageSize,
-          includeUnassigned: false,
-          zone: selectedZone !== 'all' ? selectedZone : undefined,
-          gender: selectedGender !== 'all' ? selectedGender : undefined,
+          includeUnassigned: options.includeUnassigned === true ? true : false,
+          // allow explicit overrides from caller to avoid relying on stale hook values
+          zone: (options.zone !== undefined) ? (options.zone === 'all' ? undefined : options.zone) : (selectedZone !== 'all' ? selectedZone : undefined),
+          gender: (options.gender !== undefined) ? (options.gender === 'all' ? undefined : options.gender) : (selectedGender !== 'all' ? selectedGender : undefined),
         };
+        // Accept filter overrides from caller (campus / grade / classId)
+  if (options.campus) params.campus = options.campus;
+  if (options.grade) params.grade = options.grade;
+  if (options.classId) params.classId = options.classId;
 
   // Use a larger timeout for paginated student fetch (may be slower on large datasets)
   const axiosConfig = { params };
@@ -232,7 +301,9 @@ const StudentExaminationReport = () => {
   const response = await api.get('/analytics/students', axiosConfig);
           if (response.data && response.data.success) {
           const payload = response.data.data || {};
-          const studentsPage = (payload.students || []).filter(s => s.class); // remove students with no class assignment
+          const includeUnassignedFlag = options.includeUnassigned === true;
+          // remove students with no class assignment unless includeUnassigned was requested
+          const studentsPage = (payload.students || []).filter(s => includeUnassignedFlag ? true : s.class);
           // Normalize program field: treat 'default' as unspecified
           const normalized = studentsPage.map(s => ({
             ...s,
@@ -349,9 +420,49 @@ const StudentExaminationReport = () => {
                          rollNumber.includes(searchTerm.toLowerCase());
     const matchesProgram = selectedProgram === 'all' || program === selectedProgram;
     const matchesGrade = selectedGrade === 'all' || grade === selectedGrade;
-    
-    return matchesSearch && matchesProgram && matchesGrade;
+    // Zone filter: support 'unassigned' which maps to missing/gray zones
+    const zoneVal = student.overallZone || student.cardColor || 'gray';
+    const matchesZone = selectedZone === 'all' || (
+      selectedZone === 'unassigned' ? (!student.overallZone || zoneVal === 'gray') : (zoneVal === selectedZone)
+    );
+
+    // Gender filter: check common locations
+    const genderVal = (student.gender || student.personalInfo?.gender || student.admissionInfo?.gender || '').toString().toLowerCase();
+    const matchesGender = selectedGender === 'all' || (genderVal === selectedGender);
+
+    return matchesSearch && matchesProgram && matchesGrade && matchesZone && matchesGender;
   });
+
+  // Helper to robustly obtain matriculation percentage for display
+  const getMatricPercentage = (student) => {
+    // Try common fields first
+    const numeric = (v) => (v === undefined || v === null) ? null : Number(v);
+    const candidatePaths = [
+      student.academicRecords?.matriculation?.percentage,
+      student.matriculation?.percentage,
+      student.matricPercentage,
+      student.analytics?.matriculationPercentage,
+      student.matriculationPercentage
+    ];
+    for (const c of candidatePaths) {
+      const n = numeric(c);
+      if (!isNaN(n) && n !== null) return n;
+    }
+    // Fallback: attempt to derive from examData entries of type 'matriculation'
+    if (Array.isArray(student.examData)) {
+      const marks = [];
+      student.examData.forEach(ex => {
+        if (ex.type === 'matriculation' && ex.data) {
+          Object.values(ex.data).forEach(v => { const nv = numeric(v); if (!isNaN(nv)) marks.push(nv); });
+        }
+      });
+      if (marks.length > 0) {
+        const avg = marks.reduce((s, x) => s + x, 0) / marks.length;
+        return Math.round(avg * 10) / 10;
+      }
+    }
+    return null;
+  };
 
   if (loading) {
     return (
@@ -396,12 +507,26 @@ const StudentExaminationReport = () => {
               size="sm"
               onClick={async (e) => {
                 e.stopPropagation();
-                // Load full student list (may be large)
+                // Hide stats panel and load full student list (may be large)
+                setShowStatsPanel(false);
                 await fetchStudentData({ loadStudents: true });
               }}
               className="ml-2"
             >
               Load Student List
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async (e) => {
+                e.stopPropagation();
+                // Hide stats panel and load ALL records (including unassigned)
+                setShowStatsPanel(false);
+                await fetchStudentData({ loadStudents: true, includeUnassigned: true, page: 1, limit: 100 });
+              }}
+              className="ml-2"
+            >
+              All records
             </Button>
             <Button
               variant="outline"
@@ -437,19 +562,166 @@ const StudentExaminationReport = () => {
           {/* Zone Stats (compact) */}
           <div className="mb-4">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {['green','blue','yellow','red','gray'].map(zoneKey => (
-                <div key={zoneKey} className="flex items-center gap-3 p-3 bg-white rounded border">
-                  <div className={`h-3 w-3 rounded-full ${
-                    zoneKey === 'green' ? 'bg-green-500' : zoneKey === 'blue' ? 'bg-blue-500' : zoneKey === 'yellow' ? 'bg-yellow-500' : zoneKey === 'red' ? 'bg-red-500' : 'bg-gray-400'
-                  }`} />
+              {['green','blue','yellow','red'].map(zoneKey => {
+                // prefer scoped counts (campus/grade/class) when available
+                const hasScoped = campusZoneCounts && Object.values(campusZoneCounts).some(v => v > 0);
+                const counts = hasScoped ? campusZoneCounts : zoneCounts;
+                const colorClass = zoneKey === 'green' ? 'bg-green-500' : zoneKey === 'blue' ? 'bg-blue-500' : zoneKey === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
+                return (
+                  <div key={zoneKey} className="flex items-center gap-3 p-3 bg-white rounded border">
+                    <div className={`h-3 w-3 rounded-full ${colorClass}`} />
+                    <div>
+                      <div className="text-sm text-gray-600 capitalize">{zoneKey}</div>
+                      <div className="text-lg font-semibold text-gray-900">{counts?.[zoneKey] || 0}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* show gray as a separate tile only when no campus drill is active */}
+              {!selectedCampus && (
+                <div className="flex items-center gap-3 p-3 bg-white rounded border">
+                  <div className={`h-3 w-3 rounded-full bg-gray-400`} />
                   <div>
-                    <div className="text-sm text-gray-600 capitalize">{zoneKey}</div>
-                    <div className="text-lg font-semibold text-gray-900">{zoneCounts[zoneKey] || 0}</div>
+                    <div className="text-sm text-gray-600 capitalize">Gray</div>
+                    <div className="text-lg font-semibold text-gray-900">{zoneCounts.gray || 0}</div>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
+
+          {/* Campus -> Grade -> Class Stats Drill (shown when not loading students) */}
+          {showStatsPanel && (!students || students.length === 0) && (
+            <Card className="mb-6">
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-3">Campus / Grade / Class Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Campus list */}
+                  <div>
+                    <div className="text-sm text-gray-600 mb-2">Campus</div>
+                    <div className="space-y-2">
+                      {campusStats.map(c => (
+                        <button
+                          key={c.campusName}
+                          onClick={async () => {
+                            setSelectedCampus(c.campusName);
+                            setSelectedFloor(null);
+                            setClassCounts([]);
+                            // populate floor counts from provided data if available
+                            const floors = {};
+                            (c.gradeStats || []).forEach(g => { floors[g.gradeName] = (floors[g.gradeName] || 0) + (g.gradeZoneDistribution?.total || 0); });
+                            setFloorCounts(floors);
+                            // additionally fetch a sample of students to compute zone breakdown per campus (like the top tiles)
+                            try {
+                              const resp = await api.get('/analytics/students', { params: { campus: c.campusName, page: 1, limit: 200 } });
+                              const studentsSample = resp?.data?.data?.students || [];
+                              const zoneAgg = studentsSample.reduce((acc, s) => { const z = s.overallZone || 'gray'; acc[z] = (acc[z] || 0) + 1; return acc; }, {});
+                              // remove gray/unassigned for campus drill display
+                              const zoneReduced = {
+                                green: zoneAgg.green || 0,
+                                blue: zoneAgg.blue || 0,
+                                yellow: zoneAgg.yellow || 0,
+                                red: zoneAgg.red || 0
+                              };
+                              // store reduced campus zone counts separately (do not overwrite top-level zoneCounts)
+                              setCampusZoneCounts(zoneReduced);
+                            } catch (err) {
+                              console.warn('Failed to fetch campus students for zone breakdown', err?.message || err);
+                            }
+                          }}
+                          className={`w-full text-left p-2 rounded border ${selectedCampus === c.campusName ? 'bg-blue-50' : 'bg-white'}`}
+                        >
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium">{c.campusName}</div>
+                                {/* numeric totals intentionally removed from drill UI */}
+                              </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Floor (grade) list */}
+                  <div>
+                    <div className="text-sm text-gray-600 mb-2">Grade</div>
+                    <div className="space-y-2">
+                      {Object.keys(floorCounts).length === 0 ? (
+                        <div className="text-sm text-gray-500">Select a campus to view grades</div>
+                      ) : (
+                        Object.keys(floorCounts).map((floor) => (
+                          <button
+                            key={floor}
+                            onClick={() => {
+                              setSelectedFloor(floor);
+                              // find classes from campusStats
+                              const campus = campusStats.find(cs => cs.campusName === selectedCampus);
+                              const grade = campus?.gradeStats?.find(g => g.gradeName === floor);
+                              // Build an array of class objects with name, count and classId if available
+                              const classesArr = (grade?.classStats || []).map(cl => ({
+                                className: cl.className,
+                                count: (cl.classZoneDistribution?.total || 0),
+                                classId: cl.classId || null
+                              }));
+                              setClassCounts(classesArr);
+                              // compute zone breakdown for this grade and update tiles
+                              (async () => {
+                                const zones = await computeZoneBreakdown({ campus: selectedCampus, grade: floor });
+                                setCampusZoneCounts(zones);
+                              })();
+                            }}
+                            className={`w-full text-left p-2 rounded border ${selectedFloor === floor ? 'bg-blue-50' : 'bg-white'}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm">{floor}</div>
+                              {/* numeric totals intentionally removed from drill UI */}
+                            </div>
+                          </button>
+                          ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Class list */}
+                  <div>
+                    <div className="text-sm text-gray-600 mb-2">Class</div>
+                    <div className="space-y-2">
+                      {(!classCounts || classCounts.length === 0) ? (
+                        <div className="text-sm text-gray-500">Select a grade to view classes</div>
+                      ) : (
+                        classCounts.map(cl => (
+                          <button
+                            key={cl.classId || cl.className}
+                            onClick={async () => {
+                              if (cl.classId) {
+                                // load students filtered by class
+                                setShowStatsPanel(false);
+                                await fetchStudentData({ loadStudents: true, classId: cl.classId });
+            // update zone tiles to reflect this class
+            const zones = await computeZoneBreakdown({ classId: cl.classId });
+            setCampusZoneCounts(zones);
+                              } else {
+                                // fallback: pass className as classId so server can resolve
+                                // the class by name (and optional campus/grade) and return
+                                // students for that specific class only.
+                                setShowStatsPanel(false);
+            await fetchStudentData({ loadStudents: true, classId: cl.className, campus: selectedCampus, grade: selectedFloor, page: 1 });
+            // update zone tiles to reflect this class (resolve by name)
+            const zones = await computeZoneBreakdown({ classId: cl.className, campus: selectedCampus, grade: selectedFloor });
+            setCampusZoneCounts(zones);
+                              }
+                            }}
+                            className="w-full text-left p-2 rounded border bg-white flex items-center justify-between"
+                          >
+                            <div className="text-sm">{cl.className}</div>
+                            {/* numeric totals intentionally removed from drill UI */}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Filters */}
       <Card className="mb-6">
@@ -496,7 +768,15 @@ const StudentExaminationReport = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Zone</label>
               <select
                 value={selectedZone}
-                onChange={(e) => setSelectedZone(e.target.value)}
+                onChange={async (e) => {
+                  e.preventDefault();
+                  const val = e.target.value;
+                  setSelectedZone(val);
+                  // If the student list is already visible, re-fetch with new zone filter
+                  if (!showStatsPanel) {
+                    await fetchStudentData({ loadStudents: true, page: 1, zone: val });
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Zones</option>
@@ -526,21 +806,26 @@ const StudentExaminationReport = () => {
       {/* Student Cards */}
       <div className="space-y-4">
         {filteredStudents.length === 0 ? (
-          <Card className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Students Found</h3>
-            <p className="text-gray-600">No students match the current filter criteria.</p>
-          </Card>
+          // Only show 'No Students Found' when the stats panel is hidden (i.e., after loading student list)
+          !showStatsPanel ? (
+            <Card className="p-8 text-center">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Students Found</h3>
+              <p className="text-gray-600">No students match the current filter criteria.</p>
+            </Card>
+          ) : null
         ) : (
           <>
             {/* Pagination controls for loaded students */}
             <div className="flex items-center justify-end gap-2 mb-2">
-              <div className="text-sm text-gray-600">Page {page} / {totalPages}</div>
+                <div className="text-sm text-gray-600">Page {page} / {totalPages}</div>
               <Button
                 size="sm"
                 onClick={async () => {
                   if (page > 1) {
-                    await fetchStudentData({ loadStudents: true, page: page - 1, limit: pageSize });
+                    const zoneOpt = selectedZone;
+                    const genderOpt = selectedGender;
+                    await fetchStudentData({ loadStudents: true, page: page - 1, limit: pageSize, zone: zoneOpt, gender: genderOpt });
                   }
                 }}
                 disabled={page <= 1}
@@ -551,14 +836,17 @@ const StudentExaminationReport = () => {
                 size="sm"
                 onClick={async () => {
                   if (page < totalPages) {
-                    await fetchStudentData({ loadStudents: true, page: page + 1, limit: pageSize });
+                    const zoneOpt = selectedZone;
+                    const genderOpt = selectedGender;
+                    await fetchStudentData({ loadStudents: true, page: page + 1, limit: pageSize, zone: zoneOpt, gender: genderOpt });
                   }
                 }}
-                disabled={page >= totalPages}
+                disabled={page >= totalPages || (page === 1 && filteredStudents.length < pageSize)}
               >
                 Next
               </Button>
             </div>
+            {/* If there is only one page, hide Prev/Next buttons */}
 
           {filteredStudents.map((student) => {
             const isExpanded = expandedCards[student._id];
@@ -577,6 +865,9 @@ const StudentExaminationReport = () => {
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">
                           {student.fullName?.firstName} {student.fullName?.lastName}
+                          {student.fatherName && (
+                            <span className="text-sm text-gray-600 font-normal ml-3">(Father: {student.fatherName})</span>
+                          )}
                         </h3>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <span>Roll No: {student.rollNumber || 'N/A'}</span>
@@ -605,15 +896,16 @@ const StudentExaminationReport = () => {
                         </div>
                       )}
 
-                      {/* Matriculation Percentage */}
-                      {student.academicRecords?.matriculation?.percentage && (
-                        <div className="text-sm">
-                          <span className="text-gray-600">Matric: </span>
-                          <span className="font-semibold text-gray-900">
-                            {student.academicRecords.matriculation.percentage}%
-                          </span>
-                        </div>
-                      )}
+                      {/* Matriculation Percentage (robust fallback) */}
+                      {(() => {
+                        const m = getMatricPercentage(student);
+                        return m !== null ? (
+                          <div className="text-sm">
+                            <span className="text-gray-600">Matric: </span>
+                            <span className="font-semibold text-gray-900">{m}%</span>
+                          </div>
+                        ) : null;
+                      })()}
                       
                       {/* Actions */}
                       <div className="flex items-center gap-2">

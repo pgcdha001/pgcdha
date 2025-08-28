@@ -356,3 +356,65 @@ TestResultSchema.set('toJSON', { virtuals: true });
 TestResultSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('TestResult', TestResultSchema);
+
+// ------------------------
+// Background recalculation scheduler
+// ------------------------
+// Debounce recalculation calls per-student so multiple quick edits trigger only
+// one analytics recalculation. This runs in the background and won't block
+// the request that saved/updated the TestResult.
+const pendingRecalc = new Map(); // studentId -> timeoutId
+const RECALC_DELAY_MS = 2000; // 2 seconds
+
+function scheduleStudentRecalc(studentId) {
+  try {
+    const sid = String(studentId);
+    // Clear existing timer if present
+    if (pendingRecalc.has(sid)) {
+      clearTimeout(pendingRecalc.get(sid));
+    }
+
+    const timeoutId = setTimeout(async () => {
+      pendingRecalc.delete(sid);
+      try {
+        const StudentAnalytics = mongoose.model('StudentAnalytics');
+        // Fire-and-forget; log any error
+        await StudentAnalytics.calculateForStudent(sid).catch(err => {
+          console.error(`Background analytics recalculation failed for ${sid}:`, err && err.message ? err.message : err);
+        });
+      } catch (err) {
+        console.error('Failed to run background analytics recalculation:', err && err.message ? err.message : err);
+      }
+    }, RECALC_DELAY_MS);
+
+    pendingRecalc.set(sid, timeoutId);
+  } catch (err) {
+    console.error('Error scheduling student analytics recalculation:', err && err.message ? err.message : err);
+  }
+}
+
+// Trigger after creating a new test result
+TestResultSchema.post('save', function(doc) {
+  if (doc && doc.studentId) {
+    scheduleStudentRecalc(doc.studentId);
+  }
+});
+
+// Trigger after an update via findOneAndUpdate
+TestResultSchema.post('findOneAndUpdate', function(doc) {
+  // `doc` is the document after update when { new: true } is used; otherwise it may be the pre-update doc
+  if (doc && doc.studentId) {
+    scheduleStudentRecalc(doc.studentId);
+  } else if (this && this.getQuery) {
+    // Fallback: try to fetch the updated doc to determine studentId
+    const q = this.getQuery();
+    if (q && q._id) {
+      const Model = this.model;
+      Model.findById(q._id).select('studentId').lean().then(d => {
+        if (d && d.studentId) scheduleStudentRecalc(d.studentId);
+      }).catch(err => {
+        console.error('Failed to schedule student recalculation after update (lookup failed):', err && err.message ? err.message : err);
+      });
+    }
+  }
+});

@@ -4,6 +4,7 @@ const StudentAnalytics = require('../models/StudentAnalytics');
 const ZoneStatistics = require('../models/ZoneStatistics');
 const User = require('../models/User');
 const Class = require('../models/Class');
+const mongoose = require('mongoose');
 const { authenticate } = require('../middleware/auth');
 const ZoneAnalyticsService = require('../services/zoneAnalyticsService');
 const ClassAssignmentService = require('../services/classAssignmentService');
@@ -334,6 +335,65 @@ router.get('/campus/:campus', authenticate, requireAnalyticsAccess('view'), appl
       message: 'Error fetching campus analytics',
       error: error.message
     });
+  }
+});
+
+// GET /api/analytics/exact-distribution - Exact counts aggregated from StudentAnalytics
+// Query params: academicYear, includeUnassigned=true|false
+router.get('/exact-distribution', authenticate, requireAnalyticsAccess('view'), applyRoleBasedFiltering, async (req, res) => {
+  try {
+    const { academicYear = '2024-2025' } = req.query;
+    const includeUnassigned = req.query.includeUnassigned === 'true';
+
+    // Build match stage
+    const match = { academicYear };
+    if (!includeUnassigned) {
+      match.classId = { $exists: true, $ne: null };
+    }
+
+    // Apply coordinator scope
+    if (req.accessScope && req.accessScope.type === 'coordinator') {
+      if (req.accessScope.campus) match.campus = req.accessScope.campus;
+      if (req.accessScope.grade) match.grade = req.accessScope.grade;
+    }
+
+    // Aggregate counts by campus -> grade -> classId
+    const agg = await StudentAnalytics.aggregate([
+      { $match: match },
+      { $group: { _id: { campus: '$campus', grade: '$grade', classId: '$classId' }, count: { $sum: 1 } } },
+      // Lookup class name when classId present
+      { $lookup: { from: 'classes', localField: '_id.classId', foreignField: '_id', as: 'classDoc' } },
+      { $addFields: { className: { $arrayElemAt: ['$classDoc.name', 0] } } },
+      { $project: { _id: 0, campus: '$_id.campus', grade: '$_id.grade', classId: '$_id.classId', className: 1, count: 1 } }
+    ]).allowDiskUse(true);
+
+    // Reshape into hierarchy
+    const campuses = {}; // campusName -> { gradeName -> { className -> count } }
+    agg.forEach(r => {
+      const campusName = r.campus || 'Unassigned';
+      const gradeName = r.grade || 'Unassigned';
+      const className = r.className || (r.classId ? r.classId.toString() : 'Unassigned');
+      campuses[campusName] = campuses[campusName] || {};
+      campuses[campusName][gradeName] = campuses[campusName][gradeName] || { total: 0, classes: [] };
+      campuses[campusName][gradeName].classes.push({ classId: r.classId, className, count: r.count });
+      campuses[campusName][gradeName].total += r.count;
+    });
+
+    // Convert to array shape expected by frontend
+    const campusStats = Object.keys(campuses).map(campusName => {
+      const gradeStats = Object.keys(campuses[campusName]).map(gradeName => ({
+        gradeName,
+        gradeZoneDistribution: { total: campuses[campusName][gradeName].total },
+        classStats: campuses[campusName][gradeName].classes.map(cl => ({ classId: cl.classId, className: cl.className, classZoneDistribution: { total: cl.count } }))
+      }));
+      const campusTotal = gradeStats.reduce((s,g)=>s + (g.gradeZoneDistribution?.total || 0), 0);
+      return { campusName, campusZoneDistribution: { total: campusTotal }, gradeStats };
+    });
+
+    return res.json({ success: true, data: { academicYear, campusStats, generatedAt: new Date() } });
+  } catch (error) {
+    console.error('Error computing exact-distribution:', error);
+    res.status(500).json({ success: false, message: 'Error computing exact distribution', error: error.message });
   }
 });
 
@@ -734,20 +794,21 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
     // Apply additional filters
     if (campus) {
       const campusClasses = await Class.find({ campus });
-      if (studentFilter.classId) {
-        // Intersect with existing class filter
+      if (studentFilter.classId && Array.isArray(studentFilter.classId.$in)) {
+        // Intersect with existing class filter (only when $in array exists)
         const existingClassIds = studentFilter.classId.$in.map(id => id.toString());
         const campusClassIds = campusClasses.map(cls => cls._id.toString());
         const intersectedIds = existingClassIds.filter(id => campusClassIds.includes(id));
         studentFilter.classId = { $in: intersectedIds };
       } else {
+        // Replace any non-$in filter with the campus class list
         studentFilter.classId = { $in: campusClasses.map(cls => cls._id) };
       }
     }
     
     if (grade) {
       const gradeClasses = await Class.find({ grade });
-      if (studentFilter.classId) {
+      if (studentFilter.classId && Array.isArray(studentFilter.classId.$in)) {
         const existingClassIds = studentFilter.classId.$in.map(id => id.toString());
         const gradeClassIds = gradeClasses.map(cls => cls._id.toString());
         const intersectedIds = existingClassIds.filter(id => gradeClassIds.includes(id));
@@ -758,7 +819,22 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
     }
     
     if (classId) {
-      studentFilter.classId = classId;
+      // Accept either a Mongo ObjectId string or a className string from the client.
+      // If it's a valid ObjectId, use it directly. Otherwise try to resolve by
+      // class name (and optional campus/grade) so sample-based drill items
+      // without classId can still filter correctly.
+      if (mongoose.Types.ObjectId.isValid(String(classId))) {
+        studentFilter.classId = mongoose.Types.ObjectId(String(classId));
+      } else {
+        // Treat classId as className and attempt to resolve matching classes
+        const classQuery = { name: String(classId).trim() };
+        if (campus) classQuery.campus = campus;
+        if (grade) classQuery.grade = grade;
+        const matchedClasses = await Class.find(classQuery).select('_id').lean();
+        const ids = matchedClasses.map(c => c._id);
+        // If no classes found, set an empty $in to produce zero results
+        studentFilter.classId = { $in: ids };
+      }
     }
 
     // Apply gender filter if provided
@@ -838,8 +914,12 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
       }
       
       return {
+        // Provide _id so client can key off student._id
+        _id: analytics.studentId._id,
         studentId: analytics.studentId._id,
-        studentName: `${analytics.studentId.fullName?.firstName} ${analytics.studentId.fullName?.lastName}`,
+        // Preserve nested fullName (used by the client)
+        fullName: analytics.studentId.fullName || { firstName: '', lastName: '' },
+        fatherName: analytics.studentId.fatherName || analytics.studentId.personalInfo?.fatherName || '',
         email: analytics.studentId.email,
         rollNumber: analytics.studentId.rollNumber,
         class: analytics.studentId.classId?.name,
@@ -866,26 +946,34 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
   const totalStudents = matchingIds.length;
     const actualTotal = Math.min(totalAnalytics, totalStudents);
     
-    res.json({
-      success: true,
-      data: {
-        students: responseData,
-        pagination: {
-          currentPage: pageInt,
-          totalPages: Math.ceil(actualTotal / limitInt),
-          totalStudents: actualTotal,
-          limit: limitInt
-        },
-        filters: {
-          academicYear,
-          zone,
-          campus,
-          grade,
-          classId,
-          subject
-        }
+    const debugMode = String(req.query.debug).toLowerCase() === 'true';
+    const responsePayload = {
+      students: responseData,
+      pagination: {
+        currentPage: pageInt,
+        totalPages: Math.ceil(actualTotal / limitInt),
+        totalStudents: actualTotal,
+        limit: limitInt
+      },
+      filters: {
+        academicYear,
+        zone,
+        campus,
+        grade,
+        classId,
+        subject
       }
-    });
+    };
+
+    if (debugMode) {
+      responsePayload.debugInfo = {
+        resolvedStudentFilter: studentFilter,
+        analyticsFilter,
+        sampleStudent: responseData.length > 0 ? responseData[0] : null
+      };
+    }
+
+    res.json({ success: true, data: responsePayload });
   } catch (error) {
     console.error('Error fetching student list:', error);
     res.status(500).json({
