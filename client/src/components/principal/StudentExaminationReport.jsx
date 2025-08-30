@@ -350,6 +350,24 @@ const StudentExaminationReport = () => {
     fetchStudentData();
   }, [fetchStudentData]);
 
+  // Defensive: block any unexpected form submissions on the page while this component is mounted.
+  // Some browsers or parent layouts may still trigger a submit; capture and prevent to avoid full-page reloads.
+  useEffect(() => {
+    const onSubmitCapture = (e) => {
+      try {
+        console.warn('Blocked unexpected form submit from', e.target);
+      } catch (err) {
+        console.warn('Error in submit capture handler', err);
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return false;
+    };
+
+    document.addEventListener('submit', onSubmitCapture, true);
+    return () => document.removeEventListener('submit', onSubmitCapture, true);
+  }, []);
+
   const getCardColor = (student) => {
     const colorMap = {
       'green': 'bg-green-50 border-green-200',
@@ -503,32 +521,51 @@ const StudentExaminationReport = () => {
               {filteredStudents.length} Students
             </div>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={async (e) => {
                 e.stopPropagation();
                 // Hide stats panel and load full student list (may be large)
+                // clear any UI filters so we load and display ALL students
+                setSelectedProgram('all');
+                setSelectedGrade('all');
+                setSelectedZone('all');
+                setSelectedGender('all');
                 setShowStatsPanel(false);
-                await fetchStudentData({ loadStudents: true });
+                await fetchStudentData({ loadStudents: true, page: 1, zone: 'all', gender: 'all' });
               }}
               className="ml-2"
             >
               Load Student List
             </Button>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={async (e) => {
                 e.stopPropagation();
-                // Hide stats panel and load ALL records (including unassigned)
-                setShowStatsPanel(false);
-                await fetchStudentData({ loadStudents: true, includeUnassigned: true, page: 1, limit: 100 });
+                // Clear all UI filters and reset drill selections
+                setSearchTerm('');
+                setSelectedProgram('all');
+                setSelectedGrade('all');
+                setSelectedZone('all');
+                setSelectedGender('all');
+                setSelectedCampus(null);
+                setSelectedFloor(null);
+                setClassCounts([]);
+                setCampusZoneCounts({});
+                // If the student list is visible, re-fetch unfiltered students
+                if (!showStatsPanel) {
+                  await fetchStudentData({ loadStudents: true, page: 1, limit: pageSize, zone: 'all', gender: 'all' });
+                }
               }}
               className="ml-2"
             >
-              All records
+              Clear filters
             </Button>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={async (e) => {
@@ -603,7 +640,9 @@ const StudentExaminationReport = () => {
                       {campusStats.map(c => (
                         <button
                           key={c.campusName}
-                          onClick={async () => {
+                          type="button"
+                          onClick={async (e) => {
+                            e.preventDefault();
                             setSelectedCampus(c.campusName);
                             setSelectedFloor(null);
                             setClassCounts([]);
@@ -650,7 +689,9 @@ const StudentExaminationReport = () => {
                         Object.keys(floorCounts).map((floor) => (
                           <button
                             key={floor}
-                            onClick={() => {
+                            type="button"
+                            onClick={async (e) => {
+                              e.preventDefault();
                               setSelectedFloor(floor);
                               // find classes from campusStats
                               const campus = campusStats.find(cs => cs.campusName === selectedCampus);
@@ -663,10 +704,8 @@ const StudentExaminationReport = () => {
                               }));
                               setClassCounts(classesArr);
                               // compute zone breakdown for this grade and update tiles
-                              (async () => {
-                                const zones = await computeZoneBreakdown({ campus: selectedCampus, grade: floor });
-                                setCampusZoneCounts(zones);
-                              })();
+                              const zones = await computeZoneBreakdown({ campus: selectedCampus, grade: floor });
+                              setCampusZoneCounts(zones);
                             }}
                             className={`w-full text-left p-2 rounded border ${selectedFloor === floor ? 'bg-blue-50' : 'bg-white'}`}
                           >
@@ -690,11 +729,13 @@ const StudentExaminationReport = () => {
                         classCounts.map(cl => (
                           <button
                             key={cl.classId || cl.className}
-                            onClick={async () => {
+                            type="button"
+                            onClick={async (e) => {
+                              e.preventDefault();
                               if (cl.classId) {
                                 // load students filtered by class
                                 setShowStatsPanel(false);
-                                await fetchStudentData({ loadStudents: true, classId: cl.classId });
+                                await fetchStudentData({ loadStudents: true, classId: cl.classId, campus: selectedCampus });
             // update zone tiles to reflect this class
             const zones = await computeZoneBreakdown({ classId: cl.classId });
             setCampusZoneCounts(zones);
@@ -726,6 +767,7 @@ const StudentExaminationReport = () => {
           {/* Filters */}
       <Card className="mb-6">
         <div className="p-4">
+          <div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Search Students</label>
@@ -791,7 +833,14 @@ const StudentExaminationReport = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
               <select
                 value={selectedGender}
-                onChange={(e) => setSelectedGender(e.target.value)}
+                onChange={async (e) => {
+                  e.preventDefault();
+                  const val = e.target.value;
+                  setSelectedGender(val);
+                  if (!showStatsPanel) {
+                    await fetchStudentData({ loadStudents: true, page: 1, gender: val });
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Genders</option>
@@ -799,6 +848,7 @@ const StudentExaminationReport = () => {
                 <option value="female">Female</option>
               </select>
             </div>
+          </div>
           </div>
         </div>
       </Card>

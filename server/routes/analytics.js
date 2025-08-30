@@ -776,7 +776,15 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
     
     // Apply zone filter
     if (zone) {
-      analyticsFilter['overallAnalytics.overallZone'] = zone;
+      const z = String(zone).toLowerCase();
+      // normalize common values to known keys
+      const mapping = { green: 'green', blue: 'blue', yellow: 'yellow', red: 'red', unassigned: null };
+      const mapped = mapping[z] !== undefined ? mapping[z] : zone;
+      // match either overallAnalytics.overallZone or legacy overallAnalytics.zone
+      analyticsFilter['$or'] = [
+        { 'overallAnalytics.overallZone': mapped },
+        { 'overallAnalytics.zone': mapped }
+      ];
     }
     
   // Apply access scope filters
@@ -824,10 +832,14 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
       // class name (and optional campus/grade) so sample-based drill items
       // without classId can still filter correctly.
       if (mongoose.Types.ObjectId.isValid(String(classId))) {
-        studentFilter.classId = mongoose.Types.ObjectId(String(classId));
+        // normalize to $in array to keep intersection logic consistent
+        studentFilter.classId = { $in: [ mongoose.Types.ObjectId(String(classId)) ] };
       } else {
         // Treat classId as className and attempt to resolve matching classes
-        const classQuery = { name: String(classId).trim() };
+        // Use case-insensitive exact match and trim whitespace to avoid misses
+        const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const namePattern = new RegExp(`^${escapeRegExp(String(classId).trim())}$`, 'i');
+        const classQuery = { name: namePattern };
         if (campus) classQuery.campus = campus;
         if (grade) classQuery.grade = grade;
         const matchedClasses = await Class.find(classQuery).select('_id').lean();
@@ -885,7 +897,8 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
       .select('studentId overallAnalytics subjectAnalytics')
       .populate({
         path: 'studentId',
-        select: 'fullName email rollNumber classId',
+        // include gender so client-side filters which rely on this field don't hide results
+        select: 'fullName email rollNumber classId gender fatherName',
         populate: {
           path: 'classId',
           select: 'name campus grade program'
@@ -898,6 +911,66 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
 
     // All returned analytics should have a populated studentId (we constrained query)
     const validAnalytics = analytics.filter(a => a.studentId);
+    // If there are no analytics documents but we do have matching student IDs,
+    // fall back to returning the User records (paged) so the UI sees a list
+    // consistent with the student counts. This handles cases where analytics
+    // haven't been calculated yet for matched students.
+    if ((validAnalytics.length === 0) && matchingIds.length > 0) {
+      // Determine slice for pagination
+      const start = (pageInt - 1) * limitInt;
+      const end = start + limitInt;
+      const pageIds = matchingIds.slice(start, end);
+      const users = await User.find({ _id: { $in: pageIds } }).populate({ path: 'classId', select: 'name campus grade program' }).lean();
+
+      const responseDataFromUsers = users.map(u => ({
+        _id: u._id,
+        studentId: u._id,
+    fullName: u.fullName || { firstName: '', lastName: '' },
+    fatherName: u.fatherName || u.personalInfo?.fatherName || '',
+    gender: u.gender || u.personalInfo?.gender || (u.admissionInfo && u.admissionInfo.gender) || null,
+        email: u.email,
+        rollNumber: u.rollNumber,
+        class: u.classId?.name,
+        campus: u.classId?.campus || u.campus,
+        grade: u.classId?.grade || u.admissionInfo?.grade || u.grade,
+        program: u.classId?.program || u.program,
+        overallZone: null,
+        overallPercentage: null,
+        matriculationPercentage: u.academicRecords?.matriculation?.percentage || null,
+        cardColor: 'gray',
+        currentAvgPercentage: null,
+        subjectAnalytics: []
+      }));
+
+      const actualTotal = matchingIds.length;
+      const debugMode = String(req.query.debug).toLowerCase() === 'true';
+      const responsePayload = {
+        students: responseDataFromUsers,
+        pagination: {
+          currentPage: pageInt,
+          totalPages: Math.ceil(actualTotal / limitInt),
+          totalStudents: actualTotal,
+          limit: limitInt
+        },
+        filters: {
+          academicYear,
+          zone,
+          campus,
+          grade,
+          classId,
+          subject
+        }
+      };
+      if (debugMode) {
+        responsePayload.debugInfo = {
+          resolvedStudentFilter: studentFilter,
+          analyticsFilter,
+          sampleStudent: responseDataFromUsers.length > 0 ? responseDataFromUsers[0] : null
+        };
+      }
+
+      return res.json({ success: true, data: responsePayload });
+    }
     
     // Apply subject filter if specified and user is teacher
     let responseData = validAnalytics.map(analytics => {
@@ -925,7 +998,8 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
         class: analytics.studentId.classId?.name,
         campus: analytics.studentId.classId?.campus,
         grade: analytics.studentId.classId?.grade,
-        program: analytics.studentId.classId?.program,
+  program: analytics.studentId.classId?.program,
+  gender: analytics.studentId.gender || analytics.studentId.personalInfo?.gender || analytics.studentId.admissionInfo?.gender || null,
         overallZone: analytics.overallAnalytics?.overallZone,
         overallPercentage: analytics.overallAnalytics?.currentOverallPercentage,
         matriculationPercentage: analytics.overallAnalytics?.matriculationPercentage,
@@ -966,6 +1040,7 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
     };
 
     if (debugMode) {
+      console.log('DEBUG /analytics/students filters:', { studentFilter, analyticsFilter });
       responsePayload.debugInfo = {
         resolvedStudentFilter: studentFilter,
         analyticsFilter,
@@ -987,6 +1062,92 @@ router.get('/students', authenticate, requireAnalyticsAccess('view'), applyRoleB
 // ===============================
 // ANALYTICS MANAGEMENT ROUTES
 // ===============================
+
+// DEBUG: Compare student filter vs analytics filter and counts
+router.get('/debug/query-compare', authenticate, requireAnalyticsAccess('view'), applyRoleBasedFiltering, async (req, res) => {
+  try {
+    const { academicYear = '2024-2025', zone, gender, campus, grade, classId, includeUnassigned = 'false' } = req.query;
+    const includeUnassignedBool = String(includeUnassigned).toLowerCase() === 'true';
+
+    // Build studentFilter same as /students
+    let studentFilter = { role: 'Student', enquiryLevel: 5 };
+    if (!includeUnassignedBool) studentFilter.classId = { $exists: true, $ne: null };
+
+    let analyticsFilter = { academicYear };
+
+    if (zone) {
+      const z = String(zone).toLowerCase();
+      const mapping = { green: 'green', blue: 'blue', yellow: 'yellow', red: 'red', unassigned: null };
+      const mapped = mapping[z] !== undefined ? mapping[z] : zone;
+      analyticsFilter['$or'] = [ { 'overallAnalytics.overallZone': mapped }, { 'overallAnalytics.zone': mapped } ];
+    }
+
+    // Apply access scope filters
+    if (req.accessScope.type === 'classes') studentFilter.classId = { $in: req.accessScope.classIds };
+    else if (req.accessScope.type === 'coordinator') {
+      const coordinatorClasses = await Class.find({ campus: req.accessScope.campus, grade: req.accessScope.grade });
+      studentFilter.classId = { $in: coordinatorClasses.map(c => c._id) };
+    }
+
+    if (campus) {
+      const campusClasses = await Class.find({ campus });
+      studentFilter.classId = { $in: campusClasses.map(c => c._id) };
+    }
+    if (grade) {
+      const gradeClasses = await Class.find({ grade });
+      studentFilter.classId = { $in: gradeClasses.map(c => c._id) };
+    }
+    if (classId) {
+      if (mongoose.Types.ObjectId.isValid(String(classId))) studentFilter.classId = { $in: [ mongoose.Types.ObjectId(String(classId)) ] };
+      else {
+        const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const namePattern = new RegExp(`^${escapeRegExp(String(classId).trim())}$`, 'i');
+        const classQuery = { name: namePattern };
+        if (campus) classQuery.campus = campus;
+        if (grade) classQuery.grade = grade;
+        const matchedClasses = await Class.find(classQuery).select('_id').lean();
+        studentFilter.classId = { $in: matchedClasses.map(c => c._id) };
+      }
+    }
+
+    if (gender) {
+      const gn = String(gender).toLowerCase();
+      if (['male', 'm'].includes(gn)) studentFilter.gender = { $in: ['Male','male','M'] };
+      else if (['female','f'].includes(gn)) studentFilter.gender = { $in: ['Female','female','F'] };
+      else studentFilter.gender = new RegExp(`^${String(gender)}$`, 'i');
+    }
+
+    const matchingStudents = await User.find(studentFilter).select('_id fullName classId').lean();
+    const matchingIds = matchingStudents.map(s => s._id);
+
+    let analyticsCount = 0;
+    if (matchingIds.length > 0) {
+      analyticsFilter.studentId = { $in: matchingIds };
+      analyticsCount = await StudentAnalytics.countDocuments(analyticsFilter);
+    }
+
+    // Find users missing analytics (up to 50 sample)
+    const analyticsDocs = await StudentAnalytics.find({ studentId: { $in: matchingIds } }).select('studentId').lean();
+    const presentIds = new Set(analyticsDocs.map(a => String(a.studentId)));
+    const missing = matchingStudents.filter(u => !presentIds.has(String(u._id))).slice(0,50);
+
+    // Zone aggregation from StudentAnalytics for these students
+    let zoneAgg = {};
+    if (matchingIds.length > 0) {
+      const agg = await StudentAnalytics.aggregate([
+        { $match: { studentId: { $in: matchingIds } } },
+        { $group: { _id: '$overallAnalytics.overallZone', count: { $sum: 1 } } }
+      ]).allowDiskUse(true);
+      agg.forEach(r => { zoneAgg[r._id || 'unassigned'] = r.count; });
+    }
+
+    res.json({ success: true, data: { studentFilter, analyticsFilter, userCount: matchingIds.length, analyticsCount, missingSample: missing, zoneAggregation: zoneAgg } });
+  } catch (err) {
+    console.error('Debug compare route failed:', err);
+    res.status(500).json({ success: false, message: err.message || err });
+  }
+});
+
 
 // POST /api/analytics/calculate/student/:studentId - Calculate analytics for specific student
 router.post('/calculate/student/:studentId', authenticate, requireAnalyticsAccess('manage'), async (req, res) => {
@@ -1254,3 +1415,4 @@ router.post('/export/student/:studentId', authenticate, requireAnalyticsAccess('
 });
 
 module.exports = router;
+

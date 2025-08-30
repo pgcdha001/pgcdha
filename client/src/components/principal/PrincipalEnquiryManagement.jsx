@@ -60,7 +60,9 @@ const PrincipalEnquiryManagement = () => {
   const pillRef = useRef(null);
 
   // Auto-refresh state for Today's stats only
-  const [todaysAutoRefreshEnabled, setTodaysAutoRefreshEnabled] = useState(true);
+  // Default to disabled to avoid aggressive background polling that can
+  // interfere with user interactions (was causing periodic requests).
+  const [todaysAutoRefreshEnabled, setTodaysAutoRefreshEnabled] = useState(false);
   const todaysRefreshIntervalRef = useRef(null);
 
   // Level tabs configuration (updated with accurate terminology)
@@ -359,8 +361,7 @@ const PrincipalEnquiryManagement = () => {
       }
     };
     
-    loadMainData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  loadMainData();
   }, [fetchComprehensiveData, extractTodaysData]); // Include dependencies
 
   // Auto-refresh setup for Today's stats only (every 30 seconds)
@@ -472,6 +473,19 @@ const PrincipalEnquiryManagement = () => {
                 onDateChange={setSelectedDate}
                 loading={loading}
               />
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-gray-600">Auto-refresh Today's stats</label>
+                <button
+                  type="button"
+                  onClick={() => setTodaysAutoRefreshEnabled(prev => !prev)}
+                  className={`px-3 py-1 rounded text-sm ${todaysAutoRefreshEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  {todaysAutoRefreshEnabled ? 'On' : 'Off'}
+                </button>
+                {isGlimpseDataLoading && (
+                  <div className="text-sm text-gray-500">Preparing glimpse...</div>
+                )}
+              </div>
             </div>
           </div>
           
