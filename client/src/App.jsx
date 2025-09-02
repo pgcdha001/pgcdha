@@ -158,8 +158,18 @@ const App = () => {
                 </AuthenticatedRoute>
               } />
 
-              {/* Principal Student Examination Report (public route) */}
-              <Route path="/principal/student-examination-report" element={<StudentExaminationReportPage />} />
+              {/* Principal Student Examination Report */}
+              <Route path="/principal/student-examination-report" element={
+                <AuthenticatedRoute>
+                  <Layout>
+                    <ProtectedRoute
+                      allowedRoles={['Principal']}
+                    >
+                      <StudentExaminationReportPage />
+                    </ProtectedRoute>
+                  </Layout>
+                </AuthenticatedRoute>
+              } />
 
               {/* Institute Admin routes with permission-based protection */}
               <Route path="/institute-admin/enquiries" element={

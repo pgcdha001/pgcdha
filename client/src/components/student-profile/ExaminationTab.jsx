@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 
 const ExaminationTab = ({ studentId }) => {
   const [examData, setExamData] = useState([]);
+  const [allExamData, setAllExamData] = useState([]); // Store all data for filtering
   const [stats, setStats] = useState({
     totalExams: 0,
     averageMarks: 0,
@@ -21,6 +22,8 @@ const ExaminationTab = ({ studentId }) => {
   const [subjectPerformance, setSubjectPerformance] = useState([]);
   const [performanceMatrix, setPerformanceMatrix] = useState(null);
   const [studentData, setStudentData] = useState(null);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [availablePeriods, setAvailablePeriods] = useState([]);
 
   const { showToast } = useToast();
 
@@ -34,9 +37,9 @@ const ExaminationTab = ({ studentId }) => {
 
       if (response.data.success) {
         const results = response.data.data || [];
-        setExamData(results);
-        calculateStats(results);
-        calculateSubjectPerformance(results);
+        setAllExamData(results); // Store all data for filtering
+        extractFilterOptions(results);
+        applyFilters(results, selectedSubject, selectedPeriod);
       } else {
         // Fallback to get test results with student filter
         const fallbackResponse = await api.get('/examinations/results', {
@@ -50,9 +53,9 @@ const ExaminationTab = ({ studentId }) => {
         
         if (fallbackResponse.data.success) {
           const results = fallbackResponse.data.data || [];
-          setExamData(results);
-          calculateStats(results);
-          calculateSubjectPerformance(results);
+          setAllExamData(results); // Store all data for filtering
+          extractFilterOptions(results);
+          applyFilters(results, selectedSubject, selectedPeriod);
         }
       }
 
@@ -79,6 +82,62 @@ const ExaminationTab = ({ studentId }) => {
     } catch (error) {
       console.error('Error fetching student matrix:', error);
     }
+  };
+
+  // Extract available filter options from exam data
+  const extractFilterOptions = (data) => {
+    const subjects = new Set();
+    const periods = new Set();
+    
+    data.forEach(exam => {
+      const subject = exam.test?.subject || exam.subject || 'Unknown Subject';
+      subjects.add(subject);
+      
+      // Extract period from test date (month/year)
+      const testDate = new Date(exam.test?.testDate || exam.date || exam.createdAt || exam.enteredOn);
+      const period = `${testDate.getFullYear()}-${String(testDate.getMonth() + 1).padStart(2, '0')}`;
+      periods.add(period);
+    });
+    
+    setAvailableSubjects([...subjects].sort());
+    setAvailablePeriods([...periods].sort().reverse()); // Most recent first
+  };
+
+  // Apply filters to exam data
+  const applyFilters = (data, subject, period) => {
+    let filteredData = [...data];
+    
+    // Filter by subject
+    if (subject !== 'all') {
+      filteredData = filteredData.filter(exam => {
+        const examSubject = exam.test?.subject || exam.subject || 'Unknown Subject';
+        return examSubject === subject;
+      });
+    }
+    
+    // Filter by period
+    if (period !== 'all') {
+      filteredData = filteredData.filter(exam => {
+        const testDate = new Date(exam.test?.testDate || exam.date || exam.createdAt || exam.enteredOn);
+        const examPeriod = `${testDate.getFullYear()}-${String(testDate.getMonth() + 1).padStart(2, '0')}`;
+        return examPeriod === period;
+      });
+    }
+    
+    setExamData(filteredData);
+    calculateStats(filteredData);
+    calculateSubjectPerformance(filteredData);
+  };
+
+  // Handle filter changes
+  const handleSubjectFilter = (subject) => {
+    setSelectedSubject(subject);
+    applyFilters(allExamData, subject, selectedPeriod);
+  };
+
+  const handlePeriodFilter = (period) => {
+    setSelectedPeriod(period);
+    applyFilters(allExamData, selectedSubject, period);
   };
 
   // Calculate examination statistics
@@ -174,7 +233,14 @@ const ExaminationTab = ({ studentId }) => {
       fetchExaminationData();
       fetchStudentMatrix();
     }
-  }, [studentId]);
+  }, [studentId]); // Only re-fetch when studentId changes
+
+  // Apply filters when allExamData is available
+  useEffect(() => {
+    if (allExamData.length > 0) {
+      applyFilters(allExamData, selectedSubject, selectedPeriod);
+    }
+  }, [selectedSubject, selectedPeriod, allExamData]);
 
   const getGradeFromPercentage = (percentage) => {
     if (percentage >= 90) return { grade: 'A+', color: 'text-green-600' };
@@ -216,6 +282,61 @@ const ExaminationTab = ({ studentId }) => {
           Examination Performance
         </h3>
         <p className="text-gray-600 text-sm">Comprehensive analysis of test results and academic performance</p>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white border rounded-lg p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Subject:</label>
+            <select
+              value={selectedSubject}
+              onChange={(e) => handleSubjectFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Subjects</option>
+              {availableSubjects.map(subject => (
+                <option key={subject} value={subject}>{subject}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Period:</label>
+            <select
+              value={selectedPeriod}
+              onChange={(e) => handlePeriodFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Periods</option>
+              {availablePeriods.map(period => {
+                const [year, month] = period.split('-');
+                const monthName = new Date(2000, parseInt(month) - 1).toLocaleString('default', { month: 'long' });
+                return (
+                  <option key={period} value={period}>{monthName} {year}</option>
+                );
+              })}
+            </select>
+          </div>
+
+          {(selectedSubject !== 'all' || selectedPeriod !== 'all') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedSubject('all');
+                setSelectedPeriod('all');
+              }}
+              className="text-sm"
+            >
+              Clear Filters
+            </Button>
+          )}
+
+          <div className="text-sm text-gray-600 ml-auto">
+            Showing {examData.length} of {allExamData.length} results
+          </div>
+        </div>
       </div>
 
       {/* Overall Statistics */}
