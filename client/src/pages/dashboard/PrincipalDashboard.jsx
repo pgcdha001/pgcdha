@@ -4,6 +4,7 @@ import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import LateMarksheetNotifications from '../../components/notifications/LateMarksheetNotifications';
 import LateTeacherNotifications from '../../components/notifications/LateTeacherNotifications';
+import RedZoneStudentsNotification from '../../components/notifications/RedZoneStudentsNotification';
 
 const PrincipalDashboard = () => {
   const { userRole } = usePermissions();
@@ -133,6 +134,7 @@ const PrincipalDashboard = () => {
 
           {/* Right sidebar notifications */}
           <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+            <RedZoneStudentsNotification compact />
             <LateTeacherNotifications compact />
             <LateMarksheetNotifications compact />
           </div>
