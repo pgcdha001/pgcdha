@@ -198,8 +198,11 @@ StudentAnalyticsSchema.methods.calculateOverallZone = function(currentPercentage
   return ZoneAnalyticsService.calculateZone(currentPercentage, matriculationPercentage);
 };
 
-StudentAnalyticsSchema.methods.getPerformanceMatrix = function() {
+StudentAnalyticsSchema.methods.getPerformanceMatrix = async function() {
   const User = mongoose.model('User');
+  
+  // Get user data to extract matriculation records
+  const user = await User.findById(this.studentId);
   
   // Get matriculation data
   const matriculation = {
@@ -208,7 +211,11 @@ StudentAnalyticsSchema.methods.getPerformanceMatrix = function() {
   };
   
   // Extract matriculation subjects if available from user data
-  // This would need to be populated from the User model's academicRecords
+  if (user?.academicRecords?.matriculation?.subjects) {
+    user.academicRecords.matriculation.subjects.forEach(subject => {
+      matriculation.subjects[subject.name] = subject.percentage;
+    });
+  }
   
   // Prepare CT results in matrix format
   const ctResults = [];
@@ -290,8 +297,8 @@ StudentAnalyticsSchema.methods.getPerformanceMatrix = function() {
   };
 };
 
-StudentAnalyticsSchema.methods.getGraphData = function() {
-  const matrix = this.getPerformanceMatrix();
+StudentAnalyticsSchema.methods.getGraphData = async function() {
+  const matrix = await this.getPerformanceMatrix();
   
   // Prepare data for time-series graph
   const timelineData = [];
@@ -356,9 +363,9 @@ StudentAnalyticsSchema.methods.getGraphData = function() {
   };
 };
 
-StudentAnalyticsSchema.methods.generateExportData = function(format = 'json') {
-  const matrix = this.getPerformanceMatrix();
-  const graphData = this.getGraphData();
+StudentAnalyticsSchema.methods.generateExportData = async function(format = 'json') {
+  const matrix = await this.getPerformanceMatrix();
+  const graphData = await this.getGraphData();
   
   const exportData = {
     studentInfo: {

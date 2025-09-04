@@ -692,7 +692,7 @@ router.get('/student/:studentId/matrix', authenticate, requireAnalyticsAccess('v
       }
     }
     
-    const matrix = analytics.getPerformanceMatrix();
+    const matrix = await analytics.getPerformanceMatrix();
     
     // Filter subjects for teachers
     if (req.accessScope.type === 'classes' && req.accessScope.subjects.length > 0) {
