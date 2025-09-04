@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, TrendingUp, TrendingDown, Award, Target, BarChart3, PieChart, Calendar, Star, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
+import PerformanceGraph from './PerformanceGraph';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -423,6 +424,13 @@ const ExaminationTab = ({ studentId }) => {
           </div>
         </div>
       </div>
+
+      {/* Performance Analysis Graphs */}
+      <PerformanceGraph 
+        examData={examData}
+        subjectPerformance={subjectPerformance}
+        performanceMatrix={performanceMatrix}
+      />
 
       {/* Subject-wise Performance */}
       <div className="bg-white border rounded-lg p-6">
