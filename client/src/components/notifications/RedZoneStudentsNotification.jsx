@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   AlertTriangle, 
   Users, 
@@ -15,6 +16,7 @@ import {
 import api from '../../services/api';
 
 const RedZoneStudentsNotification = ({ compact = false }) => {
+  const navigate = useNavigate();
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -56,8 +58,8 @@ const RedZoneStudentsNotification = ({ compact = false }) => {
 
       if (response.data.success) {
         if (action === 'view_report') {
-          // Redirect to principal student examination report in same tab
-          window.location.href = '/principal/student-examination-report';
+          // Navigate to principal student examination report
+          navigate('/principal/student-examination-report');
         } else if (action === 'dismiss') {
           // Just refresh the notification data to hide it
           fetchNotification();
