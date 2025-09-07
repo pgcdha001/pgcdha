@@ -53,7 +53,11 @@ const PerformanceGraphModal = ({ student, isOpen, onClose }) => {
               Performance Analysis: {student.fullName?.firstName} {student.fullName?.lastName}
             </h2>
             <button
-              onClick={onClose}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
               className="text-gray-400 hover:text-gray-600"
             >
               <X className="h-6 w-6" />
@@ -177,6 +181,7 @@ const StudentExaminationReport = () => {
   const [selectedCampus, setSelectedCampus] = useState(null); // 'boys' | 'girls'
   const [floorCounts, setFloorCounts] = useState({}); // { '11th': n, '12th': n }
   const [selectedFloor, setSelectedFloor] = useState(null); // '11th' | '12th'
+  const [selectedClass, setSelectedClass] = useState(null); // For class-specific filtering
   const [classCounts, setClassCounts] = useState([]); // array of { className, count, classId }
   const [campusStats, setCampusStats] = useState([]);
   const [campusZoneCounts, setCampusZoneCounts] = useState({});
@@ -204,6 +209,52 @@ const StudentExaminationReport = () => {
       console.warn('Failed to compute zone breakdown sample', err?.message || err);
       return { green: 0, blue: 0, yellow: 0, red: 0 };
     }
+  };
+
+  // Client-side helper: compute zone breakdown from cached allStudents data
+  const computeZoneBreakdownFromCache = (filters = {}) => {
+    if (!allStudents || allStudents.length === 0) {
+      return { green: 0, blue: 0, yellow: 0, red: 0 };
+    }
+
+    let filteredStudents = [...allStudents];
+
+    // Apply filters
+    if (filters.campus) {
+      filteredStudents = filteredStudents.filter(student => {
+        const campus = student.admissionInfo?.campus || student.campus || '';
+        return campus.toLowerCase() === filters.campus.toLowerCase();
+      });
+    }
+
+    if (filters.grade) {
+      filteredStudents = filteredStudents.filter(student => {
+        const grade = student.admissionInfo?.grade || student.grade || '';
+        return grade === filters.grade;
+      });
+    }
+
+    if (filters.classId) {
+      filteredStudents = filteredStudents.filter(student => {
+        const studentClass = student.admissionInfo?.class || student.class || '';
+        return studentClass === filters.classId || student.classId === filters.classId;
+      });
+    }
+
+    // Compute zone aggregation
+    const zoneAgg = filteredStudents.reduce((acc, s) => { 
+      const z = s.overallZone || 'gray'; 
+      acc[z] = (acc[z] || 0) + 1; 
+      return acc; 
+    }, {});
+
+    // Return zone counts (excluding gray for drill display)
+    return {
+      green: zoneAgg.green || 0,
+      blue: zoneAgg.blue || 0,
+      yellow: zoneAgg.yellow || 0,
+      red: zoneAgg.red || 0
+    };
   };
 
   // Subject configurations based on program
@@ -403,6 +454,22 @@ const StudentExaminationReport = () => {
       });
     }
 
+    // Apply campus filter
+    if (selectedCampus) {
+      filteredStudents = filteredStudents.filter(student => {
+        const campus = student.admissionInfo?.campus || student.campus || '';
+        return campus.toLowerCase() === selectedCampus.toLowerCase();
+      });
+    }
+
+    // Apply class filter
+    if (selectedClass) {
+      filteredStudents = filteredStudents.filter(student => {
+        const studentClass = student.admissionInfo?.class || student.class || '';
+        return studentClass === selectedClass || student.classId === selectedClass;
+      });
+    }
+
     // Calculate pagination
     const totalStudents = filteredStudents.length;
     const totalPagesCalc = Math.ceil(totalStudents / pageSize);
@@ -418,14 +485,14 @@ const StudentExaminationReport = () => {
       ...prev,
       totalStudents: filteredStudents.length
     }));
-  }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, studentsLoaded, allStudents, page, pageSize]);
+  }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, selectedCampus, selectedClass, studentsLoaded, allStudents, page, pageSize]);
 
   // Reset page to 1 when filters change (except page itself)
   React.useEffect(() => {
     if (studentsLoaded) {
       setPage(1);
     }
-  }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, studentsLoaded]);
+  }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, selectedCampus, selectedClass, studentsLoaded]);
   React.useEffect(() => {
     if (studentsLoaded) {
       setPage(1);
@@ -455,7 +522,7 @@ const StudentExaminationReport = () => {
           await fetchStudentData({ 
             loadStudents: true, 
             page: 1, 
-            limit: 1000, // Load all students for client-side filtering
+            limit: 2000, // Load all students for client-side filtering - increased limit
             zone: 'all',
             gender: 'all'
           });
@@ -673,6 +740,7 @@ const StudentExaminationReport = () => {
               variant="outline"
               size="sm"
               onClick={async (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 // Clear all UI filters and reset drill selections
                 setSearchTerm('');
@@ -681,11 +749,12 @@ const StudentExaminationReport = () => {
                 setSelectedZone('all');
                 setSelectedGender('all');
                 setSelectedCampus(null);
+                setSelectedClass(null); // Reset class filter
                 setSelectedFloor(null);
                 setClassCounts([]);
                 setCampusZoneCounts({});
-                // Re-fetch all students without filters
-                await fetchStudentData({ loadStudents: true, page: 1, limit: pageSize, zone: 'all', gender: 'all' });
+                setPage(1); // Reset to first page
+                // No need to make API call - useEffect will handle client-side filtering
               }}
             >
               <Filter className="h-4 w-4 mr-1" />
@@ -696,6 +765,7 @@ const StudentExaminationReport = () => {
               variant="outline"
               size="sm"
               onClick={async (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 if (recomputing) return;
                 const confirm = window.confirm('Recompute analytics for all students? This may take several minutes.');
@@ -734,7 +804,21 @@ const StudentExaminationReport = () => {
               const colorClass = zoneKey === 'green' ? 'bg-green-500' : zoneKey === 'blue' ? 'bg-blue-500' : zoneKey === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
               const bgClass = zoneKey === 'green' ? 'bg-green-50' : zoneKey === 'blue' ? 'bg-blue-50' : zoneKey === 'yellow' ? 'bg-yellow-50' : 'bg-red-50';
               return (
-                <div key={zoneKey} className={`p-4 rounded-lg border ${bgClass} transition-all hover:shadow-md`}>
+                <button
+                  key={zoneKey}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Set zone filter for client-side filtering
+                    setSelectedZone(zoneKey);
+                    setStudentsLoaded(true);
+                    setIsStudentListCollapsed(false); // Show student list
+                  }}
+                  className={`w-full text-left p-4 rounded-lg border ${bgClass} transition-all hover:shadow-md hover:scale-105 cursor-pointer ${
+                    selectedZone === zoneKey ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+                  }`}
+                >
                   <div className="flex items-center gap-3">
                     <div className={`h-4 w-4 rounded-full ${colorClass}`} />
                     <div>
@@ -742,12 +826,25 @@ const StudentExaminationReport = () => {
                       <div className="text-2xl font-bold text-gray-900">{counts?.[zoneKey] || 0}</div>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
             {/* show gray as a separate tile only when no campus drill is active */}
             {!selectedCampus && (
-              <div className="p-4 rounded-lg border bg-gray-50 transition-all hover:shadow-md">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Set unassigned zone filter for client-side filtering
+                  setSelectedZone('unassigned');
+                  setStudentsLoaded(true);
+                  setIsStudentListCollapsed(false); // Show student list
+                }}
+                className={`w-full text-left p-4 rounded-lg border bg-gray-50 transition-all hover:shadow-md hover:scale-105 cursor-pointer ${
+                  selectedZone === 'unassigned' ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+                }`}
+              >
                 <div className="flex items-center gap-3">
                   <div className="h-4 w-4 rounded-full bg-gray-400" />
                   <div>
@@ -755,7 +852,7 @@ const StudentExaminationReport = () => {
                     <div className="text-2xl font-bold text-gray-900">{zoneCounts.gray || 0}</div>
                   </div>
                 </div>
-              </div>
+              </button>
             )}
           </div>
         </div>
@@ -786,22 +883,27 @@ const StudentExaminationReport = () => {
                           const floors = {};
                           (c.gradeStats || []).forEach(g => { floors[g.gradeName] = (floors[g.gradeName] || 0) + (g.gradeZoneDistribution?.total || 0); });
                           setFloorCounts(floors);
-                          // additionally fetch a sample of students to compute zone breakdown per campus (like the top tiles)
-                          try {
-                            const resp = await api.get('/analytics/students', { params: { campus: c.campusName, page: 1, limit: 200 } });
-                            const studentsSample = resp?.data?.data?.students || [];
-                            const zoneAgg = studentsSample.reduce((acc, s) => { const z = s.overallZone || 'gray'; acc[z] = (acc[z] || 0) + 1; return acc; }, {});
-                            // remove gray/unassigned for campus drill display
-                            const zoneReduced = {
-                              green: zoneAgg.green || 0,
-                              blue: zoneAgg.blue || 0,
-                              yellow: zoneAgg.yellow || 0,
-                              red: zoneAgg.red || 0
-                            };
-                            // store reduced campus zone counts separately (do not overwrite top-level zoneCounts)
+                          
+                          // Use cached data instead of API call for zone breakdown
+                          if (allStudents && allStudents.length > 0) {
+                            const zoneReduced = computeZoneBreakdownFromCache({ campus: c.campusName });
                             setCampusZoneCounts(zoneReduced);
-                          } catch (err) {
-                            console.warn('Failed to fetch campus students for zone breakdown', err?.message || err);
+                          } else {
+                            // Fallback to API call only if no cached data available
+                            try {
+                              const resp = await api.get('/analytics/students', { params: { campus: c.campusName, page: 1, limit: 200 } });
+                              const studentsSample = resp?.data?.data?.students || [];
+                              const zoneAgg = studentsSample.reduce((acc, s) => { const z = s.overallZone || 'gray'; acc[z] = (acc[z] || 0) + 1; return acc; }, {});
+                              const zoneReduced = {
+                                green: zoneAgg.green || 0,
+                                blue: zoneAgg.blue || 0,
+                                yellow: zoneAgg.yellow || 0,
+                                red: zoneAgg.red || 0
+                              };
+                              setCampusZoneCounts(zoneReduced);
+                            } catch (err) {
+                              console.warn('Failed to fetch campus students for zone breakdown', err?.message || err);
+                            }
                           }
                         }}
                         className={`w-full text-left p-3 rounded-lg border transition-all hover:shadow-md ${
@@ -877,23 +979,45 @@ const StudentExaminationReport = () => {
                           onClick={async (e) => {
                             e.preventDefault();
                             if (cl.classId) {
-                              // load students filtered by class
-                              await fetchStudentData({ loadStudents: true, classId: cl.classId, campus: selectedCampus });
-                              setStudentsLoaded(true);
-                              setIsStudentListCollapsed(false); // Auto-expand to show results
-                              // update zone tiles to reflect this class
-                              const zones = await computeZoneBreakdown({ classId: cl.classId });
-                              setCampusZoneCounts(zones);
+                              // Use cached data for client-side filtering instead of API call
+                              if (allStudents && allStudents.length > 0) {
+                                // Set class filter and reset other filters
+                                setSelectedClass(cl.classId);
+                                setSelectedZone('all');
+                                setSelectedGender('all');
+                                setPage(1); // Reset pagination
+                                setStudentsLoaded(true);
+                                setIsStudentListCollapsed(false); // Auto-expand to show results
+                                // Update zone tiles to reflect this class using cached data
+                                const zones = computeZoneBreakdownFromCache({ classId: cl.classId, campus: selectedCampus });
+                                setCampusZoneCounts(zones);
+                              } else {
+                                // Fallback to API call only if no cached data
+                                await fetchStudentData({ loadStudents: true, classId: cl.classId, campus: selectedCampus });
+                                setStudentsLoaded(true);
+                                setIsStudentListCollapsed(false);
+                                const zones = await computeZoneBreakdown({ classId: cl.classId });
+                                setCampusZoneCounts(zones);
+                              }
                             } else {
-                              // fallback: pass className as classId so server can resolve
-                              // the class by name (and optional campus/grade) and return
-                              // students for that specific class only.
-                              await fetchStudentData({ loadStudents: true, classId: cl.className, campus: selectedCampus, grade: selectedFloor, page: 1 });
-                              setStudentsLoaded(true);
-                              setIsStudentListCollapsed(false); // Auto-expand to show results
-                              // update zone tiles to reflect this class (resolve by name)
-                              const zones = await computeZoneBreakdown({ classId: cl.className, campus: selectedCampus, grade: selectedFloor });
-                              setCampusZoneCounts(zones);
+                              // Use cached data for class name lookup
+                              if (allStudents && allStudents.length > 0) {
+                                setSelectedClass(cl.className);
+                                setSelectedZone('all');
+                                setSelectedGender('all');
+                                setPage(1);
+                                setStudentsLoaded(true);
+                                setIsStudentListCollapsed(false);
+                                const zones = computeZoneBreakdownFromCache({ classId: cl.className, campus: selectedCampus, grade: selectedFloor });
+                                setCampusZoneCounts(zones);
+                              } else {
+                                // Fallback to API call
+                                await fetchStudentData({ loadStudents: true, classId: cl.className, campus: selectedCampus, grade: selectedFloor, page: 1 });
+                                setStudentsLoaded(true);
+                                setIsStudentListCollapsed(false);
+                                const zones = await computeZoneBreakdown({ classId: cl.className, campus: selectedCampus, grade: selectedFloor });
+                                setCampusZoneCounts(zones);
+                              }
                             }
                           }}
                           className="w-full text-left p-3 rounded-lg border bg-white border-gray-200 transition-all hover:shadow-md hover:bg-gray-50"
@@ -941,7 +1065,10 @@ const StudentExaminationReport = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Program</label>
                 <select
                   value={selectedProgram}
-                  onChange={(e) => setSelectedProgram(e.target.value)}
+                  onChange={(e) => {
+                    e.preventDefault();
+                    setSelectedProgram(e.target.value);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 >
                   <option value="all">All Programs</option>
@@ -956,7 +1083,10 @@ const StudentExaminationReport = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Grade</label>
                 <select
                   value={selectedGrade}
-                  onChange={(e) => setSelectedGrade(e.target.value)}
+                  onChange={(e) => {
+                    e.preventDefault();
+                    setSelectedGrade(e.target.value);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 >
                   <option value="all">All Grades</option>
@@ -968,7 +1098,7 @@ const StudentExaminationReport = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Zone</label>
                 <select
                   value={selectedZone}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     e.preventDefault();
                     const val = e.target.value;
                     setSelectedZone(val);
@@ -988,7 +1118,7 @@ const StudentExaminationReport = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                 <select
                   value={selectedGender}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     e.preventDefault();
                     const val = e.target.value;
                     setSelectedGender(val);
@@ -1043,6 +1173,7 @@ const StudentExaminationReport = () => {
                             size="sm"
                             variant="outline"
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               if (page > 1) {
                                 setPage(page - 1);
@@ -1056,6 +1187,7 @@ const StudentExaminationReport = () => {
                             size="sm"
                             variant="outline"
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               if (page < totalPages) {
                                 setPage(page + 1);
@@ -1092,7 +1224,11 @@ const StudentExaminationReport = () => {
                             {/* Card Header */}
                             <div 
                               className="p-6 cursor-pointer"
-                              onClick={() => toggleCard(student._id)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleCard(student._id);
+                              }}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-6">
@@ -1156,6 +1292,7 @@ const StudentExaminationReport = () => {
                                   <div className="flex items-center gap-2">
                                     <Button
                                       onClick={(e) => {
+                                        e.preventDefault();
                                         e.stopPropagation();
                                         openPerformanceGraph(student);
                                       }}

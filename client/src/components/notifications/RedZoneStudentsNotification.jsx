@@ -2,14 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   AlertTriangle, 
-  Users, 
   Eye, 
   Check, 
   X, 
   RefreshCw,
   TrendingDown,
-  ChevronDown, 
-  ChevronRight,
   GraduationCap
 } from 'lucide-react';
 import api from '../../services/api';
@@ -19,8 +16,6 @@ const RedZoneStudentsNotification = ({ compact = false }) => {
   const [redZoneData, setRedZoneData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isExpanded, setIsExpanded] = useState(!compact);
-  const [expandedClasses, setExpandedClasses] = useState(new Set());
 
   // Fetch red zone students data
   const fetchRedZoneStudents = async () => {
@@ -48,16 +43,6 @@ const RedZoneStudentsNotification = ({ compact = false }) => {
     const interval = setInterval(fetchRedZoneStudents, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const toggleClassExpansion = (classId) => {
-    const newExpanded = new Set(expandedClasses);
-    if (newExpanded.has(classId)) {
-      newExpanded.delete(classId);
-    } else {
-      newExpanded.add(classId);
-    }
-    setExpandedClasses(newExpanded);
-  };
 
   const handleTakeAction = () => {
     // Navigate to student examination report with red zone filter
@@ -147,24 +132,49 @@ const RedZoneStudentsNotification = ({ compact = false }) => {
           <div className="flex-1">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-gray-900">
-                {redZoneData.totalCount} Students in Red Zone
+                Red Zone Students Alert
               </h3>
-              {!compact && (
-                <button
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {isExpanded ? 
-                    <ChevronDown className="h-4 w-4" /> : 
-                    <ChevronRight className="h-4 w-4" />
-                  }
-                </button>
-              )}
+              <button
+                onClick={fetchRedZoneStudents}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
             
             <p className="text-sm text-gray-600 mt-1">
-              Students requiring immediate attention based on performance analytics
+              {redZoneData.totalCount} students requiring immediate attention
             </p>
+
+            {/* Class-wise Statistics */}
+            <div className="mt-3 space-y-2">
+              {redZoneData.classGroups && redZoneData.classGroups.length > 0 ? (
+                redZoneData.classGroups.slice(0, compact ? 3 : 5).map((classGroup) => (
+                  <div key={classGroup.classInfo._id} className="flex items-center justify-between py-1.5 px-2 bg-gray-50 rounded-md">
+                    <div className="flex items-center space-x-2">
+                      <GraduationCap className="h-3 w-3 text-gray-500" />
+                      <span className="text-xs font-medium text-gray-700">
+                        {classGroup.classInfo.name}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      {classGroup.students.length} students
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-gray-500 py-2">
+                  No class breakdown available
+                </div>
+              )}
+              
+              {redZoneData.classGroups && redZoneData.classGroups.length > (compact ? 3 : 5) && (
+                <div className="text-xs text-gray-500 text-center py-1">
+                  +{redZoneData.classGroups.length - (compact ? 3 : 5)} more classes affected
+                </div>
+              )}
+            </div>
 
             {/* Action Buttons */}
             <div className="flex space-x-2 mt-3">
@@ -184,95 +194,8 @@ const RedZoneStudentsNotification = ({ compact = false }) => {
                 Dismiss
               </button>
             </div>
-
-            {/* Expanded Details */}
-            {isExpanded && !compact && (
-              <div className="mt-4 space-y-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wide font-semibold">
-                  Class Breakdown
-                </div>
-                
-                {redZoneData.classGroups && redZoneData.classGroups.length > 0 ? (
-                  <div className="space-y-2">
-                    {redZoneData.classGroups.map((classGroup) => (
-                      <div key={classGroup.classInfo._id} className="bg-gray-50 rounded-lg p-3">
-                        <button
-                          onClick={() => toggleClassExpansion(classGroup.classInfo._id)}
-                          className="w-full flex items-center justify-between text-left"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <GraduationCap className="h-4 w-4 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-900">
-                              {classGroup.classInfo.name}
-                            </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              {classGroup.students.length}
-                            </span>
-                          </div>
-                          {expandedClasses.has(classGroup.classInfo._id) ? 
-                            <ChevronDown className="h-4 w-4 text-gray-400" /> : 
-                            <ChevronRight className="h-4 w-4 text-gray-400" />
-                          }
-                        </button>
-                        
-                        {expandedClasses.has(classGroup.classInfo._id) && (
-                          <div className="mt-3 pl-6 space-y-2">
-                            {classGroup.students.map((student) => (
-                              <div key={student.studentId} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0">
-                                <div className="flex items-center space-x-3">
-                                  <Users className="h-3 w-3 text-gray-400" />
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">{student.name}</p>
-                                    <p className="text-xs text-gray-500">Roll: {student.rollNumber}</p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-sm font-medium text-red-600">
-                                    {student.overallPercentage?.toFixed(1)}%
-                                  </p>
-                                  <p className="text-xs text-gray-500">Overall</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500 text-center py-4">
-                    No class breakdown available
-                  </div>
-                )}
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-200">
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-red-600">{redZoneData.totalCount}</p>
-                    <p className="text-xs text-gray-500">Total Students</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-gray-900">{redZoneData.classGroups?.length || 0}</p>
-                    <p className="text-xs text-gray-500">Classes Affected</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-orange-600">High</p>
-                    <p className="text-xs text-gray-500">Priority</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-
-        {/* Refresh Button */}
-        <button
-          onClick={fetchRedZoneStudents}
-          className="text-gray-400 hover:text-gray-600 transition-colors ml-2"
-          disabled={loading}
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
       </div>
 
       {/* Last Updated */}

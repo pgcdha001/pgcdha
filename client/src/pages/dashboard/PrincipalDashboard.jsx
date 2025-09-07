@@ -14,7 +14,7 @@ const PrincipalDashboard = () => {
   const principalDashboardCards = [
     {
       id: 'enquiry-stats',
-      title: 'Enquiry Stats', 
+      title: 'Enquiry', 
       href: '/principal/enquiries', 
       icon: 'MessageSquare', 
       bgGradient: 'from-blue-500 to-blue-600',
@@ -24,7 +24,7 @@ const PrincipalDashboard = () => {
     },
     {
       id: 'correspondence-management',
-      title: 'Correspondence Management', 
+      title: 'Correspondence', 
       href: '/correspondence', 
       icon: 'Mail', 
       bgGradient: 'from-green-500 to-green-600',
@@ -64,7 +64,7 @@ const PrincipalDashboard = () => {
     },
     {
       id: 'student-examination-report',
-      title: 'Student Examination Report', 
+      title: 'Zone Analytics', 
   href: '/principal/student-examination-report',
       icon: 'FileText', 
       bgGradient: 'from-purple-500 to-purple-600',
@@ -75,7 +75,7 @@ const PrincipalDashboard = () => {
 
     {
       id: 'timetable-overview',
-      title: 'Timetable Overview', 
+      title: 'Timetable', 
       href: '/principal/timetable', 
       icon: 'Calendar', 
       bgGradient: 'from-rose-500 to-rose-600',
@@ -120,8 +120,8 @@ const PrincipalDashboard = () => {
         loading={loading}
       />
       
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="w-full py-6 px-4 lg:py-8 lg:px-6 2xl:px-8">
+        <div className="max-w-screen grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           {/* Main content */}
           <div className="lg:col-span-8 xl:col-span-9">
             <DashboardGrid
@@ -129,6 +129,7 @@ const PrincipalDashboard = () => {
               loading={loading}
               data={dashboardData}
               slidingItems={{}} // No sliding items for Principal
+              userRole={userRole}
             />
           </div>
 

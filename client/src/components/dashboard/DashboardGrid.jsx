@@ -65,15 +65,15 @@ const DashboardGrid = ({
   };
 
   return (
-    <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70" 
+    <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 p-6 lg:p-8 2xl:p-10 transition-all duration-300 hover:shadow-2xl hover:bg-white/70" 
          style={{boxShadow: '0 12px 48px 0 rgba(26,35,126,0.12)'}}>
       
-      <h3 className="text-2xl font-bold text-primary mb-6 font-[Sora,Inter,sans-serif] flex items-center gap-3">
-        <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+      <h3 className="text-2xl lg:text-3xl 2xl:text-4xl font-bold text-primary mb-8 2xl:mb-10 font-[Sora,Inter,sans-serif] flex items-center gap-3">
+        <div className="w-1 lg:w-1.5 2xl:w-2 h-8 lg:h-10 2xl:h-12 bg-gradient-to-b from-primary to-accent rounded-full"></div>
         {getGridTitle()}
       </h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 lg:gap-8 2xl:gap-10">
         {cards.map((card) => (
           <PermissionGuard key={card.id} permission={card.permission}>
             <DashboardCard
@@ -89,7 +89,7 @@ const DashboardGrid = ({
       {/* Show message if no cards are visible due to permissions */}
       {cards.every(card => !card.permission) && (
         <div className="text-center py-8">
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 text-sm lg:text-base xl:text-lg">
             Loading dashboard items...
           </p>
         </div>
