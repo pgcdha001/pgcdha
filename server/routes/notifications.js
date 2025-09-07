@@ -9,6 +9,9 @@ const Class = require('../models/Class');
 const StudentAnalytics = require('../models/StudentAnalytics');
 const { authenticate } = require('../middleware/auth');
 
+// In-memory store for dismissed notifications (in production, use Redis or database)
+const dismissedNotifications = new Map();
+
 /**
  * Get late teacher notifications for principal dashboard
  * Shows teachers who are:

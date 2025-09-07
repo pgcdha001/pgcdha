@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAnalyticsAccess } from './AnalyticsAccessProvider';
 import ZoneStatisticsCard from './ZoneStatisticsCard';
 import StudentPerformanceMatrix from './StudentPerformanceMatrix';
+import ExaminationStatsSection from '../coordinator/ExaminationStatsSection';
 import api from '../../services/api';
 
 const BaseAnalyticsView = ({ 
@@ -190,17 +191,34 @@ const BaseAnalyticsView = ({
               showPercentages={true}
             />
             
+            {/* College-wide Examination Statistics */}
+            <ExaminationStatsSection 
+              title="College-Wide Examination Performance Overview"
+              filters={filters}
+            />
+            
             {analyticsData.campusStats && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {analyticsData.campusStats.map(campus => (
-                  <ZoneStatisticsCard
-                    key={campus.campusName || campus.campus}
-                    data={campus.campusZoneDistribution || campus.stats}
-                    title={`${campus.campusName || campus.campus || 'Campus'} Campus`}
-                    allowDrillDown={canAccessCampus(campus.campusName || campus.campus)}
-                    onDrillDown={() => handleDrillDown(campus, 'campus')}
-                  />
-                ))}
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900">Campus-wise Performance</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {analyticsData.campusStats.map(campus => (
+                    <div key={campus.campusName || campus.campus} className="space-y-4">
+                      <ZoneStatisticsCard
+                        data={campus.campusZoneDistribution || campus.stats}
+                        title={`${campus.campusName || campus.campus || 'Campus'} Campus`}
+                        allowDrillDown={canAccessCampus(campus.campusName || campus.campus)}
+                        onDrillDown={() => handleDrillDown(campus, 'campus')}
+                      />
+                      
+                      {/* Campus-specific Examination Statistics */}
+                      <ExaminationStatsSection 
+                        campus={campus.campusName || campus.campus}
+                        title={`${campus.campusName || campus.campus} Campus Examination Stats`}
+                        filters={filters}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -213,6 +231,13 @@ const BaseAnalyticsView = ({
               data={analyticsData.campusZoneDistribution || analyticsData.stats}
               title={`${analyticsData.campusName || analyticsData.campus || 'Campus'} Overview`}
               showPercentages={true}
+            />
+            
+            {/* Examination Performance Stats for Campus */}
+            <ExaminationStatsSection 
+              campus={analyticsData.campusName || analyticsData.campus || filters.campus}
+              title={`${analyticsData.campusName || analyticsData.campus || 'Campus'} Examination Performance`}
+              filters={filters}
             />
             
             {/* Floor distribution (11th/12th) reusing gradeStats */}
@@ -242,6 +267,14 @@ const BaseAnalyticsView = ({
               data={analyticsData.gradeZoneDistribution}
               title={`${analyticsData.gradeName || analyticsData.grade || 'Grade'} Overview`}
               showPercentages={true}
+            />
+            
+            {/* Examination Performance Stats for Grade */}
+            <ExaminationStatsSection 
+              campus={analyticsData.campusName || filters.campus}
+              grade={analyticsData.gradeName || analyticsData.grade || filters.grade}
+              title={`${analyticsData.gradeName || analyticsData.grade || 'Grade'} Examination Performance`}
+              filters={filters}
             />
             
             {analyticsData.classStats && (
