@@ -341,7 +341,7 @@ const StudentExaminationReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, pageSize]); // Removed selectedZone and selectedGender dependencies
+  }, [toast, pageSize, selectedZone, selectedGender]); // Added back required dependencies
 
   // Apply filters when any filter state changes
   React.useEffect(() => {
@@ -446,9 +446,26 @@ const StudentExaminationReport = () => {
         fetchStudentData({ loadStudents: true, zone: 'red', page: 1 });
       });
     } else {
-      fetchStudentData();
+      // Auto-load overview and then students
+      const loadData = async () => {
+        // First load overview
+        await fetchStudentData();
+        // Then auto-load all students without filters for caching
+        setTimeout(async () => {
+          await fetchStudentData({ 
+            loadStudents: true, 
+            page: 1, 
+            limit: 1000, // Load all students for client-side filtering
+            zone: 'all',
+            gender: 'all'
+          });
+          setStudentsLoaded(true);
+          setIsStudentListCollapsed(false); // Expand student list after loading
+        }, 500); // Small delay to let overview load first
+      };
+      loadData();
     }
-  }, [fetchStudentData, initialZoneFilter]);
+  }, [fetchStudentData, initialZoneFilter, pageSize]);
 
   // Defensive: block any unexpected form submissions on the page while this component is mounted.
   // Some browsers or parent layouts may still trigger a submit; capture and prevent to avoid full-page reloads.

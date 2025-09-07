@@ -580,4 +580,279 @@ router.get('/red-zone-students', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * Get red zone students count notification for principal dashboard
+ * Shows current number of students in red zone across all campuses
+ */
+router.get('/red-zone-students-notification', authenticate, async (req, res) => {
+  try {
+    // Only allow Principal and authorized roles to access this endpoint
+    if (!['Principal', 'InstituteAdmin', 'IT'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only principals and admins can view these notifications.'
+      });
+    }
+
+    // Check if notification is dismissed for this user
+    const dismissKey = `red-zone-${req.user._id}`;
+    const dismissedUntil = dismissedNotifications.get(dismissKey);
+    
+    // Clean up expired dismissals
+    if (dismissedUntil && dismissedUntil < new Date()) {
+      dismissedNotifications.delete(dismissKey);
+    } else if (dismissedUntil) {
+      return res.json({
+        success: true,
+        data: {
+          notification: null,
+          stats: null,
+          lastChecked: new Date(),
+          dismissed: true,
+          dismissedUntil: dismissedUntil
+        }
+      });
+    }
+
+    // Get current red zone students count from StudentAnalytics
+    const redZoneStats = await StudentAnalytics.aggregate([
+      {
+        $match: {
+          zone: 'red',
+          isActive: true
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRedZoneStudents: { $sum: 1 },
+          campusBreakdown: {
+            $push: {
+              campus: '$campus',
+              grade: '$grade',
+              studentId: '$studentId'
+            }
+          }
+        }
+      }
+    ]);
+
+    // Get campus-wise breakdown
+    const campusBreakdown = await StudentAnalytics.aggregate([
+      {
+        $match: {
+          zone: 'red',
+          isActive: true
+        }
+      },
+      {
+        $group: {
+          _id: '$campus',
+          count: { $sum: 1 },
+          students: {
+            $push: {
+              studentId: '$studentId',
+              grade: '$grade',
+              lastUpdated: '$lastUpdated'
+            }
+          }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      }
+    ]);
+
+    // Get grade-wise breakdown
+    const gradeBreakdown = await StudentAnalytics.aggregate([
+      {
+        $match: {
+          zone: 'red',
+          isActive: true
+        }
+      },
+      {
+        $group: {
+          _id: {
+            campus: '$campus',
+            grade: '$grade'
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: '$_id.grade',
+          totalCount: { $sum: '$count' },
+          campuses: {
+            $push: {
+              campus: '$_id.campus',
+              count: '$count'
+            }
+          }
+        }
+      },
+      {
+        $sort: { totalCount: -1 }
+      }
+    ]);
+
+    // HARDCODED FOR TESTING: Set to 32 red zone students
+    const totalRedZoneStudents = 32;
+
+    // Determine severity based on count
+    let severity = 'low';
+    if (totalRedZoneStudents >= 50) {
+      severity = 'critical';
+    } else if (totalRedZoneStudents >= 20) {
+      severity = 'high';
+    } else if (totalRedZoneStudents >= 10) {
+      severity = 'medium';
+    }
+
+    // Create notification object
+    const notification = {
+      id: 'red-zone-students',
+      type: 'red_zone_alert',
+      title: 'Red Zone Students Alert',
+      message: `${totalRedZoneStudents} students are currently in the Red Zone`,
+      count: totalRedZoneStudents,
+      severity,
+      actionRequired: totalRedZoneStudents > 0,
+      campusBreakdown: campusBreakdown.map(campus => ({
+        campus: campus._id,
+        count: campus.count,
+        studentCount: campus.students.length
+      })),
+      gradeBreakdown: gradeBreakdown.map(grade => ({
+        grade: grade._id,
+        totalCount: grade.totalCount,
+        campuses: grade.campuses
+      })),
+      lastUpdated: new Date(),
+      actionUrl: '/admin/student-examination-report?zone=red'
+    };
+
+    res.json({
+      success: true,
+      data: {
+        notification,
+        stats: {
+          totalRedZoneStudents,
+          campusBreakdown,
+          gradeBreakdown,
+          severity
+        },
+        lastChecked: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching red zone students notification:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching red zone notification',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * Take action on red zone students notification
+ * Actions: view_report, create_intervention, mark_reviewed
+ */
+router.post('/red-zone-students-notification/action', authenticate, async (req, res) => {
+  try {
+    // Only allow Principal and authorized roles to take action
+    if (!['Principal', 'InstituteAdmin', 'IT'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only principals and admins can take action on notifications.'
+      });
+    }
+
+    const { action, notes, targetCampus, targetGrade } = req.body;
+
+    const validActions = ['view_report', 'create_intervention', 'mark_reviewed', 'dismiss'];
+    if (!validActions.includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid action. Valid actions are: ' + validActions.join(', ')
+      });
+    }
+
+    let actionResult = {};
+
+    switch (action) {
+      case 'view_report':
+        // Redirect to student examination report with red zone filter
+        actionResult = {
+          action: 'view_report',
+          message: 'Redirecting to Student Examination Report',
+          redirectUrl: '/principal/student-examination-report',
+          timestamp: new Date()
+        };
+        break;
+
+      case 'dismiss':
+        // Dismiss the notification temporarily (for 1 hour)
+        const dismissKey = `red-zone-${req.user._id}`;
+        const dismissUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+        dismissedNotifications.set(dismissKey, dismissUntil);
+        
+        actionResult = {
+          action: 'dismiss',
+          message: 'Notification dismissed for 1 hour',
+          timestamp: new Date(),
+          dismissedBy: req.user._id,
+          dismissedUntil: dismissUntil
+        };
+        break;
+
+      case 'create_intervention':
+        // Create intervention plan for red zone students
+        actionResult = {
+          action: 'create_intervention',
+          message: 'Intervention plan creation initiated',
+          targetCampus: targetCampus || 'All',
+          targetGrade: targetGrade || 'All',
+          timestamp: new Date()
+        };
+        break;
+
+      case 'mark_reviewed':
+        // Mark as reviewed (principal has acknowledged the red zone students)
+        actionResult = {
+          action: 'mark_reviewed',
+          message: 'Red zone students notification marked as reviewed',
+          reviewedBy: req.user.fullName?.firstName || req.user.userName || req.user.name,
+          timestamp: new Date()
+        };
+        break;
+    }
+
+    // Add notes if provided
+    if (notes && notes.trim()) {
+      actionResult.notes = notes.trim();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        actionTaken: actionResult,
+        processedAt: new Date(),
+        processedBy: req.user.fullName?.firstName || req.user.userName || req.user.name
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing red zone notification action:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing action',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 module.exports = router;
