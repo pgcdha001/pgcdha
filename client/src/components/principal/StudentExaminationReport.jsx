@@ -150,6 +150,10 @@ const PerformanceGraphModal = ({ student, isOpen, onClose }) => {
 };
 
 const StudentExaminationReport = () => {
+  // Check URL parameters for initial filter state
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialZoneFilter = urlParams.get('filter') === 'red-zone' ? 'red' : 'all';
+  
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedCards, setExpandedCards] = useState({});
@@ -157,7 +161,7 @@ const StudentExaminationReport = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProgram, setSelectedProgram] = useState('all');
   const [selectedGrade, setSelectedGrade] = useState('all');
-  const [selectedZone, setSelectedZone] = useState('all');
+  const [selectedZone, setSelectedZone] = useState(initialZoneFilter);
   const [selectedGender, setSelectedGender] = useState('all');
   const [showPerformanceModal, setShowPerformanceModal] = useState(false);
   const [selectedStudentForGraph, setSelectedStudentForGraph] = useState(null);
@@ -347,8 +351,16 @@ const StudentExaminationReport = () => {
 
   useEffect(() => {
     // Default to loading summary analytics for principal (faster).
-    fetchStudentData();
-  }, [fetchStudentData]);
+    // If red zone filter is set from URL, also load student data
+    if (initialZoneFilter === 'red') {
+      // Load both summary and student data for red zone filtering
+      fetchStudentData().then(() => {
+        fetchStudentData({ loadStudents: true, zone: 'red', page: 1 });
+      });
+    } else {
+      fetchStudentData();
+    }
+  }, [fetchStudentData, initialZoneFilter]);
 
   // Defensive: block any unexpected form submissions on the page while this component is mounted.
   // Some browsers or parent layouts may still trigger a submit; capture and prevent to avoid full-page reloads.

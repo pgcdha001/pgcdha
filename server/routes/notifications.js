@@ -6,6 +6,7 @@ const TeacherAttendance = require('../models/TeacherAttendance');
 const Timetable = require('../models/Timetable');
 const User = require('../models/User');
 const Class = require('../models/Class');
+const StudentAnalytics = require('../models/StudentAnalytics');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -466,6 +467,111 @@ router.post('/late-marksheet-notifications/:testId/dismiss', authenticate, async
     res.status(500).json({
       success: false,
       message: 'Error dismissing notification',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * Get red zone students notification for principal dashboard
+ * Shows students who are in the red zone based on their analytics
+ */
+router.get('/red-zone-students', authenticate, async (req, res) => {
+  try {
+    // Only allow Principal to access this endpoint
+    if (req.user.role !== 'Principal') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only principals can view these notifications.'
+      });
+    }
+
+    // Get all students with analytics data that have red zone performance
+    const redZoneStudents = await StudentAnalytics.find({
+      'overallAnalytics.overallZone': 'red'
+    })
+    .populate({
+      path: 'studentId',
+      select: 'fullName rollNumber classId',
+      populate: {
+        path: 'classId',
+        select: 'name grade section campus'
+      }
+    })
+    .lean();
+
+    // Filter out any students without valid student data
+    const validRedZoneStudents = redZoneStudents.filter(analytics => 
+      analytics.studentId && 
+      analytics.studentId.fullName
+    );
+
+    // Group by class for better organization
+    const groupedByClass = validRedZoneStudents.reduce((acc, analytics) => {
+      const student = analytics.studentId;
+      const classInfo = student.classId;
+      
+      if (!classInfo) return acc;
+      
+      const classKey = classInfo._id.toString();
+      if (!acc[classKey]) {
+        acc[classKey] = {
+          classInfo: {
+            _id: classInfo._id,
+            name: classInfo.name,
+            grade: classInfo.grade,
+            section: classInfo.section,
+            campus: classInfo.campus
+          },
+          students: []
+        };
+      }
+
+      acc[classKey].students.push({
+        studentId: student._id,
+        name: `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.trim(),
+        rollNumber: student.rollNumber,
+        overallPercentage: analytics.overallAnalytics?.currentOverallPercentage || 0,
+        zone: analytics.overallAnalytics?.overallZone || 'red'
+      });
+
+      return acc;
+    }, {});
+
+    // Convert to array and sort by class name
+    const classGroups = Object.values(groupedByClass).sort((a, b) => 
+      a.classInfo.name.localeCompare(b.classInfo.name)
+    );
+
+    // Sort students within each class by percentage (lowest first)
+    classGroups.forEach(group => {
+      group.students.sort((a, b) => a.overallPercentage - b.overallPercentage);
+    });
+
+    const totalRedZoneStudents = validRedZoneStudents.length;
+
+    res.json({
+      success: true,
+      data: {
+        totalCount: totalRedZoneStudents,
+        classGroups,
+        students: validRedZoneStudents.map(analytics => ({
+          studentId: analytics.studentId._id,
+          name: `${analytics.studentId.fullName?.firstName || ''} ${analytics.studentId.fullName?.lastName || ''}`.trim(),
+          rollNumber: analytics.studentId.rollNumber,
+          className: analytics.studentId.classId?.name || 'No Class',
+          overallPercentage: analytics.overallAnalytics?.currentOverallPercentage || 0,
+          zone: analytics.overallAnalytics?.overallZone || 'red'
+        })),
+        lastChecked: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching red zone students:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching red zone students',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

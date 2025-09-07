@@ -4,6 +4,7 @@ import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import LateMarksheetNotifications from '../../components/notifications/LateMarksheetNotifications';
 import LateTeacherNotifications from '../../components/notifications/LateTeacherNotifications';
+import RedZoneStudentsNotification from '../../components/notifications/RedZoneStudentsNotification';
 
 const PrincipalDashboard = () => {
   const { userRole } = usePermissions();
@@ -133,17 +134,11 @@ const PrincipalDashboard = () => {
 
           {/* Right sidebar notifications */}
           <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+            <RedZoneStudentsNotification compact />
             <LateTeacherNotifications compact />
             <LateMarksheetNotifications compact />
           </div>
         </div>
-        
-        {/* Debug info - remove in production */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-600">
-            <strong>Debug Info:</strong> Role: {userRole} | Cards: {principalDashboardCards.length} | Principal Dashboard Active
-          </div>
-        )}
       </div>
     </div>
   );
