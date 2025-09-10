@@ -160,7 +160,7 @@ const StudentExaminationReport = () => {
   
   const [students, setStudents] = useState([]);
   const [allStudents, setAllStudents] = useState([]); // Cache all student data
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // Only for initial data load
   const [expandedCards, setExpandedCards] = useState({});
   // Inline editing removed in favor of embedded ExaminationTab
   const [searchTerm, setSearchTerm] = useState('');
@@ -187,6 +187,7 @@ const StudentExaminationReport = () => {
   const [campusZoneCounts, setCampusZoneCounts] = useState({});
   const [isStudentListCollapsed, setIsStudentListCollapsed] = useState(true); // Start collapsed
   const [studentsLoaded, setStudentsLoaded] = useState(false);
+  const [dataFullyLoaded, setDataFullyLoaded] = useState(false); // Track if all data is loaded
   
   const { toast } = useToast();
 
@@ -267,9 +268,86 @@ const StudentExaminationReport = () => {
     'default': ['English', 'Math', 'Urdu', 'Pak Study', 'T.Quran', 'Physics']
   };
 
+  // Load all student data initially - this will be called only once on component mount
+  const loadAllStudentData = React.useCallback(async () => {
+    if (dataFullyLoaded) {
+      return; // Prevent multiple calls
+    }
+
+    setInitialLoading(true);
+    try {
+      // Load analytics overview first (without fallback to prevent API loops)
+      const overviewResponse = await api.get('/analytics/overview');
+      if (overviewResponse.data && overviewResponse.data.success) {
+        const analytics = overviewResponse.data.data || {};
+        const cs = analytics.campusStats || [];
+        setCampusStats(cs);
+        
+        const collegeStats = analytics.collegeWideStats || { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };
+        setZoneCounts({
+          green: collegeStats.green || 0,
+          blue: collegeStats.blue || 0,
+          yellow: collegeStats.yellow || 0,
+          red: collegeStats.red || 0,
+          gray: collegeStats.unassigned || 0
+        });
+        setSummaryData({
+          lastUpdated: analytics.lastUpdated,
+          studentsProcessed: analytics.studentsProcessed,
+          calculationDuration: analytics.calculationDuration
+        });
+      }
+
+      // Then load ALL student data for client-side filtering
+      const studentResponse = await api.get('/examinations/student-examination-report-optimized', {
+        params: {
+          page: 1,
+          limit: 5000, // Load all students at once
+        },
+        timeout: 180000 // 3 minute timeout for large data load
+      });
+
+      if (studentResponse.data && studentResponse.data.success) {
+        const payload = studentResponse.data.data || {};
+        const studentsData = payload.students || [];
+        
+        // Cache all students data
+        setAllStudents(studentsData);
+        
+        // Set initial pagination info
+        const pagination = payload.pagination || {};
+        setSummaryData(prev => ({
+          ...prev,
+          totalStudents: pagination.totalStudents || studentsData.length
+        }));
+
+        // Mark data as fully loaded
+        setDataFullyLoaded(true);
+        setStudentsLoaded(true);
+        setIsStudentListCollapsed(false);
+
+        toast.success(`Loaded ${studentsData.length} student records for instant filtering`);
+      } else {
+        throw new Error(studentResponse.data?.message || 'Failed to load students');
+      }
+    } catch (error) {
+      console.error('Failed to load student examination data:', error);
+      toast.error('Failed to load examination data from server');
+      setAllStudents([]);
+      setZoneCounts({});
+    } finally {
+      setInitialLoading(false);
+    }
+  }, [dataFullyLoaded, toast]);
+
   // Fetch summary analytics (fast) by default to avoid timeouts when loading full student lists
   const fetchStudentData = React.useCallback(async (options = { loadStudents: false }) => {
-    setLoading(true);
+    // If data is already fully loaded, don't make API calls for filtering
+    if (dataFullyLoaded && !options.forceRefresh) {
+      return;
+    }
+
+    setInitialLoading(true);
     try {
       if (!options.loadStudents) {
         setShowStatsPanel(true);
@@ -278,7 +356,7 @@ const StudentExaminationReport = () => {
         if (response.data && response.data.success) {
           const analytics = response.data.data || {};
           let cs = analytics.campusStats || [];
-          // If server returned empty campusStats (zeros), compute a lightweight fallback
+          
           const zeroTotals = (arr) => !arr || arr.length === 0 || arr.every(c => {
             const total = Object.values(c.campusZoneDistribution || {}).reduce((s,v)=>s+(v||0),0);
             return total === 0;
@@ -287,16 +365,13 @@ const StudentExaminationReport = () => {
             try {
               const fallback = [];
               for (const campusName of ['Boys','Girls']) {
-                // Count total students for campus
                 const campusResp = await api.get('/analytics/students', { params: { campus: campusName, page: 1, limit: 1 } });
                 const campusTotal = campusResp?.data?.data?.pagination?.totalStudents || 0;
-                // Count per grade
                 const grades = ['11th','12th'];
                 const gradeStats = [];
                 for (const grade of grades) {
                   const gradeResp = await api.get('/analytics/students', { params: { campus: campusName, grade, page: 1, limit: 1 } });
                   const gradeTotal = gradeResp?.data?.data?.pagination?.totalStudents || 0;
-                  // For classes, we will attempt to read class names from the students page (first page) to approximate counts per class
                   const classMap = {};
                   const sampleResp = await api.get('/analytics/students', { params: { campus: campusName, grade, page: 1, limit: 50 } });
                   const sampleStudents = sampleResp?.data?.data?.students || [];
@@ -324,28 +399,24 @@ const StudentExaminationReport = () => {
             studentsProcessed: analytics.studentsProcessed,
             calculationDuration: analytics.calculationDuration
           });
-          // Keep students empty to avoid rendering huge lists; allow manual load below
           setStudents([]);
         } else {
           throw new Error(response.data?.message || 'Failed to load analytics overview');
         }
       } else {
+        // This branch should rarely be used now - only for forced refreshes
         setShowStatsPanel(false);
-        // Use the new optimized endpoint that consolidates all data
         const params = {
           page: options.page || 1,
           limit: options.limit || pageSize,
-          // allow explicit overrides from caller to avoid relying on stale hook values
           zone: (options.zone !== undefined) ? (options.zone === 'all' ? undefined : options.zone) : (selectedZone !== 'all' ? selectedZone : undefined),
           gender: (options.gender !== undefined) ? (options.gender === 'all' ? undefined : options.gender) : (selectedGender !== 'all' ? selectedGender : undefined),
         };
         
-        // Accept filter overrides from caller (campus / grade / classId)
         if (options.campus) params.campus = options.campus;
         if (options.grade) params.grade = options.grade;
         if (options.classId) params.classId = options.classId;
 
-        // Use optimized endpoint with 2 minute timeout
         const axiosConfig = { params, timeout: 120000 };
         const response = await api.get('/examinations/student-examination-report-optimized', axiosConfig);
         
@@ -355,15 +426,12 @@ const StudentExaminationReport = () => {
           
           setStudents(studentsData);
           
-          // Cache all students data for client-side filtering
           if ((!options.zone || options.zone === 'all') && 
               (!options.gender || options.gender === 'all') && 
               !options.campus && !options.grade && !options.classId) {
-            // Only cache if this is an unfiltered request (all students)
             setAllStudents(studentsData);
           }
           
-          // Pagination info
           const pagination = payload.pagination || {};
           setPage(pagination.currentPage || params.page);
           setTotalPages(pagination.totalPages || 1);
@@ -371,7 +439,6 @@ const StudentExaminationReport = () => {
             totalStudents: pagination.totalStudents || studentsData.length
           });
           
-          // Update zone counts from received data if not already set
           if (!Object.keys(zoneCountsRef.current || {}).length && studentsData.length > 0) {
             const counts = studentsData.reduce((acc, s) => {
               const c = s.overallZone || 'gray';
@@ -390,9 +457,9 @@ const StudentExaminationReport = () => {
       setStudents([]);
       setZoneCounts({});
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
-  }, [toast, pageSize, selectedZone, selectedGender]); // Added back required dependencies
+  }, [toast, pageSize, selectedZone, selectedGender, dataFullyLoaded]);
 
   // Apply filters when any filter state changes
   React.useEffect(() => {
@@ -487,17 +554,12 @@ const StudentExaminationReport = () => {
     }));
   }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, selectedCampus, selectedClass, studentsLoaded, allStudents, page, pageSize]);
 
-  // Reset page to 1 when filters change (except page itself)
+  // Reset page to 1 when filters change
   React.useEffect(() => {
-    if (studentsLoaded) {
+    if (dataFullyLoaded) {
       setPage(1);
     }
-  }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, selectedCampus, selectedClass, studentsLoaded]);
-  React.useEffect(() => {
-    if (studentsLoaded) {
-      setPage(1);
-    }
-  }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, studentsLoaded]);
+  }, [selectedZone, selectedGender, searchTerm, selectedGrade, selectedProgram, selectedCampus, selectedClass, dataFullyLoaded]);
 
   // keep ref in sync (separate effect so hooks are used at top-level)
   React.useEffect(() => {
@@ -505,34 +567,10 @@ const StudentExaminationReport = () => {
   }, [zoneCounts]);
 
   useEffect(() => {
-    // Default to loading summary analytics for principal (faster).
-    // If red zone filter is set from URL, also load student data
-    if (initialZoneFilter === 'red') {
-      // Load both summary and student data for red zone filtering
-      fetchStudentData().then(() => {
-        fetchStudentData({ loadStudents: true, zone: 'red', page: 1 });
-      });
-    } else {
-      // Auto-load overview and then students
-      const loadData = async () => {
-        // First load overview
-        await fetchStudentData();
-        // Then auto-load all students without filters for caching
-        setTimeout(async () => {
-          await fetchStudentData({ 
-            loadStudents: true, 
-            page: 1, 
-            limit: 2000, // Load all students for client-side filtering - increased limit
-            zone: 'all',
-            gender: 'all'
-          });
-          setStudentsLoaded(true);
-          setIsStudentListCollapsed(false); // Expand student list after loading
-        }, 500); // Small delay to let overview load first
-      };
-      loadData();
-    }
-  }, [fetchStudentData, initialZoneFilter, pageSize]);
+    // Load all data initially - only once on component mount
+    loadAllStudentData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty - only run once on mount
 
   // Defensive: block any unexpected form submissions on the page while this component is mounted.
   // Some browsers or parent layouts may still trigger a submit; capture and prevent to avoid full-page reloads.
@@ -612,28 +650,116 @@ const StudentExaminationReport = () => {
     setSelectedStudentForGraph(null);
   };
 
-  const filteredStudents = students.filter(student => {
-    const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase();
-    const rollNumber = (student.rollNumber || '').toLowerCase();
-    const program = student.admissionInfo?.program || student.program || '';
-    const grade = student.admissionInfo?.grade || student.grade || '';
-    
-    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || 
-                         rollNumber.includes(searchTerm.toLowerCase());
-    const matchesProgram = selectedProgram === 'all' || program === selectedProgram;
-    const matchesGrade = selectedGrade === 'all' || grade === selectedGrade;
-    // Zone filter: support 'unassigned' which maps to missing/gray zones
-    const zoneVal = student.overallZone || student.cardColor || 'gray';
-    const matchesZone = selectedZone === 'all' || (
-      selectedZone === 'unassigned' ? (!student.overallZone || zoneVal === 'gray') : (zoneVal === selectedZone)
-    );
+  // Compute filtered students for display based on all current filters
+  const filteredStudents = React.useMemo(() => {
+    if (!dataFullyLoaded || !allStudents.length) {
+      return students; // Return paginated students while loading
+    }
 
-    // Gender filter: check common locations
-    const genderVal = (student.gender || student.personalInfo?.gender || student.admissionInfo?.gender || '').toString().toLowerCase();
-    const matchesGender = selectedGender === 'all' || (genderVal === selectedGender);
+    let filtered = [...allStudents];
 
-    return matchesSearch && matchesProgram && matchesGrade && matchesZone && matchesGender;
-  });
+    // Apply zone filter
+    if (selectedZone !== 'all') {
+      filtered = filtered.filter(student => {
+        const zoneVal = student.overallZone || 
+                       student.zone || 
+                       student.analytics?.overallZone || 
+                       student.analytics?.zone ||
+                       'gray';
+        
+        if (selectedZone === 'unassigned') {
+          return !zoneVal || zoneVal === 'gray' || zoneVal === null || zoneVal === undefined;
+        }
+        
+        return zoneVal === selectedZone;
+      });
+    }
+
+    // Apply gender filter
+    if (selectedGender !== 'all') {
+      filtered = filtered.filter(student => {
+        const gender = student.admissionInfo?.gender || student.gender || '';
+        return gender.toLowerCase() === selectedGender.toLowerCase();
+      });
+    }
+
+    // Apply search term filter
+    if (searchTerm) {
+      filtered = filtered.filter(student => {
+        const term = searchTerm.toLowerCase();
+        return (
+          (student.name || '').toLowerCase().includes(term) ||
+          (student.rollNumber || '').toLowerCase().includes(term) ||
+          (student.admissionInfo?.fatherName || student.fatherName || '').toLowerCase().includes(term) ||
+          (`${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`).toLowerCase().includes(term)
+        );
+      });
+    }
+
+    // Apply grade filter
+    if (selectedGrade !== 'all') {
+      filtered = filtered.filter(student => {
+        const grade = student.admissionInfo?.grade || student.grade || '';
+        return grade === selectedGrade;
+      });
+    }
+
+    // Apply program filter
+    if (selectedProgram !== 'all') {
+      filtered = filtered.filter(student => {
+        const program = student.admissionInfo?.program || student.program || '';
+        return program === selectedProgram;
+      });
+    }
+
+    // Apply campus filter
+    if (selectedCampus) {
+      filtered = filtered.filter(student => {
+        const campus = student.admissionInfo?.campus || student.campus || '';
+        return campus.toLowerCase() === selectedCampus.toLowerCase();
+      });
+    }
+
+    // Apply class filter
+    if (selectedClass) {
+      filtered = filtered.filter(student => {
+        const studentClass = student.admissionInfo?.class || student.class || '';
+        return studentClass === selectedClass || student.classId === selectedClass;
+      });
+    }
+
+    return filtered;
+  }, [
+    allStudents, 
+    dataFullyLoaded, 
+    students,
+    selectedZone, 
+    selectedGender, 
+    searchTerm, 
+    selectedGrade, 
+    selectedProgram, 
+    selectedCampus, 
+    selectedClass
+  ]);
+
+  // Compute paginated students for display
+  const paginatedStudents = React.useMemo(() => {
+    if (!dataFullyLoaded) {
+      return students; // Return current students while loading
+    }
+
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredStudents.slice(startIndex, endIndex);
+  }, [filteredStudents, page, pageSize, dataFullyLoaded, students]);
+
+  // Compute total pages based on filtered results
+  const computedTotalPages = React.useMemo(() => {
+    if (!dataFullyLoaded) {
+      return totalPages; // Use server pagination while loading
+    }
+    return Math.ceil(filteredStudents.length / pageSize);
+  }, [filteredStudents.length, pageSize, dataFullyLoaded, totalPages]);
 
   // Helper to robustly obtain matriculation percentage for display
   const getMatricPercentage = (student) => {
@@ -666,7 +792,7 @@ const StudentExaminationReport = () => {
     return null;
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="flex flex-col justify-center items-center min-h-screen">
@@ -677,13 +803,13 @@ const StudentExaminationReport = () => {
               <p className="text-gray-600 mb-4">
                 {showStatsPanel ? 
                   'Loading analytics overview...' : 
-                  'Fetching student examination reports...'
+                  'Fetching all student records for fast filtering...'
                 }
               </p>
               <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
                 <div className="bg-blue-600 h-full rounded-full animate-pulse w-3/4"></div>
               </div>
-              <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+              <p className="text-sm text-gray-500 mt-2">This may take a moment, but filtering will be instant afterwards</p>
             </div>
           </div>
         </div>
@@ -693,18 +819,7 @@ const StudentExaminationReport = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
-      {/* Loading Overlay for filter changes */}
-      {loading && !showStatsPanel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mx-auto mb-3"></div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Applying Filters</h3>
-              <p className="text-gray-600 text-sm">Loading filtered student data...</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* No more loading overlay for filter changes - filtering is now instant */}
 
       {/* Performance Graph Modal */}
       <PerformanceGraphModal 
@@ -733,7 +848,7 @@ const StudentExaminationReport = () => {
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
               <Users className="inline h-4 w-4 mr-1" />
-              {studentsLoaded ? `${filteredStudents.length} Students` : 'Loading Students...'}
+              {dataFullyLoaded ? `${filteredStudents.length} Students` : 'Loading Students...'}
             </div>
             <Button
               type="button"
@@ -775,8 +890,8 @@ const StudentExaminationReport = () => {
                   toast.info('Triggering analytics recalculation...');
                   await api.post('/analytics/calculate/all', { academicYear: '2024-2025' });
                   await api.post('/analytics/refresh/statistics', { academicYear: '2024-2025' });
-                  toast.success('Analytics recalculation completed. Refreshing overview...');
-                  await fetchStudentData();
+                  toast.success('Analytics recalculation completed. Refreshing data...');
+                  await loadAllStudentData(); // Reload all data after recomputation
                 } catch (err) {
                   console.error('Failed to recompute analytics:', err?.message || err);
                   toast.error('Failed to trigger analytics recalculation');
@@ -1046,7 +1161,7 @@ const StudentExaminationReport = () => {
               </h3>
               {(searchTerm || selectedProgram !== 'all' || selectedGrade !== 'all' || selectedZone !== 'all' || selectedGender !== 'all') && (
                 <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                  Filters Active
+                  ⚡ Instant Filters Active
                 </span>
               )}
             </div>
@@ -1141,12 +1256,13 @@ const StudentExaminationReport = () => {
             <>
               {/* Student List Header - Collapsible */}
               <div className="bg-white rounded-lg border">
-                <button
-                  type="button"
-                  onClick={() => setIsStudentListCollapsed(!isStudentListCollapsed)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
+                {/* Header with pagination separate */}
+                <div className="flex items-center justify-between p-4 border-b">
+                  <button
+                    type="button"
+                    onClick={() => setIsStudentListCollapsed(!isStudentListCollapsed)}
+                    className="flex items-center gap-4 hover:text-blue-600 transition-colors"
+                  >
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <Users className="h-5 w-5 text-blue-600" />
                       Student List
@@ -1156,65 +1272,61 @@ const StudentExaminationReport = () => {
                     </span>
                     {(searchTerm || selectedProgram !== 'all' || selectedGrade !== 'all' || selectedZone !== 'all' || selectedGender !== 'all') && (
                       <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                        Filtered
+                        ⚡ Instant Filters Active
                       </span>
                     )}
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    {/* Pagination controls for loaded students */}
-                    {totalPages > 1 && !isStudentListCollapsed && (
-                      <div className="flex items-center gap-3 mr-4">
-                        <div className="text-sm text-gray-600">
-                          Page {page} of {totalPages}
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (page > 1) {
-                                setPage(page - 1);
-                              }
-                            }}
-                            disabled={page <= 1 || loading}
-                          >
-                            Previous
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (page < totalPages) {
-                                setPage(page + 1);
-                              }
-                            }}
-                            disabled={page >= totalPages || loading}
-                          >
-                            Next
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    
                     {/* Collapse/Expand Icon */}
                     {isStudentListCollapsed ? (
-                      <ChevronDown className="h-5 w-5 text-gray-400" />
+                      <ChevronDown className="h-5 w-5 text-gray-400 ml-2" />
                     ) : (
-                      <ChevronUp className="h-5 w-5 text-gray-400" />
+                      <ChevronUp className="h-5 w-5 text-gray-400 ml-2" />
                     )}
-                  </div>
-                </button>
+                  </button>
+                  
+                  {/* Pagination controls - separate from collapsible button */}
+                  {computedTotalPages > 1 && !isStudentListCollapsed && (
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm text-gray-600">
+                        Page {page} of {Math.max(1, computedTotalPages)}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (page > 1) {
+                              setPage(page - 1);
+                            }
+                          }}
+                          disabled={page <= 1}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (page < computedTotalPages) {
+                              setPage(page + 1);
+                            }
+                          }}
+                          disabled={page >= computedTotalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
                 {/* Collapsible Student List Content */}
                 {!isStudentListCollapsed && (
-                  <div className="border-t border-gray-200">
-                    <div className="p-4 space-y-4">
-                      {filteredStudents.map((student) => {
+                  <div className="p-4 space-y-4">
+                      {paginatedStudents.map((student) => {
                         const isExpanded = expandedCards[student._id];
                         const program = student.admissionInfo?.program || student.program || 'Not specified';
                         const performanceTrend = getPerformanceTrend(student);
@@ -1327,14 +1439,13 @@ const StudentExaminationReport = () => {
                         );
                       })}
                     </div>
-                  </div>
                 )}
               </div>
             </>
           )}
 
           {/* No Students Found Message */}
-          {studentsLoaded && filteredStudents.length === 0 && (
+          {dataFullyLoaded && filteredStudents.length === 0 && (
             <Card className="p-8 text-center">
               <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Students Found</h3>
