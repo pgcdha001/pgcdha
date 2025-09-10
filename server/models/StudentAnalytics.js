@@ -660,15 +660,35 @@ StudentAnalyticsSchema.statics.calculateForStudent = async function(studentId, a
     }
     
     // Prepare data for calculations (ensure a normalized shape expected by analytics helpers)
-    const resultsForCalculation = validResults.map(result => ({
-      testId: result.testId._id,
-      obtainedMarks: Number(result.obtainedMarks) || 0,
-      totalMarks: Number(result.testId?.totalMarks) || 0,
-      percentage: isFinite(Number(result.percentage)) ? Number(result.percentage) : null,
-      testDate: result.testId?.testDate || result.testDate,
-      testType: result.testId?.testType || result.testType,
-      subject: result.testId?.subject || result.subject
-    }));
+    const resultsForCalculation = validResults.map(result => {
+      // Try to get totalMarks from multiple sources, with fallback calculation
+      let totalMarks = Number(result.testId?.totalMarks) || 0;
+      
+      // If totalMarks is 0 or undefined, try to calculate from percentage and obtainedMarks
+      if (totalMarks === 0 && result.percentage && result.obtainedMarks && result.percentage > 0) {
+        totalMarks = Math.round(result.obtainedMarks / (result.percentage / 100));
+        console.log(`📊 Calculated totalMarks for ${result.testId?.subject}: ${result.obtainedMarks}/${result.percentage}% = ${totalMarks}`);
+      }
+      
+      // Ensure we have a valid percentage
+      let percentage = isFinite(Number(result.percentage)) ? Number(result.percentage) : null;
+      
+      // If percentage is missing but we have marks, calculate it
+      if (percentage === null && totalMarks > 0 && result.obtainedMarks >= 0) {
+        percentage = Math.round((result.obtainedMarks / totalMarks) * 100 * 100) / 100;
+        console.log(`📊 Calculated percentage for ${result.testId?.subject}: ${result.obtainedMarks}/${totalMarks} = ${percentage}%`);
+      }
+      
+      return {
+        testId: result.testId,
+        obtainedMarks: Number(result.obtainedMarks) || 0,
+        totalMarks: totalMarks,
+        percentage: percentage,
+        testDate: result.testId?.testDate || result.testDate,
+        testType: result.testId?.testType || result.testType,
+        subject: result.testId?.subject || result.subject
+      };
+    });
     
     // Calculate matriculation percentage if available (multiple sources)
     let matriculationPercentage = null;
