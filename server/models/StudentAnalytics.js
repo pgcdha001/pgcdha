@@ -226,18 +226,31 @@ StudentAnalyticsSchema.methods.getPerformanceMatrix = async function() {
   
   this.subjectAnalytics.forEach(subject => {
     subject.testResults.forEach(test => {
-      const testKey = `${test.testDate.toISOString().split('T')[0]}_${test.testType}`;
+      // Skip tests without valid testDate
+      if (!test.testDate) {
+        console.warn(`Skipping test without testDate for subject ${subject.subjectName}`);
+        return;
+      }
+      
+      const testKey = `${test.testDate.toISOString().split('T')[0]}_${test.testType || 'Unknown'}`;
       if (!testsByDate[testKey]) {
         testsByDate[testKey] = {
-          testName: `${test.testType} (${test.testDate.toLocaleDateString()})`,
+          testName: `${test.testType || 'Test'} (${test.testDate.toLocaleDateString()})`,
           testDate: test.testDate,
           subjects: {},
           overall: 0
         };
       }
       testsByDate[testKey].subjects[subject.subjectName] = {
-        percentage: test.percentage,
-        zone: this.calculateOverallZone(test.percentage, this.overallAnalytics.matriculationPercentage)
+        percentage: test.percentage !== null && test.percentage !== undefined ? 
+          test.percentage : 
+          (test.totalMarks > 0 ? Math.round((test.obtainedMarks / test.totalMarks) * 100 * 100) / 100 : 0),
+        zone: this.calculateOverallZone(
+          test.percentage !== null && test.percentage !== undefined ? 
+            test.percentage : 
+            (test.totalMarks > 0 ? Math.round((test.obtainedMarks / test.totalMarks) * 100 * 100) / 100 : 0), 
+          this.overallAnalytics.matriculationPercentage
+        )
       };
     });
   });
@@ -441,16 +454,39 @@ StudentAnalyticsSchema.methods.updateOverallAnalytics = function(testResults) {
   const totalObtained = testResults.reduce((sum, result) => sum + result.obtainedMarks, 0);
   const totalMaximum = testResults.reduce((sum, result) => sum + result.totalMarks, 0);
   
+  let percentage = null;
   if (totalMaximum > 0) {
-    const percentage = (totalObtained / totalMaximum) * 100;
-    this.overallAnalytics.currentOverallPercentage = Math.round(percentage * 100) / 100;
+    // Use traditional calculation if totalMarks are available
+    percentage = (totalObtained / totalMaximum) * 100;
+    percentage = Math.round(percentage * 100) / 100;
+  } else {
+    // Fallback: use average of individual test percentages if totalMarks unavailable
+    const validPercentages = testResults
+      .map(result => Number(result.percentage))
+      .filter(p => isFinite(p) && p !== null && p !== undefined);
+    
+    if (validPercentages.length > 0) {
+      percentage = validPercentages.reduce((sum, p) => sum + p, 0) / validPercentages.length;
+      percentage = Math.round(percentage * 100) / 100;
+    }
+  }
+  
+  if (percentage !== null) {
+    this.overallAnalytics.currentOverallPercentage = percentage;
     this.overallAnalytics.overallZone = this.calculateOverallZone(
       percentage, 
       this.overallAnalytics.matriculationPercentage
     );
     this.overallAnalytics.totalCTsIncluded = testResults.length;
-    this.overallAnalytics.totalMarksObtained = totalObtained;
-    this.overallAnalytics.totalMaxMarks = totalMaximum;
+    this.overallAnalytics.totalMarksObtained = isFinite(totalObtained) ? totalObtained : 0;
+    this.overallAnalytics.totalMaxMarks = isFinite(totalMaximum) ? totalMaximum : 0;
+  } else {
+    // Set defaults when percentage calculation fails
+    this.overallAnalytics.currentOverallPercentage = null;
+    this.overallAnalytics.overallZone = 'unassigned';
+    this.overallAnalytics.totalCTsIncluded = testResults.length;
+    this.overallAnalytics.totalMarksObtained = 0;
+    this.overallAnalytics.totalMaxMarks = 0;
   }
   
   this.overallAnalytics.lastUpdated = new Date();
@@ -462,7 +498,7 @@ StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults,
   // Group results by subject
   const subjectGroups = {};
   subjectResults.forEach(result => {
-    const subject = result.subject;
+    const subject = result.testId?.subject || result.subject || 'Unknown Subject';
     if (!subjectGroups[subject]) {
       subjectGroups[subject] = [];
     }
@@ -481,11 +517,22 @@ StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults,
       const totalObtained = results.reduce((sum, result) => sum + (Number(result.obtainedMarks) || 0), 0);
       const totalMaximum = results.reduce((sum, result) => sum + (Number(result.totalMarks) || 0), 0);
 
-      // Guard against division by zero / invalid numbers
+      // Calculate percentage - try multiple approaches
       let percentage = null;
       if (totalMaximum > 0) {
+        // Use traditional calculation if totalMarks are available
         percentage = (totalObtained / totalMaximum) * 100;
         percentage = Math.round(percentage * 100) / 100;
+      } else {
+        // Fallback: use average of individual test percentages if totalMarks unavailable
+        const validPercentages = results
+          .map(result => Number(result.percentage))
+          .filter(p => isFinite(p) && p !== null && p !== undefined);
+        
+        if (validPercentages.length > 0) {
+          percentage = validPercentages.reduce((sum, p) => sum + p, 0) / validPercentages.length;
+          percentage = Math.round(percentage * 100) / 100;
+        }
       }
 
       // Try to get subject-specific matriculation baseline
@@ -497,15 +544,15 @@ StudentAnalyticsSchema.methods.updateSubjectAnalytics = function(subjectResults,
         currentPercentage: percentage !== null ? percentage : null,
         zone,
         totalCTsIncluded: results.length,
-        totalMarksObtained: totalObtained || 0,
-        totalMaxMarks: totalMaximum || 0,
+        totalMarksObtained: isFinite(totalObtained) ? totalObtained : 0,
+        totalMaxMarks: isFinite(totalMaximum) ? totalMaximum : 0,
         testResults: results.map(result => ({
-          testId: result.testId,
+          testId: result.testId?._id || result.testId,
           obtainedMarks: Number(result.obtainedMarks) || 0,
-          totalMarks: Number(result.totalMarks) || 0,
+          totalMarks: Number(result.testId?.totalMarks || result.totalMarks) || 0,
           percentage: isFinite(Number(result.percentage)) ? Number(result.percentage) : null,
-          testDate: result.testDate,
-          testType: result.testType
+          testDate: result.testId?.testDate || result.testDate,
+          testType: result.testId?.testType || result.testType || 'Test'
         })),
         lastUpdated: new Date()
       });

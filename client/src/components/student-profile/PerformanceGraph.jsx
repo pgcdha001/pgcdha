@@ -5,11 +5,49 @@ import { TrendingUp, BarChart3 } from 'lucide-react';
 const PerformanceGraph = ({ examData, subjectPerformance, performanceMatrix }) => {
   // Prepare data for the line chart showing performance over time
   const prepareTimelineData = () => {
-    if (!examData || examData.length === 0) return [];
+    if (!examData || examData.length === 0) {
+      // If no exam data but we have matriculation, show just baseline
+      if (performanceMatrix?.matriculationBaseline?.overall > 0) {
+        return [{
+          testIndex: 0,
+          testName: "Matriculation Baseline",
+          score: performanceMatrix.matriculationBaseline.overall,
+          subject: "Overall",
+          date: "Baseline",
+          marks: "Matriculation",
+          isBaseline: true
+        }];
+      }
+      return [];
+    }
     
-    return examData
+    // Sort exam data by date
+    const sortedExams = examData
       .slice()
-      .sort((a, b) => new Date(a.test?.testDate || a.date || a.enteredOn) - new Date(b.test?.testDate || b.date || b.enteredOn))
+      .sort((a, b) => new Date(a.test?.testDate || a.date || a.enteredOn) - new Date(b.test?.testDate || b.date || b.enteredOn));
+    
+    const timelineData = [];
+    
+    // Add matriculation baseline as starting point (index 0)
+    if (performanceMatrix?.matriculationBaseline?.overall) {
+      timelineData.push({
+        testIndex: 0,
+        testName: "Matriculation Baseline",
+        score: performanceMatrix.matriculationBaseline.overall,
+        subject: "Overall",
+        date: "Baseline",
+        marks: "Matriculation",
+        isBaseline: true
+      });
+    }
+
+    // Add exam data starting from index 1 (include all valid tests, even 0 scores)
+    const examTimelineData = sortedExams
+      .filter(exam => {
+        const totalMarks = exam.test?.totalMarks || exam.totalMarks;
+        // Only exclude tests where we don't have total marks (incomplete test setup)
+        return totalMarks > 0;
+      })
       .map((exam, index) => {
         const totalMarks = exam.test?.totalMarks || exam.totalMarks || 100;
         const obtainedMarks = exam.obtainedMarks || 0;
@@ -18,14 +56,17 @@ const PerformanceGraph = ({ examData, subjectPerformance, performanceMatrix }) =
         const subject = exam.test?.subject || exam.subject || 'Unknown';
         
         return {
-          testIndex: index + 1,
-          testName: `${subject} (${testDate.toLocaleDateString()})`,
+          testIndex: index + 1, // Start from 1 since 0 is matriculation
+          testName: `${subject} Test ${index + 1}`,
           score: percentage,
           subject: subject,
           date: testDate.toLocaleDateString(),
-          marks: `${obtainedMarks}/${totalMarks}`
+          marks: `${obtainedMarks}/${totalMarks}`,
+          isBaseline: false
         };
       });
+    
+    return [...timelineData, ...examTimelineData];
   };
 
   // Prepare data for comparison between test scores and matric baseline
@@ -63,15 +104,22 @@ const PerformanceGraph = ({ examData, subjectPerformance, performanceMatrix }) =
   const subjectData = prepareSubjectData();
 
   // Custom tooltip for timeline chart
-  const TimelineTooltip = ({ active, payload, label }) => {
+  const TimelineTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{data.testName}</p>
           <p className="text-sm text-gray-600">Score: {data.score}%</p>
-          <p className="text-sm text-gray-600">Marks: {data.marks}</p>
-          <p className="text-sm text-gray-600">Date: {data.date}</p>
+          {data.isBaseline ? (
+            <p className="text-sm text-orange-600">Matriculation Baseline</p>
+          ) : (
+            <>
+              <p className="text-sm text-gray-600">Marks: {data.marks}</p>
+              <p className="text-sm text-gray-600">Date: {data.date}</p>
+              <p className="text-sm text-gray-600">Subject: {data.subject}</p>
+            </>
+          )}
         </div>
       );
     }
@@ -113,7 +161,7 @@ const PerformanceGraph = ({ examData, subjectPerformance, performanceMatrix }) =
             <h5 className="text-sm font-medium text-gray-700 mb-4">Performance Timeline</h5>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timelineData}>
+                <LineChart data={timelineData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="testIndex" 
@@ -124,15 +172,22 @@ const PerformanceGraph = ({ examData, subjectPerformance, performanceMatrix }) =
                     domain={[0, 100]}
                   />
                   <Tooltip content={<TimelineTooltip />} />
-                  <Area 
+                  <Legend />
+                  <Line 
                     type="monotone" 
                     dataKey="score" 
                     stroke="#3B82F6" 
-                    fill="#93C5FD" 
-                    fillOpacity={0.3}
-                    strokeWidth={2}
+                    strokeWidth={3}
+                    dot={(props) => {
+                      const { payload } = props;
+                      if (payload?.isBaseline) {
+                        return <circle {...props} r={6} fill="#F59E0B" stroke="#D97706" strokeWidth={2} />;
+                      }
+                      return <circle {...props} r={4} fill="#3B82F6" stroke="#1E40AF" strokeWidth={2} />;
+                    }}
+                    name="Performance Score"
                   />
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>

@@ -31,6 +31,7 @@ router.get('/',
       gender = '', // Add gender filter
       minLevel = '', // Add minimum level filter
       excludeClassAssigned = '', // Add excludeClassAssigned parameter
+      hasClassAssigned = '', // Add hasClassAssigned parameter for students WITH classes
       sortBy = 'createdAt',
       sortOrder = 'desc',
       dateFilter = '',
@@ -208,6 +209,11 @@ router.get('/',
       filter.classId = { $exists: false };
       // Also apply the same level constraints as Principal enquiry reports
       filter.prospectusStage = { $gte: 1, $lte: 5 };
+    }
+
+    // Include only students with class assignments (for student profiles)
+    if (hasClassAssigned === 'true') {
+      filter.classId = { $exists: true };
     }
 
     // Build sort object

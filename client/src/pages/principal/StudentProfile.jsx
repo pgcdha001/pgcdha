@@ -1,18 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Users, Phone, GraduationCap, Eye, X, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, Users, Phone, GraduationCap, Eye, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import StudentDetailsModal from '../../components/student-profile/StudentDetailsModal';
 
 const StudentProfile = () => {
-  const [students, setStudents] = useState([]);
-  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]); // Store all students for filtering
+  const [students, setStudents] = useState([]); // Current page students
   const [loading, setLoading] = useState(true);
+  const [dataFullyLoaded, setDataFullyLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [studentsPerPage] = useState(20); // Fixed page size
+  const [totalPages, setTotalPages] = useState(1);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -45,99 +51,58 @@ const StudentProfile = () => {
     };
   }
 
-  // Fetch students with class assignments
-  const fetchStudents = async () => {
+  // Load all student data using optimized endpoint - similar to examination report approach
+  const loadAllStudentData = async () => {
+    if (dataFullyLoaded) {
+      return; // Prevent multiple calls
+    }
+
     try {
       setLoading(true);
       
-      // Try multiple approaches to get students
-      let response;
-      try {
-        // First try with a shorter timeout and smaller limit
-        response = await api.get('/users', {
-          params: {
-            role: 'Student',
-            limit: 500, // Reduced limit
-            sortBy: 'fullName.firstName',
-            sortOrder: 'asc'
-          },
-          timeout: 15000 // 15 second timeout instead of 30
-        });
-      } catch (timeoutError) {
-        console.log('First attempt timed out, trying with basic params...');
-        // Fallback with minimal params
-        response = await api.get('/users', {
-          params: {
-            role: 'Student'
-          },
-          timeout: 10000 // 10 second timeout
-        });
-      }
+      // Use new optimized endpoint specifically for student profiles
+      const response = await api.get('/student-profiles/optimized', {
+        params: {
+          page: 1,
+          limit: 2000, // Load all students with classes at once
+        },
+        timeout: 60000 // 1 minute timeout should be enough for optimized query
+      });
 
       if (response?.data?.success) {
-        // Filter only students with class assignments
-        const allStudents = response.data.data || [];
+        const payload = response.data.data || {};
+        const allStudentsData = payload.students || [];
         
-        console.log('Students data structure:', {
-          isArray: Array.isArray(allStudents),
-          type: typeof allStudents,
-          sample: allStudents[0],
-          length: allStudents.length
+        console.log('Students data from optimized student profiles endpoint:', {
+          totalStudents: allStudentsData.length,
+          pagination: payload.pagination,
+          sample: allStudentsData[0]
         });
         
-        // Ensure allStudents is an array
-        let studentsArray = [];
-        if (Array.isArray(allStudents)) {
-          studentsArray = allStudents;
-        } else if (allStudents && typeof allStudents === 'object') {
-          // Handle different response structures
-          if (allStudents.users && Array.isArray(allStudents.users)) {
-            studentsArray = allStudents.users;
-          } else if (allStudents.students && Array.isArray(allStudents.students)) {
-            studentsArray = allStudents.students;
-          } else if (allStudents.data && Array.isArray(allStudents.data)) {
-            studentsArray = allStudents.data;
-          } else {
-            console.warn('Unexpected data structure:', allStudents);
-            studentsArray = [];
-          }
-        }
-        
-        const studentsWithClasses = studentsArray.filter(student => 
-          student && student.classId && 
-          (student.prospectusStage === 5 || student.enquiryLevel === 5)
-        );
-        
-        setStudents(studentsWithClasses);
-        setFilteredStudents(studentsWithClasses);
+        // Cache all students data
+        setAllStudents(allStudentsData);
+        setDataFullyLoaded(true);
         
         // Extract filter options
-        extractFilterOptions(studentsWithClasses);
+        extractFilterOptions(allStudentsData);
+        
+        if (showToast && typeof showToast === 'function') {
+          showToast(`Loaded ${allStudentsData.length} student profiles for instant filtering`, 'success');
+        }
       } else {
         console.warn('API response indicates failure or unexpected structure:', response.data);
-        setStudents([]);
-        setFilteredStudents([]);
+        setAllStudents([]);
       }
     } catch (error) {
-      console.error('Error fetching students:', error);
+      console.error('Error loading all student data:', error);
       
-      // Better error handling - check if showToast is available
-      try {
-        if (showToast && typeof showToast === 'function') {
-          showToast('Failed to load students. Please check your connection and try again.', 'error');
-        } else {
-          console.log('Toast function not available, showing alert instead');
-          // Fallback to alert if toast is not available
-          alert('Failed to load students. Please refresh the page and try again.');
-        }
-      } catch (toastError) {
-        console.error('Error showing notification:', toastError);
+      if (showToast && typeof showToast === 'function') {
+        showToast('Failed to load students. Please check your connection and try again.', 'error');
+      } else {
         alert('Failed to load students. Please refresh the page and try again.');
       }
       
-      // Set empty state gracefully
-      setStudents([]);
-      setFilteredStudents([]);
+      setAllStudents([]);
     } finally {
       setLoading(false);
     }
@@ -190,52 +155,89 @@ const StudentProfile = () => {
     }
   };
 
-  // Apply filters and search
-  useEffect(() => {
-    let filtered = [...students];
+  // Memoized filtered students with client-side pagination
+  const filteredStudents = useMemo(() => {
+    if (!allStudents.length || !dataFullyLoaded) return [];
 
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(student => {
+    let filtered = allStudents.filter(student => {
+      // Search filter
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase();
         const fullName = `${student.fullName?.firstName || ''} ${student.fullName?.lastName || ''}`.toLowerCase();
         const phone = student.phoneNumber?.toLowerCase() || '';
         const email = student.email?.toLowerCase() || '';
+        const rollNumber = student.rollNumber?.toLowerCase() || '';
         
-        return fullName.includes(searchLower) || 
-               phone.includes(searchLower) || 
-               email.includes(searchLower);
-      });
-    }
+        if (!fullName.includes(searchLower) && 
+            !phone.includes(searchLower) && 
+            !email.includes(searchLower) &&
+            !rollNumber.includes(searchLower)) {
+          return false;
+        }
+      }
 
-    // Apply campus filter
-    if (filters.campus !== 'all') {
-      filtered = filtered.filter(student => student.campus === filters.campus);
-    }
+      // Campus filter
+      if (filters.campus !== 'all' && student.campus !== filters.campus) {
+        return false;
+      }
 
-    // Apply program filter
-    if (filters.program !== 'all') {
-      filtered = filtered.filter(student => 
-        (student.program || student.admissionInfo?.program) === filters.program
-      );
-    }
+      // Program filter
+      if (filters.program !== 'all') {
+        const studentProgram = student.program || student.admissionInfo?.program;
+        if (studentProgram !== filters.program) {
+          return false;
+        }
+      }
 
-    // Apply grade filter
-    if (filters.grade !== 'all') {
-      filtered = filtered.filter(student => student.admissionInfo?.grade === filters.grade);
-    }
+      // Grade filter
+      if (filters.grade !== 'all' && student.admissionInfo?.grade !== filters.grade) {
+        return false;
+      }
 
-    // Apply class filter
-    if (filters.class !== 'all') {
-      filtered = filtered.filter(student => student.classId === filters.class);
-    }
+      // Class filter
+      if (filters.class !== 'all' && student.classId !== filters.class) {
+        return false;
+      }
 
-    setFilteredStudents(filtered);
-  }, [students, searchTerm, filters]);
+      return true;
+    });
 
+    return filtered;
+  }, [allStudents, dataFullyLoaded, searchTerm, filters]);
+
+  // Memoized paginated students
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (currentPage - 1) * studentsPerPage;
+    const endIndex = startIndex + studentsPerPage;
+    return filteredStudents.slice(startIndex, endIndex);
+  }, [filteredStudents, currentPage, studentsPerPage]);
+
+  // Update pagination when filtered results change
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    const totalPagesCalc = Math.ceil(filteredStudents.length / studentsPerPage);
+    setTotalPages(totalPagesCalc);
+    
+    // Reset to page 1 if current page is beyond total pages
+    if (currentPage > totalPagesCalc && totalPagesCalc > 0) {
+      setCurrentPage(1);
+    }
+    
+    // Update students for rendering
+    setStudents(paginatedStudents);
+  }, [filteredStudents, currentPage, studentsPerPage, paginatedStudents]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (dataFullyLoaded) {
+      setCurrentPage(1);
+    }
+  }, [searchTerm, filters, dataFullyLoaded]);
+
+  // Load all data on component mount
+  useEffect(() => {
+    loadAllStudentData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Handle filter changes
   const handleFilterChange = (filterType, value) => {
@@ -428,7 +430,7 @@ const StudentProfile = () => {
               </div>
 
               {/* Active Filters Display */}
-              {Object.entries(filters).some(([key, value]) => value !== 'all') && (
+              {Object.values(filters).some((value) => value !== 'all') && (
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-gray-700">Active Filters:</span>
@@ -475,16 +477,79 @@ const StudentProfile = () => {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredStudents.map((student) => (
-                <StudentRecord
-                  key={student._id}
-                  student={student}
-                  className={getClassName(student.classId)}
-                  onViewDetails={() => handleViewStudent(student)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-4">
+                {paginatedStudents.map((student) => (
+                  <StudentRecord
+                    key={student._id}
+                    student={student}
+                    className={getClassName(student.classId)}
+                    onViewDetails={() => handleViewStudent(student)}
+                  />
+                ))}
+              </div>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between bg-white rounded-lg p-4 mt-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {((currentPage - 1) * studentsPerPage) + 1} to {Math.min(currentPage * studentsPerPage, filteredStudents.length)} of {filteredStudents.length} students
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {/* Show page numbers */}
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={pageNum === currentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center gap-1"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
