@@ -255,6 +255,8 @@ const TimetableManagement = () => {
           });
         } catch (e) {
           // If fetch fails, proceed with creation; conflicts will be handled by server
+          console.log(e);
+          
           existingByDay[day] = [];
         }
       }
@@ -296,10 +298,9 @@ const TimetableManagement = () => {
         console.log(`Timetable saved. ${lectures.length - failed.length} saved, ${failed.length} failed.`);
       }
       
-      setShowForm(false);
-      setEditingTimetable(null);
-      // Refresh all data to ensure UI is updated
-      await fetchInitialData();
+      // Don't close the form or refresh data for day-wise saving
+      // The form will handle its own state management
+      
     } catch (error) {
       console.error('Error saving timetable:', error);
       const message = error.response?.data?.message || 'Failed to save timetable';
