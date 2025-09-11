@@ -21,8 +21,19 @@ router.post('/mark', authenticate, async (req, res) => {
       return res.status(400).json({ message: 'Floor number is required' });
     }
 
-    const attendanceDate = new Date(date || new Date());
-    attendanceDate.setHours(0, 0, 0, 0);
+    // Parse date correctly to avoid timezone issues
+    let attendanceDate;
+    if (date) {
+      const [year, month, day] = date.split('-').map(Number);
+      attendanceDate = new Date();
+      attendanceDate.setFullYear(year);
+      attendanceDate.setMonth(month - 1); // month is 0-indexed
+      attendanceDate.setDate(day);
+      attendanceDate.setHours(0, 0, 0, 0);
+    } else {
+      attendanceDate = new Date();
+      attendanceDate.setHours(0, 0, 0, 0);
+    }
 
     const results = {
       success: [],
@@ -167,8 +178,19 @@ router.post('/mark-bulk', authenticate, async (req, res) => {
       });
     }
 
-    const attendanceDate = new Date(date || new Date());
-    attendanceDate.setHours(0, 0, 0, 0);
+    // Parse date correctly to avoid timezone issues
+    let attendanceDate;
+    if (date) {
+      const [year, month, day] = date.split('-').map(Number);
+      attendanceDate = new Date();
+      attendanceDate.setFullYear(year);
+      attendanceDate.setMonth(month - 1); // month is 0-indexed
+      attendanceDate.setDate(day);
+      attendanceDate.setHours(0, 0, 0, 0);
+    } else {
+      attendanceDate = new Date();
+      attendanceDate.setHours(0, 0, 0, 0);
+    }
 
     const results = {
       success: [],
@@ -311,7 +333,13 @@ router.get('/floor/:floor/:date', authenticate, async (req, res) => {
     }
 
     // Get timetable for the floor and date
-    const queryDate = new Date(date);
+    // Parse date correctly to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const queryDate = new Date();
+    queryDate.setFullYear(year);
+    queryDate.setMonth(month - 1); // month is 0-indexed
+    queryDate.setDate(day);
+    queryDate.setHours(0, 0, 0, 0);
     const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][queryDate.getDay()];
     
     // Get all scheduled lectures for this floor and day
@@ -638,7 +666,12 @@ router.get('/report/daily/:date', authenticate, async (req, res) => {
     const { date } = req.params;
     const { floor } = req.query;
 
-    const queryDate = new Date(date);
+    // Parse date correctly to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const queryDate = new Date();
+    queryDate.setFullYear(year);
+    queryDate.setMonth(month - 1); // month is 0-indexed
+    queryDate.setDate(day);
     queryDate.setHours(0, 0, 0, 0);
 
     let attendanceRecords;
@@ -889,8 +922,16 @@ router.get('/date/:date', authenticate, async (req, res) => {
     
     // Parse date correctly to avoid timezone issues
     // Input should be in YYYY-MM-DD format
+    console.log('TIMEZONE FIX ACTIVE - Parsing date manually:', date);
     const [year, month, day] = date.split('-').map(Number);
-    const queryDate = new Date(year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
+    // Create a date that represents the start of the day in local time
+    const queryDate = new Date();
+    queryDate.setFullYear(year);
+    queryDate.setMonth(month - 1); // month is 0-indexed
+    queryDate.setDate(day);
+    queryDate.setHours(0, 0, 0, 0);
+    console.log('TIMEZONE FIX - Parsed date components:', { year, month, day });
+    console.log('TIMEZONE FIX - Final queryDate:', queryDate);
     
     console.log('Querying attendance for date:', queryDate);
     

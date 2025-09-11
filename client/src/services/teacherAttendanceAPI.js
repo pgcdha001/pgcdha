@@ -14,7 +14,9 @@ export const teacherAttendanceAPI = {
   // Mark bulk teacher attendance
   markBulkAttendance: async (attendanceRecords) => {
     try {
-      const response = await api.post('/teacher-attendance/mark-bulk', attendanceRecords);
+      const response = await api.post('/teacher-attendance/mark-bulk', { 
+        attendanceRecords 
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to mark bulk teacher attendance' };

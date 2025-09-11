@@ -179,6 +179,13 @@ const CoordinatorTimetablePage = () => {
       
       setTimetableData(processedData);
       
+      console.log('=== COORDINATOR TIMETABLE DEBUG ===');
+      console.log('Processed timetable data:', processedData);
+      console.log('Classes found:', Object.keys(processedData));
+      console.log('Selected date:', selectedDate);
+      console.log('Assigned floor:', assignedFloor);
+      console.log('=== END DEBUG ===');
+      
     } catch (error) {
       console.error('Error fetching timetable data:', error);
       setError('Failed to load timetable data. Please try again.');
@@ -199,6 +206,9 @@ const CoordinatorTimetablePage = () => {
 
   // Handle attendance status change
   const handleAttendanceChange = (classId, timeSlot, newStatus, lateMinutes = null) => {
+    console.log('handleAttendanceChange called:', { classId, timeSlot, newStatus, lateMinutes });
+    console.log('Current timetableData structure:', timetableData);
+    
     const key = `${classId}_${timeSlot}`;
     setPendingChanges(prev => ({
       ...prev,
@@ -219,18 +229,36 @@ const CoordinatorTimetablePage = () => {
     try {
       setSaving(true);
       
-      const attendanceRecords = Object.values(pendingChanges).map(change => ({
-        teacherId: timetableData[change.classId]?.[change.timeSlot]?.teacherId,
-        timetableId: timetableData[change.classId]?.[change.timeSlot]?.timetableId,
-        status: change.status === 'on-time' ? 'On Time' : 
-                change.status === 'late' ? 'Late' : 
-                change.status === 'absent' ? 'Absent' : 
-                change.status === 'cancelled' ? 'Cancelled' : 'On Time',
-        date: selectedDate,
-        lateMinutes: change.lateMinutes || null,
-        lateType: change.lateMinutes ? `${change.lateMinutes} min` : null,
-        markedBy: user._id
-      }));
+      const attendanceRecords = Object.values(pendingChanges).map(change => {
+        // Find the timetable data using the class name and time slot
+        const cellData = timetableData[change.classId]?.[change.timeSlot];
+        
+        if (!cellData || !cellData.teacherId || !cellData.timetableId) {
+          console.warn('Missing timetable data for attendance record:', change);
+          return null;
+        }
+        
+        return {
+          teacherId: cellData.teacherId,
+          timetableId: cellData.timetableId,
+          status: change.status === 'on-time' ? 'On Time' : 
+                  change.status === 'late' ? 'Late' : 
+                  change.status === 'absent' ? 'Absent' : 
+                  change.status === 'cancelled' ? 'Cancelled' : 'On Time',
+          date: selectedDate,
+          lateMinutes: change.lateMinutes || null,
+          lateType: change.lateMinutes ? `${change.lateMinutes} min` : null,
+          markedBy: user._id
+        };
+      }).filter(record => record !== null); // Remove null records
+      
+      console.log('Attendance records to save:', attendanceRecords);
+      console.log('Individual record details:', JSON.stringify(attendanceRecords, null, 2));
+      
+      if (attendanceRecords.length === 0) {
+        toast.error('No valid attendance records to save');
+        return;
+      }
       
       const response = await teacherAttendanceAPI.markBulkAttendance(attendanceRecords);
       
