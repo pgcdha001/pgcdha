@@ -41,15 +41,15 @@ const TimetableGrid = ({
       <div className="overflow-x-auto border border-gray-300 rounded-lg">
         <div className="min-w-max">
           <table className="w-full border-collapse">
-            {/* Header with class names */}
+            {/* Header with time slots */}
             <thead>
               <tr>
                 <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left font-semibold sticky left-0 z-10 min-w-[120px]">
-                  Time
+                  Class
                 </th>
-                {classes.map(cls => (
-                  <th key={cls._id} className="border border-gray-300 bg-gray-100 px-3 py-2 text-center font-semibold min-w-[180px]">
-                    {cls.name}
+                {timeSlots.map(slot => (
+                  <th key={slot.start} className="border border-gray-300 bg-gray-100 px-3 py-2 text-center font-semibold min-w-[180px]">
+                    {slot.label}
                   </th>
                 ))}
               </tr>
@@ -57,12 +57,12 @@ const TimetableGrid = ({
             
             {/* Timetable rows */}
             <tbody>
-              {timeSlots.map(slot => (
-                <tr key={slot.start}>
+              {classes.map(cls => (
+                <tr key={cls._id}>
                   <td className="border border-gray-300 bg-gray-50 px-3 py-2 font-medium text-sm sticky left-0 z-10 min-w-[120px]">
-                    {slot.label}
+                    {cls.name}
                   </td>
-                  {classes.map(cls => {
+                  {timeSlots.map(slot => {
                     const cellData = timetableData[cls.name]?.[slot.start] || { isEmpty: true };
                     const changeKey = `${cls.name}_${slot.start}`;
                     const pendingChange = pendingChanges[changeKey];
