@@ -394,31 +394,29 @@ const StudentAttendanceManagement = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-blue-500 rounded-lg">
-                <UserCheck className="h-6 w-6 text-white" />
+        <div className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:h-16">
+              <div className="flex items-center space-x-3 sm:space-x-4 mb-2 sm:mb-0">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <UserCheck className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Student Attendance Management</h1>
+                  <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Mark daily student attendance</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">Student Attendance Management</h1>
-                <p className="text-sm text-gray-600">Mark daily student attendance</p>
+              <div className="flex items-center justify-end space-x-2 text-xs sm:text-sm text-gray-600">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span>{new Date().toLocaleDateString()}</span>
               </div>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Calendar className="h-4 w-4" />
-              <span>{new Date().toLocaleDateString()}</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        </div>      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Controls */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Date
@@ -428,33 +426,36 @@ const StudentAttendanceManagement = () => {
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                 />
               </div>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button
                 onClick={exportToExcel}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
               >
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                <FileSpreadsheet className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Export Excel
               </Button>
               <Button
                 onClick={syncAllAttendance}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
               >
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 {saving ? 'Syncing...' : 'Sync All Data'}
               </Button>
               <Button
                 onClick={() => loadStudentAttendanceData()}
                 disabled={loading}
-                className="bg-gray-600 hover:bg-gray-700 text-white"
+                size="sm"
+                className="bg-gray-600 hover:bg-gray-700 text-white text-xs sm:text-sm"
               >
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Refresh Data
               </Button>
             </div>
@@ -462,34 +463,34 @@ const StudentAttendanceManagement = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">Total Students</span>
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              <span className="text-xs sm:text-sm font-medium text-blue-900 truncate">Total Students</span>
             </div>
-            <p className="text-2xl font-bold text-blue-900 mt-1">{stats.total}</p>
+            <p className="text-lg sm:text-2xl font-bold text-blue-900 mt-1">{stats.total}</p>
           </div>
           
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <span className="text-sm font-medium text-green-900">Present</span>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+              <span className="text-xs sm:text-sm font-medium text-green-900 truncate">Present</span>
             </div>
-            <p className="text-2xl font-bold text-green-900 mt-1">{stats.present}</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-900 mt-1">{stats.present}</p>
           </div>
           
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-red-600" />
-              <span className="text-sm font-medium text-red-900">Absent</span>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+              <span className="text-xs sm:text-sm font-medium text-red-900 truncate">Absent</span>
             </div>
-            <p className="text-2xl font-bold text-red-900 mt-1">{stats.absent}</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-900 mt-1">{stats.absent}</p>
           </div>
         </div>
 
         {/* Class List */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {Array.isArray(classes) && classes.map((classItem) => {
             const classId = classItem._id;
             const isExpanded = expandedClass === classId;
@@ -499,27 +500,27 @@ const StudentAttendanceManagement = () => {
               <div key={classId} className="bg-white rounded-xl shadow-sm border border-gray-200">
                 {/* Class Header */}
                 <div 
-                  className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="p-4 sm:p-6 cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => handleClassClick(classId)}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <School className="h-5 w-5 text-blue-600" />
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                        <School className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm sm:text-lg font-semibold text-gray-900 truncate">
                           {classItem.name}
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">
                           {classItem.grade} {classItem.program} - {classItem.campus} • Floor {classItem.floor} ({floorNames[classItem.floor]})
                         </p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                       <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-xs sm:text-sm font-medium text-gray-900">
                           {students.length} Students
                         </p>
                         <p className="text-xs text-gray-600">
@@ -530,9 +531,9 @@ const StudentAttendanceManagement = () => {
                         </p>
                       </div>
                       {isExpanded ? (
-                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                        <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                       ) : (
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                       )}
                     </div>
                   </div>
@@ -542,34 +543,52 @@ const StudentAttendanceManagement = () => {
                 {isExpanded && (
                   <div className="border-t border-gray-200">
                     {students.length === 0 ? (
-                      <div className="p-6 text-center text-gray-500">
-                        <Users className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                        <p>No students found in this class</p>
+                      <div className="p-4 sm:p-6 text-center text-gray-500">
+                        <Users className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm sm:text-base">No students found in this class</p>
                       </div>
                     ) : (
-                      <div className="p-6">
-                        <div className="space-y-3">
+                      <div className="p-4 sm:p-6">
+                        <div className="space-y-2 sm:space-y-3">
                           {students.map((student) => {
                             const studentKey = `${classId}_${student._id}`;
                             const currentStatus = attendanceData[studentKey];
                             
                             return (
-                              <div key={student._id} className="w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-gray-900 truncate">
-                                      {student.fullName?.firstName && student.fullName?.lastName 
-                                        ? `${student.fullName.firstName} ${student.fullName.lastName}`
-                                        : student.name || 'Unknown'}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                      Roll: {student.rollNumber || 'N/A'}
-                                    </p>
+                              <div key={student._id} className="w-full p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                                  <div className="flex items-center justify-between sm:justify-start flex-1 min-w-0">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
+                                        {student.fullName?.firstName && student.fullName?.lastName 
+                                          ? `${student.fullName.firstName} ${student.fullName.lastName}`
+                                          : student.name || 'Unknown'}
+                                      </p>
+                                      <p className="text-xs sm:text-sm text-gray-600">
+                                        Roll: {student.rollNumber || 'N/A'}
+                                      </p>
+                                    </div>
+                                    
+                                    {/* Status Indicator */}
+                                    {currentStatus && (
+                                      <div className="ml-2 sm:hidden">
+                                        {currentStatus === 'Present' && (
+                                          <div className="flex items-center text-green-600">
+                                            <CheckCircle className="h-4 w-4" />
+                                          </div>
+                                        )}
+                                        {currentStatus === 'Absent' && (
+                                          <div className="flex items-center text-red-600">
+                                            <XCircle className="h-4 w-4" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
-                                  
-                                  {/* Status Indicator */}
+
+                                  {/* Status Indicator for larger screens */}
                                   {currentStatus && (
-                                    <div className="ml-3">
+                                    <div className="hidden sm:block ml-3">
                                       {currentStatus === 'Present' && (
                                         <div className="flex items-center text-green-600">
                                           <CheckCircle className="h-5 w-5" />
@@ -584,21 +603,21 @@ const StudentAttendanceManagement = () => {
                                   )}
                                 </div>
 
-                                <div className="flex gap-2 w-full">
+                                <div className="flex gap-2 w-full mt-2">
                                   {/* Attendance Buttons */}
                                   <button
                                     onClick={() => handleAttendanceChange(classId, student._id, 'Present')}
                                     disabled={savingAttendance[studentKey]}
-                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                                    className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50 ${
                                       currentStatus === 'Present'
                                         ? 'bg-green-600 text-white shadow-md'
                                         : 'bg-white text-gray-700 border border-gray-300 hover:bg-green-50 hover:border-green-300 hover:text-green-700'
                                     }`}
                                   >
                                     {savingAttendance[studentKey] && currentStatus === 'Present' ? (
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                                     ) : (
-                                      <CheckCircle className="h-4 w-4" />
+                                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                                     )}
                                     Present
                                   </button>
@@ -606,16 +625,16 @@ const StudentAttendanceManagement = () => {
                                   <button
                                     onClick={() => handleAttendanceChange(classId, student._id, 'Absent')}
                                     disabled={savingAttendance[studentKey]}
-                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                                    className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50 ${
                                       currentStatus === 'Absent'
                                         ? 'bg-red-600 text-white shadow-md'
                                         : 'bg-white text-gray-700 border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-700'
                                     }`}
                                   >
                                     {savingAttendance[studentKey] && currentStatus === 'Absent' ? (
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                                     ) : (
-                                      <XCircle className="h-4 w-4" />
+                                      <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                                     )}
                                     Absent
                                   </button>

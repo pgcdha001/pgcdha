@@ -110,9 +110,17 @@ router.get('/overview', authenticate, requireAnalyticsAccess('view'), applyRoleB
       // when full statistics have not yet been generated.
       try {
         // Aggregate only students that are assigned a class (classId exists)
+        // Ensure we count each student only once by grouping by studentId first, then by zone
         const agg = await StudentAnalytics.aggregate([
           { $match: { academicYear, classId: { $exists: true, $ne: null } } },
-          { $group: { _id: '$overallAnalytics.overallZone', count: { $sum: 1 } } }
+          // First ensure we have only one record per student (should be unique by design, but safety check)
+          { $group: { 
+            _id: '$studentId', 
+            overallZone: { $first: '$overallAnalytics.overallZone' },
+            doc: { $first: '$$ROOT' }
+          }},
+          // Then group by zone to get counts
+          { $group: { _id: '$overallZone', count: { $sum: 1 } } }
         ]);
 
         const zero = { green: 0, blue: 0, yellow: 0, red: 0, unassigned: 0, total: 0 };

@@ -107,33 +107,37 @@ const PrincipalAttendanceReports = () => {
   const stats = getOverallStats();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="mb-4 sm:mb-8">
+          <div className="flex flex-col gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
                 Attendance Reports
               </h1>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 View daily and monthly attendance statistics for all teachers
               </p>
             </div>
             
             {/* Date Selector */}
-            <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-gray-500" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                />
+              </div>
               <Button
                 onClick={() => loadAttendanceData(selectedDate)}
                 disabled={loading}
                 variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm"
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </Button>
@@ -142,75 +146,75 @@ const PrincipalAttendanceReports = () => {
         </div>
 
         {/* Overall Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6 mb-8">
-          <Card className="p-6 bg-white/70 backdrop-blur-sm border-blue-200 hover:shadow-lg transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-full">
-                <Users className="w-6 h-6 text-blue-600" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-8">
+          <Card className="p-3 sm:p-4 lg:p-6 bg-white/70 backdrop-blur-sm border-blue-200 hover:shadow-lg transition-all duration-200">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-3 bg-blue-100 rounded-full">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-blue-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Lectures</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-white/70 backdrop-blur-sm border-green-200 hover:shadow-lg transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-full">
-                <UserCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">On Time</p>
-                <p className="text-2xl font-bold text-green-600">{stats.onTime}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Lectures</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600">{stats.total}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-white/70 backdrop-blur-sm border-yellow-200 hover:shadow-lg transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-yellow-100 rounded-full">
-                <Clock className="w-6 h-6 text-yellow-600" />
+          <Card className="p-3 sm:p-4 lg:p-6 bg-white/70 backdrop-blur-sm border-green-200 hover:shadow-lg transition-all duration-200">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-3 bg-green-100 rounded-full">
+                <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Late</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.late}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-white/70 backdrop-blur-sm border-red-200 hover:shadow-lg transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-red-100 rounded-full">
-                <UserX className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Absent</p>
-                <p className="text-2xl font-bold text-red-600">{stats.absent}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">On Time</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{stats.onTime}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-white/70 backdrop-blur-sm border-purple-200 hover:shadow-lg transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-100 rounded-full">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
+          <Card className="p-3 sm:p-4 lg:p-6 bg-white/70 backdrop-blur-sm border-yellow-200 hover:shadow-lg transition-all duration-200">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-3 bg-yellow-100 rounded-full">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-yellow-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Punctuality</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.punctuality}%</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Late</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-yellow-600">{stats.late}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-white/70 backdrop-blur-sm border-gray-200 hover:shadow-lg transition-all duration-200">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gray-100 rounded-full">
-                <UserX className="w-6 h-6 text-gray-600" />
+          <Card className="p-3 sm:p-4 lg:p-6 bg-white/70 backdrop-blur-sm border-red-200 hover:shadow-lg transition-all duration-200">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-3 bg-red-100 rounded-full">
+                <UserX className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-red-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Cancelled</p>
-                <p className="text-2xl font-bold text-gray-600">{stats.cancelled}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Absent</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-red-600">{stats.absent}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-3 sm:p-4 lg:p-6 bg-white/70 backdrop-blur-sm border-purple-200 hover:shadow-lg transition-all duration-200">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-3 bg-purple-100 rounded-full">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-purple-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Punctuality</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600">{stats.punctuality}%</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-3 sm:p-4 lg:p-6 bg-white/70 backdrop-blur-sm border-gray-200 hover:shadow-lg transition-all duration-200">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-3 bg-gray-100 rounded-full">
+                <UserX className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-gray-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Cancelled</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-600">{stats.cancelled}</p>
               </div>
             </div>
           </Card>
@@ -218,39 +222,39 @@ const PrincipalAttendanceReports = () => {
 
         {/* Floor-wise Breakdown */}
         {attendanceData?.floorSummaries && (
-          <Card className="p-6 mb-8 bg-white/70 backdrop-blur-sm">
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-              <Building className="w-5 h-5" />
+          <Card className="p-4 sm:p-6 mb-4 sm:mb-8 bg-white/70 backdrop-blur-sm">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-6 flex items-center gap-2">
+              <Building className="w-4 h-4 sm:w-5 sm:h-5" />
               Floor-wise Attendance Summary
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               {Object.entries(attendanceData.floorSummaries).map(([floor, summary]) => (
-                <div key={floor} className="p-4 border border-gray-200 rounded-lg bg-white/50">
-                  <h3 className="font-semibold text-lg mb-3 text-gray-800">
+                <div key={floor} className="p-3 sm:p-4 border border-gray-200 rounded-lg bg-white/50">
+                  <h3 className="font-semibold text-sm sm:text-base lg:text-lg mb-2 sm:mb-3 text-gray-800">
                     Floor {floor} - {floorNames[floor]}
                   </h3>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-1 sm:space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Total:</span>
-                      <span className="font-medium">{summary.total}</span>
+                      <span className="text-xs sm:text-sm text-gray-600">Total:</span>
+                      <span className="font-medium text-xs sm:text-sm">{summary.total}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-green-600">On Time:</span>
-                      <span className="font-medium text-green-600">{summary.onTime}</span>
+                      <span className="text-xs sm:text-sm text-green-600">On Time:</span>
+                      <span className="font-medium text-green-600 text-xs sm:text-sm">{summary.onTime}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-yellow-600">Late:</span>
-                      <span className="font-medium text-yellow-600">{summary.late}</span>
+                      <span className="text-xs sm:text-sm text-yellow-600">Late:</span>
+                      <span className="font-medium text-yellow-600 text-xs sm:text-sm">{summary.late}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-red-600">Absent:</span>
-                      <span className="font-medium text-red-600">{summary.absent}</span>
+                      <span className="text-xs sm:text-sm text-red-600">Absent:</span>
+                      <span className="font-medium text-red-600 text-xs sm:text-sm">{summary.absent}</span>
                     </div>
-                    <div className="flex justify-between border-t pt-2">
-                      <span className="text-sm text-purple-600">Punctuality:</span>
-                      <span className="font-medium text-purple-600">
+                    <div className="flex justify-between border-t pt-1 sm:pt-2">
+                      <span className="text-xs sm:text-sm text-purple-600">Punctuality:</span>
+                      <span className="font-medium text-purple-600 text-xs sm:text-sm">
                         {summary.total > 0 ? Math.round((summary.onTime / summary.total) * 100) : 0}%
                       </span>
                     </div>
@@ -263,49 +267,49 @@ const PrincipalAttendanceReports = () => {
 
         {/* Monthly Statistics */}
         {monthlyData && (
-          <Card className="p-6 bg-white/70 backdrop-blur-sm">
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
+          <Card className="p-4 sm:p-6 bg-white/70 backdrop-blur-sm">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-6 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
               Monthly Overview - {monthlyData.monthName} {monthlyData.year}
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="p-4 border border-gray-200 rounded-lg bg-blue-50">
-                <h3 className="font-medium text-blue-800 mb-2">Total Teachers</h3>
-                <p className="text-2xl font-bold text-blue-600">{monthlyData.summary?.totalTeachers || 0}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+              <div className="p-3 sm:p-4 border border-gray-200 rounded-lg bg-blue-50">
+                <h3 className="font-medium text-blue-800 mb-1 sm:mb-2 text-sm sm:text-base">Total Teachers</h3>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{monthlyData.summary?.totalTeachers || 0}</p>
               </div>
-              <div className="p-4 border border-gray-200 rounded-lg bg-green-50">
-                <h3 className="font-medium text-green-800 mb-2">Total Lectures</h3>
-                <p className="text-2xl font-bold text-green-600">{monthlyData.summary?.totalLectures || 0}</p>
+              <div className="p-3 sm:p-4 border border-gray-200 rounded-lg bg-green-50">
+                <h3 className="font-medium text-green-800 mb-1 sm:mb-2 text-sm sm:text-base">Total Lectures</h3>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{monthlyData.summary?.totalLectures || 0}</p>
               </div>
-              <div className="p-4 border border-gray-200 rounded-lg bg-purple-50">
-                <h3 className="font-medium text-purple-800 mb-2">Overall Punctuality</h3>
-                <p className="text-2xl font-bold text-purple-600">{monthlyData.summary?.overallPunctuality || 0}%</p>
+              <div className="p-3 sm:p-4 border border-gray-200 rounded-lg bg-purple-50">
+                <h3 className="font-medium text-purple-800 mb-1 sm:mb-2 text-sm sm:text-base">Overall Punctuality</h3>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{monthlyData.summary?.overallPunctuality || 0}%</p>
               </div>
             </div>
 
             {/* Status breakdown incl. late buckets */}
             {monthlyData.summary?.breakdown && (
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-                <div className="p-4 rounded-lg border border-green-200 bg-green-50">
-                  <p className="text-sm text-green-800">On Time</p>
-                  <p className="text-xl font-bold text-green-700">{monthlyData.summary.breakdown.onTime}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-8">
+                <div className="p-2 sm:p-3 lg:p-4 rounded-lg border border-green-200 bg-green-50">
+                  <p className="text-xs sm:text-sm text-green-800 truncate">On Time</p>
+                  <p className="text-lg sm:text-xl font-bold text-green-700">{monthlyData.summary.breakdown.onTime}</p>
                 </div>
-                <div className="p-4 rounded-lg border border-yellow-200 bg-yellow-50">
-                  <p className="text-sm text-yellow-800">Late 5–10 min</p>
-                  <p className="text-xl font-bold text-yellow-700">{monthlyData.summary.breakdown.late5to10}</p>
+                <div className="p-2 sm:p-3 lg:p-4 rounded-lg border border-yellow-200 bg-yellow-50">
+                  <p className="text-xs sm:text-sm text-yellow-800 truncate">Late 5–10 min</p>
+                  <p className="text-lg sm:text-xl font-bold text-yellow-700">{monthlyData.summary.breakdown.late5to10}</p>
                 </div>
-                <div className="p-4 rounded-lg border border-orange-200 bg-orange-50">
-                  <p className="text-sm text-orange-800">Late &gt; 10 min</p>
-                  <p className="text-xl font-bold text-orange-700">{monthlyData.summary.breakdown.lateOver10}</p>
+                <div className="p-2 sm:p-3 lg:p-4 rounded-lg border border-orange-200 bg-orange-50">
+                  <p className="text-xs sm:text-sm text-orange-800 truncate">Late &gt; 10 min</p>
+                  <p className="text-lg sm:text-xl font-bold text-orange-700">{monthlyData.summary.breakdown.lateOver10}</p>
                 </div>
-                <div className="p-4 rounded-lg border border-red-200 bg-red-50">
-                  <p className="text-sm text-red-800">Not Attended</p>
-                  <p className="text-xl font-bold text-red-700">{monthlyData.summary.breakdown.notAttended}</p>
+                <div className="p-2 sm:p-3 lg:p-4 rounded-lg border border-red-200 bg-red-50">
+                  <p className="text-xs sm:text-sm text-red-800 truncate">Not Attended</p>
+                  <p className="text-lg sm:text-xl font-bold text-red-700">{monthlyData.summary.breakdown.notAttended}</p>
                 </div>
-                <div className="p-4 rounded-lg border border-gray-200 bg-gray-50">
-                  <p className="text-sm text-gray-800">Cancelled</p>
-                  <p className="text-xl font-bold text-gray-700">{monthlyData.summary.breakdown.cancelled}</p>
+                <div className="p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-200 bg-gray-50 col-span-2 sm:col-span-1">
+                  <p className="text-xs sm:text-sm text-gray-800 truncate">Cancelled</p>
+                  <p className="text-lg sm:text-xl font-bold text-gray-700">{monthlyData.summary.breakdown.cancelled}</p>
                 </div>
               </div>
             )}
@@ -313,41 +317,41 @@ const PrincipalAttendanceReports = () => {
             {/* Teachers List with per-teacher breakdown */}
             {monthlyData.teachers && monthlyData.teachers.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-800 mb-4">Teacher Performance Summary</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <h3 className="font-medium text-gray-800 mb-3 sm:mb-4 text-sm sm:text-base">Teacher Performance Summary</h3>
+                <div className="space-y-2 sm:space-y-3 max-h-80 sm:max-h-96 overflow-y-auto">
                   {monthlyData.teachers.map((teacher, index) => (
                     <div key={index} className="p-3 border border-gray-200 rounded-lg bg-white/50">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-800">{getTeacherName(teacher)}</p>
-                          <p className="text-sm text-gray-600">Total Lectures: {teacher.totalLectures}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-800 text-sm sm:text-base truncate">{getTeacherName(teacher)}</p>
+                          <p className="text-xs sm:text-sm text-gray-600">Total Lectures: {teacher.totalLectures}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-purple-600">{teacher.punctualityPercentage}%</p>
+                        <div className="text-left sm:text-right flex-shrink-0">
+                          <p className="font-semibold text-purple-600 text-sm sm:text-base">{teacher.punctualityPercentage}%</p>
                           <p className="text-xs text-gray-500">Punctuality</p>
                         </div>
                       </div>
                       {teacher.breakdown && (
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
-                          <div className="p-2 rounded border border-green-200 bg-green-50 text-center">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2 mt-2 sm:mt-3">
+                          <div className="p-1 sm:p-2 rounded border border-green-200 bg-green-50 text-center">
                             <p className="text-xs text-green-800">On Time</p>
-                            <p className="text-sm font-semibold text-green-700">{teacher.breakdown.onTime}</p>
+                            <p className="text-xs sm:text-sm font-semibold text-green-700">{teacher.breakdown.onTime}</p>
                           </div>
-                          <div className="p-2 rounded border border-yellow-200 bg-yellow-50 text-center">
+                          <div className="p-1 sm:p-2 rounded border border-yellow-200 bg-yellow-50 text-center">
                             <p className="text-xs text-yellow-800">Late 5–10</p>
-                            <p className="text-sm font-semibold text-yellow-700">{teacher.breakdown.late5to10}</p>
+                            <p className="text-xs sm:text-sm font-semibold text-yellow-700">{teacher.breakdown.late5to10}</p>
                           </div>
-                          <div className="p-2 rounded border border-orange-200 bg-orange-50 text-center">
+                          <div className="p-1 sm:p-2 rounded border border-orange-200 bg-orange-50 text-center">
                             <p className="text-xs text-orange-800">Late &gt; 10</p>
-                            <p className="text-sm font-semibold text-orange-700">{teacher.breakdown.lateOver10}</p>
+                            <p className="text-xs sm:text-sm font-semibold text-orange-700">{teacher.breakdown.lateOver10}</p>
                           </div>
-                          <div className="p-2 rounded border border-red-200 bg-red-50 text-center">
+                          <div className="p-1 sm:p-2 rounded border border-red-200 bg-red-50 text-center">
                             <p className="text-xs text-red-800">Not Attended</p>
-                            <p className="text-sm font-semibold text-red-700">{teacher.breakdown.notAttended}</p>
+                            <p className="text-xs sm:text-sm font-semibold text-red-700">{teacher.breakdown.notAttended}</p>
                           </div>
-                          <div className="p-2 rounded border border-gray-200 bg-gray-50 text-center">
+                          <div className="p-1 sm:p-2 rounded border border-gray-200 bg-gray-50 text-center col-span-2 sm:col-span-1">
                             <p className="text-xs text-gray-800">Cancelled</p>
-                            <p className="text-sm font-semibold text-gray-700">{teacher.breakdown.cancelled}</p>
+                            <p className="text-xs sm:text-sm font-semibold text-gray-700">{teacher.breakdown.cancelled}</p>
                           </div>
                         </div>
                       )}
