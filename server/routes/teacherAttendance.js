@@ -887,8 +887,10 @@ router.get('/date/:date', authenticate, async (req, res) => {
     console.log('GET /date/:date route hit with date:', req.params.date);
     const { date } = req.params;
     
-    const queryDate = new Date(date);
-    queryDate.setHours(0, 0, 0, 0);
+    // Parse date correctly to avoid timezone issues
+    // Input should be in YYYY-MM-DD format
+    const [year, month, day] = date.split('-').map(Number);
+    const queryDate = new Date(year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
     
     console.log('Querying attendance for date:', queryDate);
     

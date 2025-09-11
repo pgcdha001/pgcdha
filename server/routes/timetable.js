@@ -558,11 +558,16 @@ router.get('/floors/:floors/date/:date', authenticate, async (req, res) => {
     const classIds = classes.map(cls => cls._id);
     
     // Get timetable entries for the date and classes
+    // Parse date correctly to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+    const endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+    
     const timetable = await Timetable.find({
       classId: { $in: classIds },
       weekDate: {
-        $gte: new Date(date),
-        $lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000)
+        $gte: startDate,
+        $lte: endDate
       },
       isActive: true
     })

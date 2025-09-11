@@ -776,7 +776,9 @@ router.put('/:id',
       matricTotal,
       academicBackground, // Add academic background support
       enquiryLevel,
-      admissionInfo
+      admissionInfo,
+      coordinatorGrade, // For coordinator role assignment
+      coordinatorCampus // For coordinator role assignment
     } = req.body;
 
     // Get current user to check if email is changing
@@ -911,6 +913,15 @@ router.put('/:id',
         emergencyContact: typeof emergencyContact === 'string' ? 
           { name: emergencyContact, relationship: '', phone: '' } : 
           emergencyContact
+      };
+    }
+
+    // Handle coordinator assignment if provided
+    const normalizedRole = role ? normalizeRole(role) : currentUser.role;
+    if (normalizedRole === 'Coordinator' && coordinatorGrade && coordinatorCampus) {
+      updateData.coordinatorAssignment = {
+        grade: coordinatorGrade,
+        campus: coordinatorCampus
       };
     }
 
