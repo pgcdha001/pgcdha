@@ -397,45 +397,45 @@ const AdvancedStatistics = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Header */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-accent/80 text-white shadow-lg">
-              <BarChart3 className="h-8 w-8" />
+      <div className="bg-white/60 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl border border-border/50 p-4 sm:p-6 lg:p-8 transition-all duration-300 hover:shadow-2xl hover:bg-white/70">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/90 to-accent/80 text-white shadow-lg flex-shrink-0">
+              <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8" />
             </div>
-            <div>
-              <h2 className="text-3xl font-bold text-primary mb-2 font-[Sora,Inter,sans-serif] tracking-tight">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-primary mb-1 sm:mb-2 font-[Sora,Inter,sans-serif] tracking-tight truncate">
                 Advanced Statistics
               </h2>
-              <p className="text-muted-foreground font-medium">
+              <p className="text-sm sm:text-base text-muted-foreground font-medium truncate">
                 Comprehensive analytics and insights across all system modules
               </p>
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-shrink-0">
             {/* Time Filter */}
             <div className="relative w-full sm:w-auto">
               <Listbox value={selectedTimeFilter} onChange={setSelectedTimeFilter}>
                 <div className="relative">
-                  <Listbox.Button className="relative w-full sm:w-48 cursor-default rounded-xl bg-white/80 backdrop-blur-sm py-3 pl-4 pr-10 text-left shadow-lg border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                  <Listbox.Button className="relative w-full sm:w-48 cursor-default rounded-lg sm:rounded-xl bg-white/80 backdrop-blur-sm py-2.5 sm:py-3 pl-3 sm:pl-4 pr-8 sm:pr-10 text-left shadow-lg border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/50">
                     <span className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span className="block truncate font-medium">{selectedTimeFilter.name}</span>
+                      <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="block truncate font-medium text-sm sm:text-base">{selectedTimeFilter.name}</span>
                     </span>
                     <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                      <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      <ChevronUpDownIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" aria-hidden="true" />
                     </span>
                   </Listbox.Button>
                   <Transition leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white/95 backdrop-blur-xl py-1 shadow-2xl border border-border/50 focus:outline-none">
+                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg sm:rounded-xl bg-white/95 backdrop-blur-xl py-1 shadow-2xl border border-border/50 focus:outline-none">
                       {timeFilters.map((filter) => (
                         <Listbox.Option
                           key={filter.id}
                           className={({ active }) =>
-                            `relative cursor-default select-none py-2 pl-10 pr-4 ${
+                            `relative cursor-default select-none py-2 pl-8 sm:pl-10 pr-4 ${
                               active ? 'bg-primary/10 text-primary' : 'text-gray-900'
                             }`
                           }
@@ -443,12 +443,12 @@ const AdvancedStatistics = () => {
                         >
                           {({ selected }) => (
                             <>
-                              <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                              <span className={`block truncate text-sm sm:text-base ${selected ? 'font-medium' : 'font-normal'}`}>
                                 {filter.name}
                               </span>
                               {selected ? (
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary">
-                                  <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-2 sm:pl-3 text-primary">
+                                  <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                                 </span>
                               ) : null}
                             </>
@@ -461,36 +461,38 @@ const AdvancedStatistics = () => {
               </Listbox>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 sm:gap-2">
               <Button
                 variant="outline"
                 onClick={fetchAdvancedStatistics}
-                className="flex items-center gap-2 bg-white/80 backdrop-blur-sm border-border/50"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white/80 backdrop-blur-sm border-border/50 text-sm px-3 py-2"
               >
                 <RefreshCw className="h-4 w-4" />
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
+                <span className="sm:hidden">Refresh</span>
               </Button>
               <Button
                 variant="default"
                 onClick={exportAnalytics}
-                className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-accent text-white text-sm px-3 py-2"
               >
                 <Download className="h-4 w-4" />
-                Export
+                <span className="hidden sm:inline">Export</span>
+                <span className="sm:hidden">Export</span>
               </Button>
             </div>
           </div>
         </div>
         
         {lastUpdated && (
-          <div className="mt-4 text-sm text-muted-foreground">
+          <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-muted-foreground">
             Last updated: {format(lastUpdated, 'PPpp')}
           </div>
         )}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {[
           { title: 'Total Users', value: summaryStats.totalUsers, icon: Users, colorClass: 'bg-blue-100 text-blue-600' },
           { title: 'New Registrations', value: summaryStats.newRegistrations, icon: UserPlus, colorClass: 'bg-green-100 text-green-600' },
@@ -517,7 +519,7 @@ const AdvancedStatistics = () => {
           <MessageSquare className="h-5 w-5" />
           Correspondence Statistics
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {[
             { 
               title: 'Total Remarks', 
@@ -567,7 +569,7 @@ const AdvancedStatistics = () => {
       </Card>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
         {/* User Growth Trend */}
         <Card className="bg-white/60 backdrop-blur-xl border-border/50 p-6">
           <h3 className="text-xl font-bold text-primary mb-6 flex items-center gap-2">
@@ -690,7 +692,7 @@ const AdvancedStatistics = () => {
           <Database className="h-5 w-5" />
           System Performance Metrics
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
           {systemMetrics.map((metric, index) => (
             <div key={index} className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-border/30">
               <div className="flex items-center justify-between">
@@ -783,7 +785,7 @@ const AdvancedStatistics = () => {
             />
           </ComposedChart>
         </ResponsiveContainer>
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
           {[
             { level: 'Level 1', key: 'level1', color: '#1f77b4' },
             { level: 'Level 2', key: 'level2', color: '#ff7f0e' },

@@ -335,29 +335,29 @@ const CoordinatorTimetablePage = () => {
   const hasPendingChanges = Object.keys(pendingChanges).length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 lg:p-6">
       <div className="max-w-full mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-4 sm:mb-6 lg:mb-8">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
             {sectionTitle} - Timetable Management
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             {user.role === 'Coordinator' ? 'Manage teacher attendance for your assigned floor' : 'View timetable and attendance status'}
           </p>
           
           {/* Floor Info */}
-          <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-4 text-sm">
+          <div className="mt-3 sm:mt-4 bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
                 <span className="font-medium text-blue-900">
                   Assigned Floor: {assignedFloor} ({sectionTitle})
                 </span>
               </div>
               <div className="text-blue-700">
                 {user?.coordinatorAssignment && (
-                  <span className="mr-4">
+                  <span className="mr-2 sm:mr-4">
                     {user.coordinatorAssignment.grade} {user.coordinatorAssignment.campus}
                   </span>
                 )}
@@ -368,37 +368,45 @@ const CoordinatorTimetablePage = () => {
         </div>
 
         {/* Controls */}
-        <TimetableControls
-          selectedDate={selectedDate}
-          onDateChange={setSelectedDate}
-          onRefresh={fetchTimetableData}
-          onSave={saveAttendanceChanges}
-          hasPendingChanges={hasPendingChanges}
-          saving={saving}
-          userRole={user.role}
-        />
+        <div className="mb-4 sm:mb-6 overflow-x-auto -mx-3 sm:mx-0">
+          <TimetableControls
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            onRefresh={fetchTimetableData}
+            onSave={saveAttendanceChanges}
+            hasPendingChanges={hasPendingChanges}
+            saving={saving}
+            userRole={user.role}
+          />
+        </div>
 
         {/* Legend */}
-        <AttendanceLegend />
+        <div className="mb-4 sm:mb-6">
+          <AttendanceLegend />
+        </div>
 
         {/* Timetable Grid */}
-        <TimetableGrid
-          classes={classes}
-          timeSlots={timeSlots}
-          timetableData={timetableData}
-          attendanceData={attendanceData}
-          pendingChanges={pendingChanges}
-          onAttendanceChange={handleAttendanceChange}
-          userRole={user.role}
-          assignedFloor={assignedFloor}
-        />
+        <div className="mb-4 sm:mb-6 overflow-hidden">
+          <TimetableGrid
+            classes={classes}
+            timeSlots={timeSlots}
+            timetableData={timetableData}
+            attendanceData={attendanceData}
+            pendingChanges={pendingChanges}
+            onAttendanceChange={handleAttendanceChange}
+            userRole={user.role}
+            assignedFloor={assignedFloor}
+          />
+        </div>
 
         {/* Statistics */}
-        <TimetableStats
-          timetableData={timetableData}
-          pendingChanges={pendingChanges}
-          classes={classes}
-        />
+        <div className="overflow-hidden">
+          <TimetableStats
+            timetableData={timetableData}
+            pendingChanges={pendingChanges}
+            classes={classes}
+          />
+        </div>
       </div>
     </div>
   );

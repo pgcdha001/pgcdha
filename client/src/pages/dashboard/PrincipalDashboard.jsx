@@ -112,16 +112,18 @@ const PrincipalDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader 
-        title="Principal Dashboard"
-        subtitle="Overview of institute operations and management"
-        showNotifications={true}
-        refreshDashboard={refreshDashboard}
-        loading={loading}
-      />
+      <div className="p-3 sm:p-4 lg:p-6">
+        <DashboardHeader 
+          title="Principal Dashboard"
+          subtitle="Overview of institute operations and management"
+          showNotifications={true}
+          refreshDashboard={refreshDashboard}
+          loading={loading}
+        />
+      </div>
       
-      <div className="w-full py-6 px-4 lg:py-8 lg:px-6 2xl:px-8">
-        <div className="max-w-screen grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <div className="w-full py-4 px-3 sm:py-6 sm:px-4 lg:py-8 lg:px-6 2xl:px-8">
+        <div className="max-w-full grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
           {/* Main content */}
           <div className="lg:col-span-8 xl:col-span-9">
             <DashboardGrid
@@ -134,7 +136,7 @@ const PrincipalDashboard = () => {
           </div>
 
           {/* Right sidebar notifications */}
-          <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+          <div className="lg:col-span-4 xl:col-span-3 space-y-4 sm:space-y-6">
             <RedZoneStudentsNotification compact />
             <LateTeacherNotifications compact />
             <LateMarksheetNotifications compact />

@@ -402,19 +402,19 @@ const TeacherAttendanceManagement = () => {
                 disabled={loading}
                 variant="outline"
                 size="sm"
-                className="border-gray-300 hover:bg-gray-50 text-xs sm:text-sm"
+                className="border-gray-300 hover:bg-gray-50 text-xs sm:text-sm w-full sm:w-auto"
               >
                 <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                <span className="truncate">{loading ? 'Loading...' : 'Refresh'}</span>
               </Button>
               <Button
                 onClick={saveAllAttendance}
                 disabled={saving || Object.keys(attendanceData).length === 0}
                 size="sm"
-                className="bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm w-full sm:w-auto"
               >
                 <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                {saving ? 'Saving...' : 'Save All'}
+                <span className="truncate">{saving ? 'Saving...' : 'Save All'}</span>
               </Button>
             </div>
           </div>

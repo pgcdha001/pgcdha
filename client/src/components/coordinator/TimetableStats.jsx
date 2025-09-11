@@ -108,58 +108,60 @@ const TimetableStats = ({ timetableData, pendingChanges, classes }) => {
   const stats = calculateStats();
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold mb-4">Attendance Statistics</h3>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+      <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Attendance Statistics</h3>
       
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
-        <div className="bg-green-100 p-3 rounded text-center">
-          <div className="font-semibold text-green-800">On Time</div>
-          <div className="text-green-600">{stats.onTime}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4 text-xs sm:text-sm">
+        <div className="bg-green-100 p-2 sm:p-3 rounded text-center">
+          <div className="font-semibold text-green-800 truncate">On Time</div>
+          <div className="text-green-600 text-sm sm:text-base font-bold">{stats.onTime}</div>
         </div>
         
-        <div className="bg-yellow-100 p-3 rounded text-center">
-          <div className="font-semibold text-yellow-800">5-9 Min Late</div>
-          <div className="text-yellow-600">{stats.late5to9}</div>
+        <div className="bg-yellow-100 p-2 sm:p-3 rounded text-center">
+          <div className="font-semibold text-yellow-800 truncate">5-9 Min Late</div>
+          <div className="text-yellow-600 text-sm sm:text-base font-bold">{stats.late5to9}</div>
         </div>
         
-        <div className="bg-red-100 p-3 rounded text-center">
-          <div className="font-semibold text-red-800">10+ Min Late</div>
-          <div className="text-red-600">{stats.late10plus}</div>
+        <div className="bg-red-100 p-2 sm:p-3 rounded text-center">
+          <div className="font-semibold text-red-800 truncate">10+ Min Late</div>
+          <div className="text-red-600 text-sm sm:text-base font-bold">{stats.late10plus}</div>
         </div>
         
-        <div className="bg-purple-100 p-3 rounded text-center">
-          <div className="font-semibold text-purple-800">Replaced</div>
-          <div className="text-purple-600">{stats.replaced}</div>
+        <div className="bg-purple-100 p-2 sm:p-3 rounded text-center">
+          <div className="font-semibold text-purple-800 truncate">Replaced</div>
+          <div className="text-purple-600 text-sm sm:text-base font-bold">{stats.replaced}</div>
         </div>
         
-        <div className="bg-gray-100 p-3 rounded text-center">
-          <div className="font-semibold text-gray-800">Absent</div>
-          <div className="text-gray-600">{stats.absent}</div>
+        <div className="bg-gray-100 p-2 sm:p-3 rounded text-center">
+          <div className="font-semibold text-gray-800 truncate">Absent</div>
+          <div className="text-gray-600 text-sm sm:text-base font-bold">{stats.absent}</div>
         </div>
         
-        <div className="bg-blue-100 p-3 rounded text-center">
-          <div className="font-semibold text-blue-800">Not Marked</div>
-          <div className="text-blue-600">{stats.notMarked}</div>
+        <div className="bg-blue-100 p-2 sm:p-3 rounded text-center">
+          <div className="font-semibold text-blue-800 truncate">Not Marked</div>
+          <div className="text-blue-600 text-sm sm:text-base font-bold">{stats.notMarked}</div>
         </div>
       </div>
       
       {/* Summary */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Total Classes:</span>
-          <span className="font-semibold">{stats.total}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Marked:</span>
-          <span className="font-semibold text-green-600">
-            {stats.total - stats.notMarked} ({stats.total > 0 ? Math.round(((stats.total - stats.notMarked) / stats.total) * 100) : 0}%)
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Pending Changes:</span>
-          <span className="font-semibold text-blue-600">
-            {Object.keys(pendingChanges).length}
-          </span>
+      <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-gray-600">Total Classes:</span>
+            <span className="font-semibold">{stats.total}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-gray-600">Marked:</span>
+            <span className="font-semibold text-green-600">
+              {stats.total - stats.notMarked} ({stats.total > 0 ? Math.round(((stats.total - stats.notMarked) / stats.total) * 100) : 0}%)
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-gray-600">Pending Changes:</span>
+            <span className="font-semibold text-blue-600">
+              {Object.keys(pendingChanges).length}
+            </span>
+          </div>
         </div>
       </div>
     </div>

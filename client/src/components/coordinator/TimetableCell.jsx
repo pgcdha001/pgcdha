@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ChevronDown } from 'lucide-react';
 
-const TimetableCell = ({ cellData, pendingChange, onAttendanceChange, userRole }) => {
+const TimetableCell = ({ cellData, pendingChange, onAttendanceChange, userRole, isMobile = false }) => {
   const [showLateOptions, setShowLateOptions] = useState(false);
 
   // Determine the effective status (pending change takes precedence)
@@ -11,68 +11,70 @@ const TimetableCell = ({ cellData, pendingChange, onAttendanceChange, userRole }
 
   // Get cell styling based on status
   const getCellStyle = () => {
+    const baseClasses = isMobile ? 'w-full' : 'h-full';
+    
     if (cellData.isBreak) {
-      return 'bg-gray-200 text-gray-600';
+      return `${baseClasses} bg-gray-200 text-gray-600`;
     }
 
     if (cellData.isEmpty) {
-      return 'bg-gray-50 text-gray-400';
+      return `${baseClasses} bg-gray-50 text-gray-400`;
     }
 
     switch (effectiveStatus) {
       case 'on-time':
-        return 'bg-green-100 border-green-300 text-green-800';
+        return `${baseClasses} bg-green-100 border-green-300 text-green-800`;
       case 'late':
         if (effectiveLateMinutes >= 10) {
-          return 'bg-red-100 border-red-300 text-red-800'; // 10+ minutes late
+          return `${baseClasses} bg-red-100 border-red-300 text-red-800`; // 10+ minutes late
         } else {
-          return 'bg-yellow-100 border-yellow-300 text-yellow-800'; // 5-9 minutes late
+          return `${baseClasses} bg-yellow-100 border-yellow-300 text-yellow-800`; // 5-9 minutes late
         }
       case 'replaced':
-        return 'bg-purple-100 border-purple-300 text-purple-800';
+        return `${baseClasses} bg-purple-100 border-purple-300 text-purple-800`;
       case 'absent':
-        return 'bg-gray-100 border-gray-300 text-gray-500';
+        return `${baseClasses} bg-gray-100 border-gray-300 text-gray-500`;
       case 'cancelled':
-        return 'bg-orange-100 border-orange-300 text-orange-700';
+        return `${baseClasses} bg-orange-100 border-orange-300 text-orange-700`;
       case 'not-marked':
-        return 'bg-blue-50 border-blue-200 text-blue-700';
+        return `${baseClasses} bg-blue-50 border-blue-200 text-blue-700`;
       default:
-        return 'bg-white border-gray-200';
+        return `${baseClasses} bg-white border-gray-200`;
     }
   };
 
   // Get cell content for view-only mode
   const getViewOnlyContent = () => {
     if (cellData.isBreak) {
-      return <div className="text-center font-semibold">{cellData.label}</div>;
+      return <div className={`text-center font-semibold ${isMobile ? 'text-sm' : ''}`}>{cellData.label}</div>;
     }
 
     if (cellData.isEmpty) {
-      return <div className="text-center text-xs text-gray-400">No Class</div>;
+      return <div className={`text-center text-gray-400 ${isMobile ? 'text-sm' : 'text-xs'}`}>No Class</div>;
     }
 
     return (
-      <div className="p-1 text-xs">
+      <div className={`${isMobile ? 'p-2' : 'p-1'} ${isMobile ? 'text-sm' : 'text-xs'}`}>
         <div className="font-semibold text-gray-900 truncate">
           {cellData.teacher}
         </div>
         <div className="text-gray-600 truncate">{cellData.subject}</div>
         {effectiveStatus === 'late' && effectiveLateMinutes && (
-          <div className="text-xs font-medium">
+          <div className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium`}>
             {effectiveLateMinutes} min late
           </div>
         )}
         {effectiveStatus === 'absent' && (
-          <div className="text-xs font-medium">Absent</div>
+          <div className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium`}>Absent</div>
         )}
         {effectiveStatus === 'cancelled' && (
-          <div className="text-xs font-medium">Cancelled</div>
+          <div className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium`}>Cancelled</div>
         )}
         {effectiveStatus === 'not-marked' && (
-          <div className="text-xs font-medium">Not Marked</div>
+          <div className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium`}>Not Marked</div>
         )}
         {cellData.remarks && (
-          <div className="text-xs italic text-gray-500 truncate" title={cellData.remarks}>
+          <div className={`${isMobile ? 'text-sm' : 'text-xs'} italic text-gray-500 truncate`} title={cellData.remarks}>
             {cellData.remarks}
           </div>
         )}
@@ -83,15 +85,15 @@ const TimetableCell = ({ cellData, pendingChange, onAttendanceChange, userRole }
   // Get editable content for coordinators
   const getEditableContent = () => {
     if (cellData.isBreak) {
-      return <div className="text-center font-semibold">{cellData.label}</div>;
+      return <div className={`text-center font-semibold ${isMobile ? 'text-sm' : ''}`}>{cellData.label}</div>;
     }
 
     if (cellData.isEmpty) {
-      return <div className="text-center text-xs text-gray-400">No Class</div>;
+      return <div className={`text-center text-gray-400 ${isMobile ? 'text-sm' : 'text-xs'}`}>No Class</div>;
     }
 
     return (
-      <div className="p-1 text-xs">
+      <div className={`${isMobile ? 'p-2' : 'p-1'} ${isMobile ? 'text-sm' : 'text-xs'}`}>
         <div className="font-semibold text-gray-900 truncate mb-1">
           {cellData.teacher}
         </div>
@@ -111,7 +113,7 @@ const TimetableCell = ({ cellData, pendingChange, onAttendanceChange, userRole }
               }
             }}
           >
-            <SelectTrigger className="h-6 text-xs">
+            <SelectTrigger className={`${isMobile ? 'h-8 text-sm' : 'h-6 text-xs'}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -128,7 +130,7 @@ const TimetableCell = ({ cellData, pendingChange, onAttendanceChange, userRole }
               value={effectiveLateMinutes?.toString() || '5'}
               onValueChange={(value) => onAttendanceChange('late', parseInt(value))}
             >
-              <SelectTrigger className="h-6 text-xs">
+              <SelectTrigger className={`${isMobile ? 'h-8 text-sm' : 'h-6 text-xs'}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -145,7 +147,7 @@ const TimetableCell = ({ cellData, pendingChange, onAttendanceChange, userRole }
         
         {/* Pending Change Indicator */}
         {pendingChange && (
-          <div className="mt-1 text-xs text-blue-600 font-medium">
+          <div className={`mt-1 text-blue-600 font-medium ${isMobile ? 'text-sm' : 'text-xs'}`}>
             Pending
           </div>
         )}

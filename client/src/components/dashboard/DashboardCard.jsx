@@ -161,13 +161,13 @@ const DashboardCard = ({
   // If card is disabled, render a disabled version without Link
   if (card.disabled) {
     return (
-      <div className="group bg-white/40 backdrop-blur-xl rounded-2xl p-6 lg:p-4 shadow-lg border border-border/30 opacity-60 cursor-not-allowed min-h-[200px] lg:min-h-[240px] xl:min-h-[280px] 2xl:min-h-[320px]">
+      <div className="group bg-white/40 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-4 shadow-lg border border-border/30 opacity-60 cursor-not-allowed min-h-[180px] sm:min-h-[200px] lg:min-h-[240px] xl:min-h-[280px] 2xl:min-h-[320px]">
         <div className="text-center h-full flex flex-col justify-between">
           <div>
-            <div className={`inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 2xl:w-28 2xl:h-28 rounded-2xl bg-gradient-to-r ${card.bgGradient} text-white shadow-lg mb-4 lg:mb-6 xl:mb-8 opacity-50`}>
-              <Icon className="h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14" />
+            <div className={`inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 2xl:w-28 2xl:h-28 rounded-xl sm:rounded-2xl bg-gradient-to-r ${card.bgGradient} text-white shadow-lg mb-3 sm:mb-4 lg:mb-6 xl:mb-8 opacity-50`}>
+              <Icon className="h-6 w-6 sm:h-8 sm:w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14" />
             </div>
-            <h4 className="text-lg xl:text-2xl 2xl:text-3xl font-semibold text-gray-400 mb-3 lg:mb-4 xl:mb-6">
+            <h4 className="text-base sm:text-lg xl:text-2xl 2xl:text-3xl font-semibold text-gray-400 mb-2 sm:mb-3 lg:mb-4 xl:mb-6 leading-tight">
               {card.title}
             </h4>
           </div>
@@ -175,14 +175,14 @@ const DashboardCard = ({
           <div>
             {/* Description for disabled cards */}
             {card.description && (
-              <div className="mb-4 lg:mb-6 min-h-[1.5rem]">
-                <p className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-gray-500">{card.description}</p>
+              <div className="mb-3 sm:mb-4 lg:mb-6 min-h-[1.5rem]">
+                <p className="text-xs sm:text-sm lg:text-base xl:text-lg 2xl:text-xl text-gray-500 leading-tight">{card.description}</p>
               </div>
             )}
             
             {/* Disabled status */}
-            <div className="inline-block px-4 py-2 lg:px-6 lg:py-3 2xl:px-8 2xl:py-4 rounded-lg bg-gray-400 shadow-md">
-              <p className="text-white text-sm lg:text-base 2xl:text-lg font-medium">
+            <div className="inline-block px-3 py-2 sm:px-4 sm:py-2 lg:px-6 lg:py-3 2xl:px-8 2xl:py-4 rounded-lg bg-gray-400 shadow-md">
+              <p className="text-white text-xs sm:text-sm lg:text-base 2xl:text-lg font-medium">
                 Coming Soon
               </p>
             </div>
@@ -195,14 +195,14 @@ const DashboardCard = ({
   return (
     <Link
       to={card.href}
-      className="group bg-white/60 backdrop-blur-xl rounded-2xl p-6 lg:p-8 2xl:p-10 shadow-lg border border-border/30 transition-all duration-300 hover:shadow-xl hover:bg-white/80 hover:scale-[1.02] hover:border-primary/20 min-h-[200px] lg:min-h-[240px] 2xl:min-h-[280px]"
+      className="group bg-white/60 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 2xl:p-10 shadow-lg border border-border/30 transition-all duration-300 hover:shadow-xl hover:bg-white/80 hover:scale-[1.02] hover:border-primary/20 min-h-[180px] sm:min-h-[200px] lg:min-h-[240px] 2xl:min-h-[280px]"
     >
       <div className="text-center h-full flex flex-col justify-between">
         <div>
-          <div className={`inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 2xl:w-24 2xl:h-24 rounded-2xl bg-gradient-to-r ${card.bgGradient} text-white shadow-lg mb-4 lg:mb-6 2xl:mb-8 group-hover:scale-110 transition-transform duration-300`}>
-            <Icon className="h-8 w-8 lg:h-10 lg:w-10 2xl:h-12 2xl:w-12" />
+          <div className={`inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 2xl:w-24 2xl:h-24 rounded-xl sm:rounded-2xl bg-gradient-to-r ${card.bgGradient} text-white shadow-lg mb-3 sm:mb-4 lg:mb-6 2xl:mb-8 group-hover:scale-110 transition-transform duration-300`}>
+            <Icon className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 2xl:h-12 2xl:w-12" />
           </div>
-          <h4 className="text-lg lg:text-xl 2xl:text-2xl font-semibold text-primary mb-3 lg:mb-4 2xl:mb-6 group-hover:text-accent transition-colors duration-300">
+          <h4 className="text-base sm:text-lg lg:text-xl 2xl:text-2xl font-semibold text-primary mb-2 sm:mb-3 lg:mb-4 2xl:mb-6 group-hover:text-accent transition-colors duration-300 leading-tight">
             {card.title}
           </h4>
         </div>
@@ -210,20 +210,20 @@ const DashboardCard = ({
         <div>
           {/* Description for normal cards */}
           {card.description && !renderRecentActivity() && (
-            <div className="mb-4 lg:mb-6 min-h-[1.5rem]">
-              <p className="text-sm lg:text-base 2xl:text-lg text-gray-600">{card.description}</p>
+            <div className="mb-3 sm:mb-4 lg:mb-6 min-h-[1.5rem]">
+              <p className="text-xs sm:text-sm lg:text-base 2xl:text-lg text-gray-600 leading-tight">{card.description}</p>
             </div>
           )}
           
           {/* Recent Activity */}
           {renderRecentActivity() && (
-            <div className="mb-4 lg:mb-6 min-h-[1.5rem]">
+            <div className="mb-3 sm:mb-4 lg:mb-6 min-h-[1.5rem]">
               {renderRecentActivity()}
             </div>
           )}
           
           {/* Today Count - with background */}
-          <div className={`inline-block px-4 py-2 lg:px-6 lg:py-3 2xl:px-8 2xl:py-4 rounded-lg bg-gradient-to-r ${card.bgGradient} shadow-md group-hover:shadow-lg transition-shadow duration-300`}>
+          <div className={`inline-block px-3 py-2 sm:px-4 sm:py-2 lg:px-6 lg:py-3 2xl:px-8 2xl:py-4 rounded-lg bg-gradient-to-r ${card.bgGradient} shadow-md group-hover:shadow-lg transition-shadow duration-300`}>
             {renderTodayCount()}
           </div>
         </div>

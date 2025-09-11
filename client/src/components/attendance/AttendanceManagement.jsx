@@ -440,8 +440,8 @@ const AttendanceManagement = () => {
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="border-b border-gray-200 overflow-x-auto">
-            <nav className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 min-w-max" aria-label="Tabs">
+          <div className="border-b border-gray-200">
+            <nav className="flex flex-wrap sm:flex-nowrap px-2 sm:px-4 lg:px-6" aria-label="Tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -450,13 +450,13 @@ const AttendanceManagement = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`${
                       activeTab === tab.id
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 transition-colors duration-200`}
+                        ? 'border-blue-500 text-blue-600 bg-blue-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                    } flex-1 sm:flex-none py-2 sm:py-3 lg:py-4 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm flex items-center justify-center space-x-1 sm:space-x-2 transition-all duration-200 min-w-0`}
                   >
-                    <Icon className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">{tab.name}</span>
-                    <span className="sm:hidden">{tab.name.split(' ')[0]}</span>
+                    <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span className="hidden sm:inline truncate">{tab.name}</span>
+                    <span className="sm:hidden truncate text-xs">{tab.shortName || tab.name.split(' ')[0]}</span>
                   </button>
                 );
               })}

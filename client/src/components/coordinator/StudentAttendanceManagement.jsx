@@ -431,32 +431,32 @@ const StudentAttendanceManagement = () => {
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
               <Button
                 onClick={exportToExcel}
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
+                className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm w-full"
               >
-                <FileSpreadsheet className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Export Excel
+                <FileSpreadsheet className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">Export Excel</span>
               </Button>
               <Button
                 onClick={syncAllAttendance}
                 disabled={saving}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm w-full"
               >
-                <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                {saving ? 'Syncing...' : 'Sync All Data'}
+                <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">{saving ? 'Syncing...' : 'Sync All'}</span>
               </Button>
               <Button
                 onClick={() => loadStudentAttendanceData()}
                 disabled={loading}
                 size="sm"
-                className="bg-gray-600 hover:bg-gray-700 text-white text-xs sm:text-sm"
+                className="bg-gray-600 hover:bg-gray-700 text-white text-xs sm:text-sm w-full"
               >
-                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Refresh Data
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">Refresh</span>
               </Button>
             </div>
           </div>
