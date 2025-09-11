@@ -342,8 +342,8 @@ const TeacherAttendanceManagement = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:h-16">
+        <div className="w-full max-w-full mx-auto px-3 sm:px-4 lg:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 sm:py-4">
             <div className="flex items-center space-x-3 sm:space-x-4 mb-2 sm:mb-0">
               <div className="p-2 bg-purple-500 rounded-lg">
                 <UserCheck className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
@@ -361,9 +361,9 @@ const TeacherAttendanceManagement = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="w-full max-w-full mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
         {/* Controls */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="sm:w-auto">
