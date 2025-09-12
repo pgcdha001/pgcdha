@@ -20,8 +20,24 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../hooks/useAuth';
-import { useApiWithToast } from '../../hooks/useApiWithToast';
-import api from '../../services/api';
+import { useApiWithToast } from '../../hooks/useApiWi        {/* Teachers List */}
+        <div className="space-y-3 sm:space-y-4 overflow-hidden">
+          {Array                                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 overflow-hidden">
+                                        {/* Attendance Buttons */}
+                                        <div className="flex gap-1 sm:gap-2 min-w-0 flex-1 sm:flex-none">{Array(filteredTeachers) && filteredTeachers.map((teacher) => {
+            const teacherId = teacher._id;
+            const isExpanded = expandedTeacher === teacherId;
+            const teacherClasses = teacherLectures[teacherId] || {};
+            
+            return (
+              <div key={teacherId} className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                {/* Teacher Header */}
+                <div 
+                  className="p-3 sm:p-4 lg:p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => handleTeacherClick(teacherId)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">t api from '../../services/api';
 
 const TeacherAttendanceManagement = () => {
   const { user } = useAuth();
@@ -339,10 +355,10 @@ const TeacherAttendanceManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="w-full max-w-full mx-auto px-3 sm:px-4 lg:px-6">
+        <div className="w-full px-3 sm:px-4 lg:px-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 sm:py-4">
             <div className="flex items-center space-x-3 sm:space-x-4 mb-2 sm:mb-0">
               <div className="p-2 bg-purple-500 rounded-lg">
@@ -361,7 +377,7 @@ const TeacherAttendanceManagement = () => {
         </div>
       </div>
 
-      <div className="w-full max-w-full mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
+      <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6">
         {/* Controls */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
           <div className="flex flex-col gap-4">
@@ -588,12 +604,12 @@ const TeacherAttendanceManagement = () => {
                                             
                                             {/* Late Minutes Dropdown */}
                                             {showLateOptions[`${teacherId}_${lecture._id}`] && (
-                                              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px] sm:min-w-[150px]">
+                                              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-auto max-w-[140px] sm:max-w-[160px]">
                                                 {lateMinutesOptions.map((option) => (
                                                   <button
                                                     key={option.value}
                                                     onClick={() => handleAttendanceChange(teacherId, lecture._id, 'Late', option.value)}
-                                                    className="block w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-800"
+                                                    className="block w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-800 whitespace-nowrap"
                                                   >
                                                     {option.label}
                                                   </button>
@@ -666,19 +682,19 @@ const TeacherAttendanceManagement = () => {
       {/* Remark Modal */}
       {showRemarkModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
+          <div className="flex min-h-screen items-center justify-center p-3 sm:p-4">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowRemarkModal(false)} />
             
-            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg transform">
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm sm:max-w-lg transform mx-3 sm:mx-0">
               <div className="p-4 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
                   Add Remark
                 </h3>
                 <textarea
                   value={currentRemark.text}
                   onChange={(e) => setCurrentRemark(prev => ({ ...prev, text: e.target.value }))}
                   rows="4"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base resize-none"
                   placeholder="Enter your remark here..."
                 />
               </div>

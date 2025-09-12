@@ -405,10 +405,10 @@ export const DASHBOARD_CARDS = {
   // Coordinator/Floor Head - Teacher supervision + Limited enquiry management (No student management access)
   'Coordinator': [
     {
-      id: 'timetable-management',
-      title: 'Timetable Management',
-      href: '/coordinator/timetable',
-      icon: 'Calendar',
+      id: 'teacher-attendance',
+      title: 'Teacher Attendance',
+      href: '/coordinator/teacher-attendance',
+      icon: 'UserCheck2',
       bgGradient: 'from-green-500 to-green-600',
       type: 'normal',
       permission: null
